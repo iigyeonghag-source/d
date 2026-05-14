@@ -213,18 +213,35 @@ AUTO_MESSAGES = [
     "배고프다.",
     "진짜 기분 like 종훈이",
     "야이 씨발아",
-    "뭘봐"
+    "뭘봐",
+    "ㅋ",
+    "ㅋㅋㅋㅋ",
+    "내 이름은 DORO",
+    "졸리다.",
+    "니들 뭔 겜함?",
+    "내가 진짜 도로다!",
+    "와 도로!"
 ]
 
 CHANNEL_ID = 1502532692275625985
 
 
-@tasks.loop(minutes=30)
-async def random_message():
-    channel = bot.get_channel(CHANNEL_ID)
+async def random_message_loop():
+    await bot.wait_until_ready()
 
-    if channel:
-        await channel.send(random.choice(AUTO_MESSAGES))
+    while not bot.is_closed():
+        channel = bot.get_channel(CHANNEL_ID)
+
+        if channel:
+            await channel.send(random.choice(AUTO_MESSAGES))
+
+        # 20분 ~ 3시간 사이 랜덤
+        wait_time = random.randint(20 * 60, 3 * 60 * 60)
+
+        print(f"{wait_time / 60:.1f}분 후 다음 메시지 전송")
+
+        await asyncio.sleep(wait_time)
+
 
 
 # =========================
@@ -243,7 +260,8 @@ async def on_ready():
 
     print(f"{len(synced)}개 명령어 동기화됨")
     print(f"{bot.user} 로그인 완료!")
-
+    
+    bot.loop.create_task(random_message_loop())
 
 # =========================
 # 명령어
