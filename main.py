@@ -2,7 +2,7 @@ import os
 import discord
 import random
 import asyncio
-from discord.ext import commands, tasks
+from discord.ext import commands
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +12,8 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+auto_message_started = False
 
 
 # =========================
@@ -193,13 +195,12 @@ def qwerty_doro_to_korean(text):
 
     return " ".join(final_result)
 
+
 # =========================
 # 채널별 자동 메시지 설정
 # =========================
 
 CHANNELS = [
-
-    # 기존 채널
     {
         "id": 1502532692275625985,
         "messages": [
@@ -230,8 +231,6 @@ CHANNELS = [
         "min_time": 20,
         "max_time": 180
     },
-
-    # 도박 채널
     {
         "id": 1503162390735228928,
         "messages": [
@@ -241,8 +240,6 @@ CHANNELS = [
         "min_time": 60,
         "max_time": 600
     },
-
-    # 숭배 채널
     {
         "id": 1502533312902598799,
         "messages": [
@@ -253,8 +250,6 @@ CHANNELS = [
         "min_time": 120,
         "max_time": 360
     },
-
-    # 테러 채널(?)
     {
         "id": 1502535053245284482,
         "messages": [
@@ -276,19 +271,18 @@ async def random_message_loop(channel_data):
     await bot.wait_until_ready()
 
     while not bot.is_closed():
-
         channel = bot.get_channel(channel_data["id"])
 
         if channel:
-            await channel.send(
-                random.choice(channel_data["messages"])
-            )
+            await channel.send(random.choice(channel_data["messages"]))
 
-        # 랜덤 대기 시간 (분 단위)
         wait_minutes = random.randint(
             channel_data["min_time"],
             channel_data["max_time"]
         )
+
+        print(f"{channel_data['id']} 채널 → {wait_minutes}분 후 다음 메시지")
+
         await asyncio.sleep(wait_minutes * 60)
 
 
@@ -298,18 +292,22 @@ async def random_message_loop(channel_data):
 
 @bot.event
 async def on_ready():
+    global auto_message_started
+
     guild = discord.Object(id=1502532691495751731)
 
     bot.tree.copy_global_to(guild=guild)
     synced = await bot.tree.sync(guild=guild)
 
-    if not random_message.is_running():
-        random_message.start()
-
     print(f"{len(synced)}개 명령어 동기화됨")
     print(f"{bot.user} 로그인 완료!")
-    
-    bot.loop.create_task(random_message_loop())
+
+    if not auto_message_started:
+        auto_message_started = True
+
+        for channel_data in CHANNELS:
+            bot.loop.create_task(random_message_loop(channel_data))
+
 
 # =========================
 # 명령어
