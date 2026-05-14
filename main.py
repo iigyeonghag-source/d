@@ -4,6 +4,7 @@ import random
 import asyncio
 from discord.ext import commands
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -190,4 +191,133 @@ async def status(interaction: discord.Interaction):
     await interaction.response.send_message(msg)
 
 
+    # =========================
+# 말걸기 명령어
+# =========================
+
+talk_states = {}
+TALK_TIMEOUT = timedelta(minutes=5)
+
+def reset_talk(user_id):
+    if user_id in talk_states:
+        del talk_states[user_id]
+
+
+@bot.tree.command(name="말걸기", description="도로롱에게 말을 건다", guild=GUILD)
+async def talk(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    user_name = interaction.user.display_name
+    now = datetime.now()
+
+    state_data = talk_states.get(user_id)
+
+    if state_data and now > state_data["expires"]:
+        reset_talk(user_id)
+        state_data = None
+
+    if not state_data:
+        msg = random.choice(["뭐", "왜", "ㅗ"])
+
+        if msg in ["뭐", "왜"]:
+            talk_states[user_id] = {
+                "state": "first_normal",
+                "expires": now + TALK_TIMEOUT
+            }
+        else:
+            talk_states[user_id] = {
+                "state": "first_fuck",
+                "expires": now + TALK_TIMEOUT
+            }
+
+        await interaction.response.send_message(msg)
+        return
+
+    state = state_data["state"]
+
+    if state == "first_fuck":
+        reset_talk(user_id)
+        await interaction.response.send_message("응 아니야")
+        return
+
+    if state == "first_normal":
+        msg = random.choice(["말 걸지마 씨발", "왜 그래"])
+
+        if msg == "말 걸지마 씨발":
+            talk_states[user_id] = {
+                "state": "dont_talk",
+                "expires": now + TALK_TIMEOUT
+            }
+        else:
+            talk_states[user_id] = {
+                "state": "why",
+                "expires": now + TALK_TIMEOUT
+            }
+
+        await interaction.response.send_message(msg)
+        return
+
+    if state == "dont_talk":
+        reset_talk(user_id)
+        await interaction.response.send_message("응 아니야")
+        return
+
+    if state == "why":
+        msg = random.choice([
+            "나? 내 이름은 DORO, 도로롱이죠.",
+            "너랑 말 안해"
+        ])
+
+        if msg == "나? 내 이름은 DORO, 도로롱이죠.":
+            talk_states[user_id] = {
+                "state": "introduced",
+                "expires": now + TALK_TIMEOUT
+            }
+        else:
+            reset_talk(user_id)
+
+        await interaction.response.send_message(msg)
+        return
+
+    if state == "introduced":
+        msg = random.choice([
+            "나 오늘 바빠",
+            "넌 자기소개 안함?",
+            "밥 먹고 옴"
+        ])
+
+        if msg == "넌 자기소개 안함?":
+            talk_states[user_id] = {
+                "state": "ask_name",
+                "expires": now + TALK_TIMEOUT
+            }
+        elif msg == "밥 먹고 옴":
+            talk_states[user_id] = {
+                "state": "ate",
+                "expires": now + TALK_TIMEOUT
+            }
+        else:
+            reset_talk(user_id)
+
+        await interaction.response.send_message(msg)
+        return
+
+    if state == "ate":
+        reset_talk(user_id)
+        await interaction.response.send_message("...")
+        return
+
+    if state == "ask_name":
+        talk_states[user_id] = {
+            "state": "know_name",
+            "expires": now + TALK_TIMEOUT
+        }
+
+        await interaction.response.send_message(f"ㅇㅋ 니 이름은 {user_name}이구나? 반갑다")
+        return
+
+    if state == "know_name":
+        reset_talk(user_id)
+        await interaction.response.send_message("다음에 또 대화하자.")
+        return
+        
 bot.run(TOKEN)
