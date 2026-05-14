@@ -323,8 +323,10 @@ async def talk(interaction: discord.Interaction):
 
     # 마지막
     if state == "know_name":
-        reset_talk(user_id)
+        talk_counts[user_id] = 0
 
+        reset_talk(user_id)
+        
         await interaction.response.send_message(
             "다음에 또 대화하자."
         )
