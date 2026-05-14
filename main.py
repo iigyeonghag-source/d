@@ -237,9 +237,6 @@ async def random_message_loop():
 
         # 20분 ~ 3시간 사이 랜덤
         wait_time = random.randint(20 * 60, 3 * 60 * 60)
-
-        print(f"{wait_time / 60:.1f}분 후 다음 메시지 전송")
-
         await asyncio.sleep(wait_time)
 
 
