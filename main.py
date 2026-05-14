@@ -1,6 +1,7 @@
 import os
 import discord
 import random
+import asyncio
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
@@ -192,53 +193,103 @@ def qwerty_doro_to_korean(text):
 
     return " ".join(final_result)
 
-
 # =========================
-# 자동 랜덤 메시지
+# 채널별 자동 메시지 설정
 # =========================
 
-AUTO_MESSAGES = [
-    "도로롱!",
-    "\"DORO\"",
-    "날 숭배하라.",
-    "DORO 바보",
-    "DORO 천재",
-    "오늘의 날씨는 DORO합니다.",
-    "DORODORODORODORODORODORODORO",
-    "다들 뭐함?",
-    "뭔 겜하지",
-    "케케케",
-    "도로롱!",
-    "내가 가는 길이 곧 DORO야!",
-    "배고프다.",
-    "진짜 기분 like 종훈이",
-    "야이 씨발아",
-    "뭘봐",
-    "ㅋ",
-    "ㅋㅋㅋㅋ",
-    "내 이름은 DORO",
-    "졸리다.",
-    "니들 뭔 겜함?",
-    "내가 진짜 도로다!",
-    "와 도로!"
+CHANNELS = [
+
+    # 기존 채널
+    {
+        "id": 1502532692275625985,
+        "messages": [
+            "도로롱!",
+            "\"DORO\"",
+            "날 숭배하라.",
+            "DORO 바보",
+            "DORO 천재",
+            "오늘의 날씨는 DORO합니다.",
+            "DORODORODORODORODORODORODORO",
+            "다들 뭐함?",
+            "뭔 겜하지",
+            "케케케",
+            "도로롱!",
+            "내가 가는 길이 곧 DORO야!",
+            "배고프다.",
+            "진짜 기분 like 종훈이",
+            "야이 씨발아",
+            "뭘봐",
+            "ㅋ",
+            "ㅋㅋㅋㅋ",
+            "내 이름은 DORO",
+            "졸리다.",
+            "니들 뭔 겜함?",
+            "내가 진짜 도로다!",
+            "와 도로!"
+        ],
+        "min_time": 20,
+        "max_time": 180
+    },
+
+    # 도박 채널
+    {
+        "id": 1503162390735228928,
+        "messages": [
+            "도박 망했냐?",
+            "어케 했냐 ㄷㄷ"
+        ],
+        "min_time": 60,
+        "max_time": 600
+    },
+
+    # 숭배 채널
+    {
+        "id": 1502533312902598799,
+        "messages": [
+            "내가 DORO다!",
+            "날 숭배하라.",
+            "도멘"
+        ],
+        "min_time": 120,
+        "max_time": 360
+    },
+
+    # 테러 채널(?)
+    {
+        "id": 1502535053245284482,
+        "messages": [
+            "이 서버는 내꺼다 케케케",
+            "관리자 해치웠나?",
+            "테러를 시작하지 케케케"
+        ],
+        "min_time": 180,
+        "max_time": 720
+    }
 ]
 
-CHANNEL_ID = 1502532692275625985
 
+# =========================
+# 자동 메시지 루프
+# =========================
 
-async def random_message_loop():
+async def random_message_loop(channel_data):
     await bot.wait_until_ready()
 
     while not bot.is_closed():
-        channel = bot.get_channel(CHANNEL_ID)
+
+        channel = bot.get_channel(channel_data["id"])
 
         if channel:
-            await channel.send(random.choice(AUTO_MESSAGES))
+            await channel.send(
+                random.choice(channel_data["messages"])
+            )
 
-        # 20분 ~ 3시간 사이 랜덤
-        wait_time = random.randint(20 * 60, 3 * 60 * 60)
-        await asyncio.sleep(wait_time)
-
+        # 랜덤 대기 시간 (분 단위)
+        wait_minutes = random.randint(
+            channel_data["min_time"],
+            channel_data["max_time"]
+        )
+        await asyncio.sleep(wait_minutes * 60)
 
 
 # =========================
