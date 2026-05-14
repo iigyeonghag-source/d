@@ -198,6 +198,8 @@ async def status(interaction: discord.Interaction):
 from datetime import datetime, timedelta
 
 talk_states = {}
+talk_counts = {}
+
 TALK_TIMEOUT = timedelta(minutes=5)
 
 def reset_talk(user_id):
@@ -205,11 +207,24 @@ def reset_talk(user_id):
         del talk_states[user_id]
 
 
+@bot.tree.command(name="카운트", description="현재 대화 카운트 확인", guild=GUILD)
+async def count(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    current = talk_counts.get(user_id, 0)
+
+    await interaction.response.send_message(
+        f"현재 대화 카운트: {current}"
+    )
+
 @bot.tree.command(name="말걸기", description="도로롱에게 말을 건다", guild=GUILD)
 async def talk(interaction: discord.Interaction):
     user_id = interaction.user.id
     user_name = interaction.user.display_name
     now = datetime.now()
+
+    # 카운트 증가
+    talk_counts[user_id] = talk_counts.get(user_id, 0) + 1
 
     state_data = talk_states.get(user_id)
 
