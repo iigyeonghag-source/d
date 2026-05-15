@@ -637,122 +637,149 @@ async def count(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"현재 대화 카운트: {current}"
     )
-
 @bot.tree.command(name="말걸기", description="도로롱에게 말을 건다", guild=GUILD)
 async def talk(interaction: discord.Interaction):
     user_id = interaction.user.id
     user_name = interaction.user.display_name
     now = datetime.now()
 
-    # 카운트 증가
     talk_counts[user_id] = talk_counts.get(user_id, 0) + 1
 
     state_data = talk_states.get(user_id)
 
-    # 5분 지나면 초기화
     if state_data and now > state_data["expires"]:
         reset_talk(user_id)
         state_data = None
 
-    # 첫 대화
-    if not state_data:
-        msg = random.choice(["뭐", "왜", "ㅗ"])
+    def set_state(next_state):
+        talk_states[user_id] = {
+            "state": next_state,
+            "expires": now + TALK_TIMEOUT
+        }
 
-        if msg in ["뭐", "왜"]:
-            talk_states[user_id] = {
-                "state": "first_normal",
-                "expires": now + TALK_TIMEOUT
-            }
+    async def reply_50(positive_msgs, negative_msgs, next_state):
+        is_positive = random.choice([True, False])
 
+        if is_positive:
+            msg = random.choice(positive_msgs)
+            set_state(next_state)
         else:
+            msg = random.choice(negative_msgs)
             reset_talk(user_id)
 
         await interaction.response.send_message(msg)
+
+    if not state_data:
+        await reply_50(
+            positive_msgs=["뭐", "왜"],
+            negative_msgs=["ㅗ", "말 걸지마"],
+            next_state="first_normal"
+        )
         return
 
     state = state_data["state"]
 
-    # 뭐 / 왜 이후
     if state == "first_normal":
-        msg = random.choice([
-            "말 걸지마 씨발",
-            "왜 그래"
-        ])
-
-        if msg == "왜 그래":
-            talk_states[user_id] = {
-                "state": "why",
-                "expires": now + TALK_TIMEOUT
-            }
-
-        else:
-            reset_talk(user_id)
-
-        await interaction.response.send_message(msg)
+        await reply_50(
+            positive_msgs=["왜 그래", "심심함?"],
+            negative_msgs=["말 걸지마 씨발", "꺼져"],
+            next_state="why"
+        )
         return
 
-    # 왜 그래 이후
     if state == "why":
-        msg = random.choice([
-            "나? 내 이름은 DORO, 도로롱이죠.",
-            "너랑 말 안해"
-        ])
-
-        if msg == "나? 내 이름은 DORO, 도로롱이죠.":
-            talk_states[user_id] = {
-                "state": "introduced",
-                "expires": now + TALK_TIMEOUT
-            }
-
-        else:
-            reset_talk(user_id)
-
-        await interaction.response.send_message(msg)
+        await reply_50(
+            positive_msgs=[
+                "나? 내 이름은 DORO, 도로롱이죠.",
+                "일단 들어는 봄"
+            ],
+            negative_msgs=[
+                "너랑 말 안해",
+                "귀찮음"
+            ],
+            next_state="introduced"
+        )
         return
 
-    # 자기소개 이후
     if state == "introduced":
-        msg = random.choice([
-            "나 오늘 바빠",
-            "넌 자기소개 안함?",
-            "밥 먹고 옴"
-        ])
-
-        if msg == "넌 자기소개 안함?":
-            talk_states[user_id] = {
-                "state": "ask_name",
-                "expires": now + TALK_TIMEOUT
-            }
-
-        else:
-            reset_talk(user_id)
-
-        await interaction.response.send_message(msg)
+        await reply_50(
+            positive_msgs=[
+                "넌 자기소개 안함?",
+                "너 이름 뭐임?"
+            ],
+            negative_msgs=[
+                "나 오늘 바빠",
+                "밥 먹고 옴"
+            ],
+            next_state="ask_name"
+        )
         return
 
-    # 이름 묻기
     if state == "ask_name":
-        talk_states[user_id] = {
-            "state": "know_name",
-            "expires": now + TALK_TIMEOUT
-        }
-
-        await interaction.response.send_message(
-            f"ㅇㅋ 니 이름은 {user_name}이구나? 반갑다"
+        await reply_50(
+            positive_msgs=[
+                f"ㅇㅋ 니 이름은 {user_name}이구나? 반갑다",
+                f"{user_name}? 이름 기억해둠"
+            ],
+            negative_msgs=[
+                "아 안궁금해짐",
+                "이름 듣기 귀찮음"
+            ],
+            next_state="know_name"
         )
         return
 
-    # 마지막
     if state == "know_name":
-        talk_counts[user_id] = 0
-
-        reset_talk(user_id)
-        
-        await interaction.response.send_message(
-            "다음에 또 대화하자."
+        await reply_50(
+            positive_msgs=[
+                "근데 너 자주 오네",
+                "이 정도면 단골이네"
+            ],
+            negative_msgs=[
+                "이제 그만 말 걸어",
+                "슬슬 질림"
+            ],
+            next_state="friendly"
         )
         return
 
+    if state == "friendly":
+        await reply_50(
+            positive_msgs=[
+                "나름 대화할만 하네",
+                "너 생각보다 괜찮음"
+            ],
+            negative_msgs=[
+                "아니다 착각이었음",
+                "역시 말 안할래"
+            ],
+            next_state="almost_end"
+        )
+        return
+
+    if state == "almost_end":
+        await reply_50(
+            positive_msgs=[
+                "오늘 대화 나쁘지 않았음",
+                "도로롱이 인정함"
+            ],
+            negative_msgs=[
+                "아 갑자기 귀찮아짐",
+                "더 말하면 정듦"
+            ],
+            next_state="ending"
+        )
+        return
+
+    if state == "ending":
+        talk_counts[user_id] = 0
+        reset_talk(user_id)
+
+        await interaction.response.send_message(
+            "따음에 또 대화하자."
+        )
+        return
+        
 @bot.tree.command(name="메뉴추천", description="랜덤으로 맛있는 메뉴 추천", guild=GUILD)
 async def recommend_menu(interaction: discord.Interaction):
     menus = [
