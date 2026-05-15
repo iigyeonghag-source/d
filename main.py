@@ -19,7 +19,421 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 auto_message_started = False
 
+CHOSUNG = [
+    "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ",
+    "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+]
 
+JUNGSUNG = [
+    "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ",
+    "ㅗ", "ㅘ", "ㅙ", "ㅚ",
+    "ㅛ",
+    "ㅜ", "ㅝ", "ㅞ", "ㅟ",
+    "ㅠ",
+    "ㅡ", "ㅢ", "ㅣ"
+]
+
+JONGSUNG = [
+    "", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ",
+    "ㄷ",
+    "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ",
+    "ㅁ",
+    "ㅂ", "ㅄ",
+    "ㅅ", "ㅆ",
+    "ㅇ",
+    "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+]
+
+# =========================
+# 쿼티 도로어 1.0.1 규칙
+# =========================
+KOR_TO_QWERTY_DORO = {
+    "ㄱ": "DD", "ㄲ": "DO", "ㅋ": "DR",
+    "ㄴ": "Dd", "ㄹ": "Do", "ㅁ": "Dr",
+
+    "ㄷ": "OD", "ㄸ": "OO", "ㅌ": "OR",
+
+    "ㅂ": "Rd", "ㅃ": "Ro", "ㅍ": "Rr",
+
+    "ㅅ": "RD", "ㅆ": "RO", "ㅇ": "RR",
+
+    "ㅈ": "dD", "ㅉ": "dO", "ㅊ": "dR",
+
+    "ㅎ": "dd",
+
+    "ㅏ": "do", "ㅑ": "dr",
+    "ㅓ": "od", "ㅕ": "oo",
+    "ㅗ": "or", "ㅛ": "ro",
+    "ㅜ": "rd", "ㅠ": "rr",
+    "ㅡ": "oo", "ㅣ": "or",
+    "ㅐ": "rd", "ㅔ": "ro",
+    "ㅒ": "rr", "ㅖ": "rd",
+}
+
+# 주의: oo, or, rd, ro, rr 같은 토큰은 중복이라 완전 복원이 불가능함.
+# 그래서 역변환은 먼저 등록된 글자를 우선 사용함.
+QWERTY_DORO_TO_KOR = {}
+for kor, doro in KOR_TO_QWERTY_DORO.items():
+    if doro not in QWERTY_DORO_TO_KOR:
+        QWERTY_DORO_TO_KOR[doro] = kor
+
+QWERTY_DORO_TOKENS = sorted(QWERTY_DORO_TO_KOR.keys(), key=len, reverse=True)
+
+# =========================
+# 기존 천지인식 도로어 규칙
+# =========================
+KOR_TO_CHEONJIIN_DORO = {
+    "ㅣ": "d",
+    ".": "o",
+    "ㅡ": "r",
+
+    "ㄱ": "D",
+    "ㅋ": "^D",
+    "ㄲ": "^^D",
+
+    "ㅂ": "D.",
+    "ㅍ": "^D.",
+    "ㅃ": "^^D.",
+
+    "ㄴ": "R:",
+    "ㄹ": "^R:",
+
+    "ㅅ": "R.",
+    "ㅎ": "^R.",
+    "ㅆ": "^^R.",
+
+    "ㅇ": "R",
+    "ㅁ": "^R",
+
+    "ㄷ": "O",
+    "ㅌ": "^O",
+    "ㄸ": "^^O",
+
+    "ㅈ": "O.",
+    "ㅊ": "^O.",
+    "ㅉ": "^^O.",
+}
+
+CHEONJIIN_DORO_TO_KOR = {v: k for k, v in KOR_TO_CHEONJIIN_DORO.items()}
+CHEONJIIN_DORO_TOKENS = sorted(CHEONJIIN_DORO_TO_KOR.keys(), key=len, reverse=True)
+
+# =========================
+# 천지인 모음 규칙
+# =========================
+VOWEL_TO_CHEONJIIN = {
+    "ㅏ": "ㅣ.",
+    "ㅓ": ".ㅣ",
+    "ㅗ": ".ㅡ",
+    "ㅜ": "ㅡ.",
+    "ㅡ": "ㅡ",
+    "ㅣ": "ㅣ",
+
+    "ㅑ": "ㅣ..",
+    "ㅕ": "..ㅣ",
+    "ㅛ": "..ㅡ",
+    "ㅠ": "ㅡ..",
+
+    "ㅐ": "ㅣ.ㅣ",
+    "ㅔ": ".ㅣㅣ",
+
+    "ㅘ": ".ㅡㅣ.",
+    "ㅚ": ".ㅡㅣ",
+    "ㅝ": "ㅡ..ㅣ",
+    "ㅟ": "ㅡ.ㅣ",
+    "ㅢ": "ㅡㅣ",
+}
+
+CHEONJIIN_TO_VOWEL = {v: k for k, v in VOWEL_TO_CHEONJIIN.items()}
+
+# =========================
+# 복합 모음 / 겹받침
+# =========================
+COMPLEX_VOWEL_DECOMPOSE = {
+    "ㅘ": "ㅗㅏ",
+    "ㅙ": "ㅗㅐ",
+    "ㅚ": "ㅗㅣ",
+    "ㅝ": "ㅜㅓ",
+    "ㅞ": "ㅜㅔ",
+    "ㅟ": "ㅜㅣ",
+    "ㅢ": "ㅡㅣ",
+}
+
+COMPLEX_VOWEL_COMPOSE = {
+    "ㅗㅏ": "ㅘ",
+    "ㅗㅐ": "ㅙ",
+    "ㅗㅣ": "ㅚ",
+    "ㅜㅓ": "ㅝ",
+    "ㅜㅔ": "ㅞ",
+    "ㅜㅣ": "ㅟ",
+    "ㅡㅣ": "ㅢ",
+}
+
+DOUBLE_JONG = {
+    "ㄳ": "ㄱㅅ",
+    "ㄵ": "ㄴㅈ",
+    "ㄶ": "ㄴㅎ",
+    "ㄺ": "ㄹㄱ",
+    "ㄻ": "ㄹㅁ",
+    "ㄼ": "ㄹㅂ",
+    "ㄽ": "ㄹㅅ",
+    "ㄾ": "ㄹㅌ",
+    "ㄿ": "ㄹㅍ",
+    "ㅀ": "ㄹㅎ",
+    "ㅄ": "ㅂㅅ",
+}
+
+DOUBLE_JONG_REVERSE = {v: k for k, v in DOUBLE_JONG.items()}
+
+# =========================
+# 한글 분해
+# =========================
+def decompose_hangul(char):
+    code = ord(char)
+
+    if not (0xAC00 <= code <= 0xD7A3):
+        return char
+
+    base = code - 0xAC00
+
+    cho = base // 588
+    jung = (base % 588) // 28
+    jong = base % 28
+
+    result = CHOSUNG[cho]
+
+    jung_char = JUNGSUNG[jung]
+    result += COMPLEX_VOWEL_DECOMPOSE.get(jung_char, jung_char)
+
+    jong_char = JONGSUNG[jong]
+    if jong_char:
+        result += DOUBLE_JONG.get(jong_char, jong_char)
+
+    return result
+
+# =========================
+# 천지인식 한글 분해
+# =========================
+def decompose_hangul_cheonjiin(char):
+    code = ord(char)
+
+    if not (0xAC00 <= code <= 0xD7A3):
+        return char
+
+    base = code - 0xAC00
+
+    cho = base // 588
+    jung = (base % 588) // 28
+    jong = base % 28
+
+    result = CHOSUNG[cho] + VOWEL_TO_CHEONJIIN[JUNGSUNG[jung]]
+
+    if JONGSUNG[jong]:
+        result += DOUBLE_JONG.get(JONGSUNG[jong], JONGSUNG[jong])
+
+    return result
+
+# =========================
+# 한글 조합
+# =========================
+def compose_hangul(cho, jung, jong=""):
+    cho_i = CHOSUNG.index(cho)
+    jung_i = JUNGSUNG.index(jung)
+    jong_i = JONGSUNG.index(jong)
+
+    return chr(0xAC00 + cho_i * 588 + jung_i * 28 + jong_i)
+
+# =========================
+# 쿼티 도로어: 한국어 -> 도로어
+# =========================
+def korean_to_qwerty_doro(text):
+    result = []
+
+    for word in text.split(" "):
+        chars = []
+
+        for ch in word:
+            decomposed = decompose_hangul(ch)
+            doro = ""
+
+            for jamo in decomposed:
+                doro += KOR_TO_QWERTY_DORO.get(jamo, jamo)
+
+            chars.append(doro)
+
+        result.append(" ".join(chars))
+
+    return "   ".join(result)
+
+# =========================
+# 쿼티 도로어: 도로어 -> 자모
+# =========================
+def qwerty_doro_to_jamo(text):
+    result = []
+    i = 0
+
+    while i < len(text):
+        if text[i] == " ":
+            i += 1
+            continue
+
+        matched = False
+
+        for token in QWERTY_DORO_TOKENS:
+            if text.startswith(token, i):
+                result.append(QWERTY_DORO_TO_KOR[token])
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            result.append(text[i])
+            i += 1
+
+    return result
+
+# =========================
+# 쿼티 도로어: 도로어 -> 한국어
+# =========================
+def qwerty_doro_to_korean(text):
+    words = text.split("   ")
+    final_result = []
+
+    for word in words:
+        syllables = word.split(" ")
+        result = []
+
+        for syllable in syllables:
+            jamos = qwerty_doro_to_jamo(syllable)
+
+            if len(jamos) < 2 or jamos[0] not in CHOSUNG or jamos[1] not in JUNGSUNG:
+                result.append("".join(jamos))
+                continue
+
+            cho = jamos[0]
+            jung = jamos[1]
+            jong = ""
+
+            # 복합 모음 처리: ㅗ+ㅏ, ㅜ+ㅓ 같은 것
+            index_after_vowel = 2
+            if len(jamos) >= 3:
+                two_vowels = jamos[1] + jamos[2]
+                if two_vowels in COMPLEX_VOWEL_COMPOSE:
+                    jung = COMPLEX_VOWEL_COMPOSE[two_vowels]
+                    index_after_vowel = 3
+
+            remain = jamos[index_after_vowel:]
+
+            if remain:
+                jong_text = "".join(remain)
+                jong = DOUBLE_JONG_REVERSE.get(jong_text, remain[0])
+
+            try:
+                result.append(compose_hangul(cho, jung, jong))
+            except ValueError:
+                result.append("".join(jamos))
+
+        final_result.append("".join(result))
+
+    return " ".join(final_result)
+
+# =========================
+# 기존 천지인식: 한국어 -> 도로어
+# =========================
+def korean_to_cheonjiin_doro(text):
+    result = []
+
+    for word in text.split(" "):
+        chars = []
+
+        for ch in word:
+            decomposed = decompose_hangul_cheonjiin(ch)
+            doro = ""
+
+            for jamo in decomposed:
+                doro += KOR_TO_CHEONJIIN_DORO.get(jamo, jamo)
+
+            chars.append(doro)
+
+        result.append(" ".join(chars))
+
+    return "   ".join(result)
+
+# =========================
+# 기존 천지인식: 도로어 -> 자모
+# =========================
+def cheonjiin_doro_to_jamo(text):
+    result = []
+    i = 0
+
+    while i < len(text):
+        if text[i] == " ":
+            i += 1
+            continue
+
+        matched = False
+
+        for token in CHEONJIIN_DORO_TOKENS:
+            if text.startswith(token, i):
+                result.append(CHEONJIIN_DORO_TO_KOR[token])
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            result.append(text[i])
+            i += 1
+
+    return result
+
+# =========================
+# 기존 천지인식: 도로어 -> 한국어
+# =========================
+def cheonjiin_doro_to_korean(text):
+    words = text.split("   ")
+    final_result = []
+
+    for word in words:
+        syllables = word.split(" ")
+        jamos = []
+
+        for s in syllables:
+            jamos.extend(cheonjiin_doro_to_jamo(s))
+
+        result = []
+        i = 0
+
+        while i < len(jamos):
+            if jamos[i] not in CHOSUNG:
+                result.append(jamos[i])
+                i += 1
+                continue
+
+            cho = jamos[i]
+            i += 1
+
+            vowel_buffer = ""
+
+            while i < len(jamos) and jamos[i] in ["ㅣ", ".", "ㅡ"]:
+                vowel_buffer += jamos[i]
+                i += 1
+
+            if vowel_buffer not in CHEONJIIN_TO_VOWEL:
+                result.append(cho)
+                continue
+
+            jung = CHEONJIIN_TO_VOWEL[vowel_buffer]
+            jong = ""
+
+            if i < len(jamos) and jamos[i] in CHOSUNG:
+                jong = jamos[i]
+                i += 1
+
+            result.append(compose_hangul(cho, jung, jong))
+
+        final_result.append("".join(result))
+
+    return " ".join(final_result)
+    
 # =========================
 # 채널별 자동 메시지 설정
 # =========================
@@ -144,12 +558,12 @@ async def on_ready():
 
 @bot.tree.command(name="도로어", description="한국어를 쿼티 도로어로 번역", guild=GUILD)
 async def doro(interaction: discord.Interaction, text: str):
-    await interaction.response.send_message(text)
+    await interaction.response.send_message(korean_to_qwerty_doro(text))
 
 
 @bot.tree.command(name="한국어", description="쿼티 도로어를 한국어로 번역", guild=GUILD)
 async def korean(interaction: discord.Interaction, text: str):
-    await interaction.response.send_message(text)
+    await interaction.response.send_message(qwerty_doro_to_korean(text))
 
 
 @bot.tree.command(name="dorodoro", description="DORODORODORODORO", guild=GUILD)
