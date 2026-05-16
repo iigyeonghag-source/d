@@ -1085,4 +1085,56 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
     await msg.edit(content=result_text)
 
+@bot.tree.command(name="송금", description="다른 유저에게 돈을 보낸다", guild=GUILD)
+@app_commands.describe(
+    대상="돈을 받을 유저",
+    금액="송금할 금액"
+)
+async def transfer(
+    interaction: discord.Interaction,
+    대상: discord.Member,
+    금액: int
+):
+    sender_id = interaction.user.id
+    target_id = 대상.id
+
+    get_wallet(sender_id)
+    get_wallet(target_id)
+
+    # 자기 자신 송금 방지
+    if sender_id == target_id:
+        await interaction.response.send_message(
+            "❌ 자기 자신에게는 송금 못함.",
+            ephemeral=True
+        )
+        return
+
+    # 최소 금액
+    if 금액 <= 0:
+        await interaction.response.send_message(
+            "❌ 1원 이상 입력해야 함.",
+            ephemeral=True
+        )
+        return
+
+    # 돈 부족
+    if money_data[sender_id] < 금액:
+        await interaction.response.send_message(
+            f"❌ 잔액 부족.\n현재 잔액: {money_data[sender_id]}원",
+            ephemeral=True
+        )
+        return
+
+    # 송금
+    money_data[sender_id] -= 금액
+    money_data[target_id] += 금액
+
+    await interaction.response.send_message(
+        f"💸 송금 완료!\n\n"
+        f"보낸 사람: {interaction.user.mention}\n"
+        f"받는 사람: {대상.mention}\n"
+        f"금액: **{금액}원**\n\n"
+        f"현재 잔액: **{money_data[sender_id]}원**"
+    )
+
 bot.run(TOKEN)
