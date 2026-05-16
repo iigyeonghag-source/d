@@ -618,10 +618,16 @@ async def status(interaction: discord.Interaction):
 
 from datetime import datetime, timedelta
 
+import random
+from datetime import datetime, timedelta
+
 talk_states = {}
 talk_counts = {}
+cooldowns = {}
 
 TALK_TIMEOUT = timedelta(minutes=5)
+COOLDOWN_TIME = timedelta(seconds=15)
+
 
 def reset_talk(user_id):
     if user_id in talk_states:
@@ -631,17 +637,23 @@ def reset_talk(user_id):
 @bot.tree.command(name="카운트", description="현재 대화 카운트 확인", guild=GUILD)
 async def count(interaction: discord.Interaction):
     user_id = interaction.user.id
-
     current = talk_counts.get(user_id, 0)
 
-    await interaction.response.send_message(
-        f"현재 대화 카운트: {current}"
-    )
+    await interaction.response.send_message(f"현재 대화 카운트: {current}")
+
+
 @bot.tree.command(name="말걸기", description="도로롱에게 말을 건다", guild=GUILD)
 async def talk(interaction: discord.Interaction):
     user_id = interaction.user.id
     user_name = interaction.user.display_name
     now = datetime.now()
+
+    cooldown = cooldowns.get(user_id)
+
+    if cooldown and now < cooldown:
+        remain = int((cooldown - now).total_seconds())
+        await interaction.response.send_message(f"도로롱이 무시중임... ({remain}초)")
+        return
 
     talk_counts[user_id] = talk_counts.get(user_id, 0) + 1
 
@@ -665,6 +677,7 @@ async def talk(interaction: discord.Interaction):
             set_state(next_state)
         else:
             msg = random.choice(negative_msgs)
+            cooldowns[user_id] = now + COOLDOWN_TIME
             reset_talk(user_id)
 
         await interaction.response.send_message(msg)
@@ -679,124 +692,110 @@ async def talk(interaction: discord.Interaction):
 
     state = state_data["state"]
 
-    if state == "first_normal":
-        await reply_50(
+    dialogue = {
+        "first_normal": (
             ["왜 그래", "심심함?"],
             ["말 걸지마 씨발", "꺼져"],
             "why"
-        )
-        return
-
-    if state == "why":
-        await reply_50(
-            ["나? 내 이름은 DORO, 도로롱이죠.", "일단 들어는 봄"],
-            ["너랑 말 안해", "귀찮음"],
+        ),
+        "why": (
+            ["나? 내 이름은 DORO, 도로롱이죠.", "일단 들어는 드릴게"],
+            ["너랑 말 안해", "듣기 귀찮아"],
             "introduced"
-        )
-        return
-
-    if state == "introduced":
-        await reply_50(
-            ["넌 자기소개 안함?", "너 이름 뭐임?"],
-            ["나 오늘 바빠", "밥 먹고 옴"],
+        ),
+        "introduced": (
+            ["닌 왜 이름 안말해", "니 이름 뭐냐"],
+            ["나 오늘 바빠", "ㄱㄷ 밥 먹고 옴"],
             "ask_name"
-        )
-        return
-
-    if state == "ask_name":
-        await reply_50(
-            [f"ㅇㅋ 니 이름은 {user_name}이구나? 반갑다", f"{user_name}? 이름 기억해둠"],
-            ["아 안궁금해짐", "이름 듣기 귀찮음"],
+        ),
+        "ask_name": (
+            [
+                f"ㅇㅋ 니 이름은 {user_name}이구나? 친추 받아라",
+                f"{user_name}? 이름 기억했다"
+            ],
+            ["아 ㅈㄲ;", "응 니 이름 안들어 ㅅㄱ"],
             "know_name"
-        )
-        return
-
-    if state == "know_name":
-        await reply_50(
-            ["근데 너 자주 오네", "이 정도면 단골이네"],
-            ["이제 그만 말 걸어", "슬슬 질림"],
+        ),
+        "know_name": (
+            ["왜케 많이 와", "단골이 따로 없네"],
+            ["작작해라", "안질리냐?"],
             "friendly"
-        )
-        return
-
-    if state == "friendly":
-        await reply_50(
-            ["나름 대화할만 하네", "너 생각보다 괜찮음"],
-            ["아니다 착각이었음", "역시 말 안할래"],
+        ),
+        "friendly": (
+            ["나쁘진 않네 니", "너 짱 ㅇㅇ"],
+            ["아니다 니 ㅄ임", "너임마종훈 ㅗㅗ"],
             "trust"
-        )
-        return
-
-    if state == "trust":
-        await reply_50(
-            ["솔직히 너 오면 좀 덜 심심함", "뭐... 나쁘진 않네"],
-            ["취소함 너 귀찮음", "아 생각해보니 별로임"],
+        ),
+        "trust": (
+            ["니 오니까 심심하진 않네", "니 나쁘진 않은 듯?"],
+            ["취소 니 ㅈㄴ 귀찮아", "응 니 별로임 ㅅㄱ"],
             "small_talk"
-        )
-        return
-
-    if state == "small_talk":
-        await reply_50(
-            ["요즘 뭐하고 사냐", "밥은 먹고 다님?"],
-            ["갑자기 관심 없어짐", "아 물어본 내가 바보지"],
+        ),
+        "small_talk": (
+            ["요즘 뭐하고 사냐", "밥은 먹고 다니냐?"],
+            ["안물안궁 ㅗ", "아 물어본 내가 바보지 ㅅㅂ"],
             "care"
-        )
-        return
-
-    if state == "care":
-        await reply_50(
-            ["그래도 굶지는 마라", "도로롱이 특별히 걱정해줌"],
-            ["몰라 알아서 살아", "걱정하려다 말음"],
+        ),
+        "care": (
+            ["굶지 마라 밥 사드릴게", "내가 특별히 걱정해드림"],
+            ["몰라 뒤지던지 말덙;", "응 걱정 안해 ㅅㄱ"],
             "compliment"
-        )
-        return
-
-    if state == "compliment":
-        await reply_50(
-            ["근데 너 은근 끈기 있네", "여기까지 온 거 보면 좀 인정"],
-            ["아니 근데 너무 말 많음", "칭찬하려다 실패함"],
+        ),
+        "compliment": (
+            ["끈기 있는 청년; 대단하다", "여기까지 온 거 보면 인정 ㅇㅇ"],
+            ["말이 많다 닥쳐라", "칭찬하기도 아깝다 ㅄ아"],
             "secret"
-        )
-        return
-
-    if state == "secret":
-        await reply_50(
-            ["사실 나도 대화하는 거 싫진 않음", "이건 비밀인데 너 좀 웃김"],
-            ["비밀 말하려다 귀찮아짐", "아무튼 비밀 없음"],
+        ),
+        "secret": (
+            ["사실 나도 대화하는 거 싫진 않음", "이건 비밀인데 니 ㅈㄴ 웃김"],
+            ["아 근데 비밀 말하기 귀찮음 ㅅㄱ", "비밀 없는데? 꼽냐?"],
             "bond"
-        )
-        return
-
-    if state == "bond":
-        await reply_50(
-            ["이 정도면 친구 비슷한 거 아니냐", "도로롱 친구 후보로 등록함"],
+        ),
+        "bond": (
+            ["이러다가 90살 먹어서도 너랑 대화하겠네", "ㅇㅋ 너한테 친추 보낼게"],
             ["친구는 무슨", "아직 그 정도는 아님"],
+            "closer"
+        ),
+        "closer": (
+            ["니 말하는 거 왜케 웃기냐 ㅋㅋ", "솔직히 이제 좀 익숙해졌다"],
+            ["니 너무 끈질겨 ㄲㅈ", "진 빠진다 ㅅㅂ"],
+            "soft"
+        ),
+        "soft": (
+            ["가끔 와서 말 거는 건 허락해줌", "뭐... 심심하면 와도 됨"],
+            ["허락 취소함", "방금 말은 없던 걸로"],
+            "promise"
+        ),
+        "promise": (
+            ["ㅇㅋ 받아드림", "기분 좋으니까 특별히 받아는 드릴게"],
+            ["응 안돼 ㅗ", "근데 귀찮아"],
             "almost_end"
-        )
-        return
-
-    if state == "almost_end":
-        await reply_50(
-            ["오늘 대화 나쁘지 않았음", "도로롱이 인정함"],
-            ["아 갑자기 귀찮아짐", "더 말하면 정듦"],
+        ),
+        "almost_end": (
+            ["오늘 대화 나쁘지 않았다", "내가 니 인정한다"],
+            ["아 갑자기 귀찮아짐;", "더 말하기 싫어짐 ㅅㄱ"],
             "ending_ready"
-        )
-        return
-
-    if state == "ending_ready":
-        await reply_50(
-            ["그래도 다음에 또 와라", "이번만큼은 봐줌"],
-            ["아니 근데 오늘은 여기까지", "슬슬 마무리하자"],
+        ),
+        "ending_ready": (
+            ["다음에 또 와라", "이번만큼은 봐드릴게"],
+            ["아니 근데 슬슬 질림 ㅅㄱ", "슬슬 꺼져라"],
             "ending"
         )
+    }
+
+    if state in dialogue:
+        positive_msgs, negative_msgs, next_state = dialogue[state]
+        await reply_50(positive_msgs, negative_msgs, next_state)
         return
 
     if state == "ending":
         talk_counts[user_id] = 0
         reset_talk(user_id)
-
         await interaction.response.send_message("다음에 또 대화하자.")
         return
+
+    reset_talk(user_id)
+    return
         
 @bot.tree.command(name="메뉴추천", description="랜덤으로 맛있는 메뉴 추천", guild=GUILD)
 async def recommend_menu(interaction: discord.Interaction):
