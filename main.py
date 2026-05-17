@@ -2970,8 +2970,6 @@ async def money_leaderboard(interaction: discord.Interaction):
 # 은행 시스템
 # =========================
 
-bank_data = {}
-
 LOAN_MAX = 500000
 
 
