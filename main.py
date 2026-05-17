@@ -1926,6 +1926,43 @@ async def fish_info(interaction: discord.Interaction, 물고기: str):
         f"`기본 가격 + kg × kg당 가격`"
     )
 
+@bot.tree.command(name="전체팔기", description="어항에 있는 모든 물고기를 판매한다.", guild=GUILD)
+async def sell_all_fish(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_tank(user_id)
+
+    tank = fish_tanks[user_id]
+
+    if not tank:
+        await interaction.response.send_message("🐠 어항이 비어있다.", ephemeral=True)
+        return
+
+    total_price = sum(fish["price"] for fish in tank)
+    total_count = len(tank)
+
+    count_data = {}
+
+    for fish in tank:
+        name = fish["name"]
+        count_data[name] = count_data.get(name, 0) + 1
+
+    fish_tanks[user_id] = []
+    money_data[user_id] += total_price
+
+    sold_text = "\n".join(
+        f"{name}: {count}마리"
+        for name, count in count_data.items()
+    )
+
+    await interaction.response.send_message(
+        f"💰 **전체 판매 완료!**\n\n"
+        f"{sold_text}\n\n"
+        f"판매 수량: **{total_count}마리**\n"
+        f"획득 금액: **{total_price}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
 # =========================
 # 농사 시스템
 # =========================
@@ -1967,6 +2004,19 @@ SEED_DATA = {
         "base_price": 25000,
         "grow_min": 1800,
         "grow_max": 3600
+    },
+    "만년초": {
+    "seed_price": 50000,
+    "base_price": 100000,
+    "grow_min": 1800,
+    "grow_max": 3600
+    },
+
+    "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
+    "seed_price": 1000000,
+    "base_price": 2500000,
+    "grow_min": 129600,
+    "grow_max": 129600
     }
 }
 
@@ -2310,5 +2360,164 @@ async def crop_book(interaction: discord.Interaction):
     await interaction.response.send_message(
         "📖 **농작물 도감**\n\n" + "\n\n".join(lines)
     )
+@bot.tree.command(name="전체심기", description="빈 밭에 같은 씨앗을 전부 심는다", guild=GUILD)
+@app_commands.describe(
+    씨앗="심을 씨앗 이름",
+    비료사용="비료를 가능한 만큼 사용할지 여부"
+)
+async def plant_all_seed(
+    interaction: discord.Interaction,
+    씨앗: str,
+    비료사용: bool = False
+):
+    user_id = interaction.user.id
+    now = datetime.now()
 
+    get_farm(user_id)
+
+    if 씨앗 not in SEED_DATA:
+        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
+        return
+
+    empty_indexes = [
+        i for i, plot in enumerate(farm_data[user_id]["field"])
+        if plot is None
+    ]
+
+    if not empty_indexes:
+        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
+        return
+
+    seed_count = farm_data[user_id]["seeds"][씨앗]
+
+    if seed_count <= 0:
+        await interaction.response.send_message(f"❌ {씨앗} 씨앗이 없음.", ephemeral=True)
+        return
+
+    plant_count = min(len(empty_indexes), seed_count)
+
+    planted = 0
+    used_fertilizer_count = 0
+
+    for index in empty_indexes[:plant_count]:
+        grow_time = random.randint(
+            SEED_DATA[씨앗]["grow_min"],
+            SEED_DATA[씨앗]["grow_max"]
+        )
+
+        used_fertilizer = False
+
+        if 비료사용 and farm_data[user_id]["fertilizer"] > 0:
+            farm_data[user_id]["fertilizer"] -= 1
+            grow_time //= 2
+            used_fertilizer = True
+            used_fertilizer_count += 1
+
+        farm_data[user_id]["seeds"][씨앗] -= 1
+
+        farm_data[user_id]["field"][index] = {
+            "crop": 씨앗,
+            "planted_at": now,
+            "harvest_time": now + timedelta(seconds=grow_time),
+            "fertilizer": used_fertilizer
+        }
+
+        planted += 1
+
+    await interaction.response.send_message(
+        f"🌱 **전체 심기 완료!**\n\n"
+        f"심은 작물: **{씨앗}**\n"
+        f"심은 개수: **{planted}개**\n"
+        f"사용한 비료: **{used_fertilizer_count}개**\n"
+        f"남은 씨앗: **{farm_data[user_id]['seeds'][씨앗]}개**"
+    )
+
+
+@bot.tree.command(name="전체수확", description="다 자란 농작물을 전부 수확한다", guild=GUILD)
+async def harvest_all_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    harvested = {}
+
+    for i, plot in enumerate(farm_data[user_id]["field"]):
+        if plot is None:
+            continue
+
+        if now < plot["harvest_time"]:
+            continue
+
+        crop_name = plot["crop"]
+
+        farm_data[user_id]["crops"][crop_name] += 1
+        crop_dex[user_id].add(crop_name)
+        farm_data[user_id]["field"][i] = None
+
+        harvested[crop_name] = harvested.get(crop_name, 0) + 1
+
+    if not harvested:
+        await interaction.response.send_message("🌱 수확 가능한 농작물이 없음.", ephemeral=True)
+        return
+
+    text = "\n".join(
+        f"{name}: {count}개"
+        for name, count in harvested.items()
+    )
+
+    await interaction.response.send_message(
+        f"🌾 **전체 수확 완료!**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="전체판매", description="보유한 농작물을 전부 판매한다", guild=GUILD)
+async def sell_all_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_farm(user_id)
+
+    if not crop_prices:
+        update_crop_prices()
+
+    sold = {}
+    total_price = 0
+    total_count = 0
+
+    for crop_name, count in list(farm_data[user_id]["crops"].items()):
+        if count <= 0:
+            continue
+
+        price = crop_prices[crop_name]
+        total = price * count
+
+        sold[crop_name] = {
+            "count": count,
+            "price": price,
+            "total": total
+        }
+
+        total_price += total
+        total_count += count
+        farm_data[user_id]["crops"][crop_name] = 0
+
+    if total_count <= 0:
+        await interaction.response.send_message("❌ 팔 농작물이 없음.", ephemeral=True)
+        return
+
+    money_data[user_id] += total_price
+
+    text = "\n".join(
+        f"{name}: {data['count']}개 / 단가 {data['price']}원 / {data['total']}원"
+        for name, data in sold.items()
+    )
+
+    await interaction.response.send_message(
+        f"💰 **농작물 전체 판매 완료!**\n\n"
+        f"{text}\n\n"
+        f"판매 수량: **{total_count}개**\n"
+        f"총 판매가: **{total_price}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
 bot.run(TOKEN)
