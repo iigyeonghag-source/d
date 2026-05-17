@@ -1926,4 +1926,379 @@ async def fish_info(interaction: discord.Interaction, 물고기: str):
         f"`기본 가격 + kg × kg당 가격`"
     )
 
+# =========================
+# 농사 시스템
+# =========================
+
+farm_data = {}
+crop_dex = {}
+crop_prices = {}
+
+FARM_SIZE = 9
+FERTILIZER_PRICE = 1500
+
+SEED_DATA = {
+    "감자": {
+        "seed_price": 500,
+        "base_price": 900,
+        "grow_min": 60,
+        "grow_max": 180
+    },
+    "당근": {
+        "seed_price": 700,
+        "base_price": 1300,
+        "grow_min": 120,
+        "grow_max": 300
+    },
+    "토마토": {
+        "seed_price": 1200,
+        "base_price": 2200,
+        "grow_min": 300,
+        "grow_max": 600
+    },
+    "딸기": {
+        "seed_price": 2500,
+        "base_price": 5000,
+        "grow_min": 600,
+        "grow_max": 1200
+    },
+    "황금옥수수": {
+        "seed_price": 10000,
+        "base_price": 25000,
+        "grow_min": 1800,
+        "grow_max": 3600
+    }
+}
+
+
+def get_farm(user_id):
+    if user_id not in farm_data:
+        farm_data[user_id] = {
+            "seeds": {name: 0 for name in SEED_DATA},
+            "fertilizer": 0,
+            "field": [None for _ in range(FARM_SIZE)],
+            "crops": {name: 0 for name in SEED_DATA}
+        }
+
+    if user_id not in crop_dex:
+        crop_dex[user_id] = set()
+
+
+def update_crop_prices():
+    for crop_name, data in SEED_DATA.items():
+        if crop_name not in crop_prices:
+            crop_prices[crop_name] = data["base_price"]
+
+        current = crop_prices[crop_name]
+        base = data["base_price"]
+
+        change_rate = random.randint(1, 7) / 100
+
+        if random.choice([True, False]):
+            current = int(current * (1 + change_rate))
+        else:
+            current = int(current * (1 - change_rate))
+
+        min_price = int(base * 0.3)
+        max_price = int(base * 1.5)
+
+        crop_prices[crop_name] = max(min_price, min(max_price, current))
+
+
+@tasks.loop(hours=1)
+async def crop_price_loop():
+    update_crop_prices()
+
+
+# on_ready 안에 이거 추가해야 함
+# if not crop_price_loop.is_running():
+#     update_crop_prices()
+#     crop_price_loop.start()
+
+
+@bot.tree.command(name="상점", description="씨앗과 비료를 구매한다", guild=GUILD)
+@app_commands.describe(
+    아이템="구매할 씨앗 이름 또는 비료",
+    갯수="구매할 갯수"
+)
+async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯수: int = 1):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_farm(user_id)
+
+    if 아이템 is None:
+        seed_text = "\n".join(
+            f"{name} 씨앗: {data['seed_price']}원"
+            for name, data in SEED_DATA.items()
+        )
+
+        await interaction.response.send_message(
+            f"🏪 **농사 상점**\n\n"
+            f"{seed_text}\n"
+            f"비료: {FERTILIZER_PRICE}원\n\n"
+            f"구매 예시: `/상점 감자 3`\n"
+            f"비료 구매: `/상점 비료 2`"
+        )
+        return
+
+    if 갯수 <= 0:
+        await interaction.response.send_message("❌ 1개 이상 사야 함.", ephemeral=True)
+        return
+
+    if 아이템 == "비료":
+        price = FERTILIZER_PRICE * 갯수
+
+        if money_data[user_id] < price:
+            await interaction.response.send_message("❌ 돈 부족.", ephemeral=True)
+            return
+
+        money_data[user_id] -= price
+        farm_data[user_id]["fertilizer"] += 갯수
+
+        await interaction.response.send_message(
+            f"🧪 비료 {갯수}개 구매 완료!\n"
+            f"현재 비료: **{farm_data[user_id]['fertilizer']}개**\n"
+            f"현재 잔액: **{money_data[user_id]}원**"
+        )
+        return
+
+    if 아이템 not in SEED_DATA:
+        await interaction.response.send_message("❌ 그런 아이템은 상점에 없음.", ephemeral=True)
+        return
+
+    price = SEED_DATA[아이템]["seed_price"] * 갯수
+
+    if money_data[user_id] < price:
+        await interaction.response.send_message("❌ 돈 부족.", ephemeral=True)
+        return
+
+    money_data[user_id] -= price
+    farm_data[user_id]["seeds"][아이템] += 갯수
+
+    await interaction.response.send_message(
+        f"🌱 {아이템} 씨앗 {갯수}개 구매 완료!\n"
+        f"현재 보유: **{farm_data[user_id]['seeds'][아이템]}개**\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
+
+
+@bot.tree.command(name="농밭", description="내 농밭 상태 확인", guild=GUILD)
+async def farm_field(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    lines = []
+
+    for i, plot in enumerate(farm_data[user_id]["field"], start=1):
+        if plot is None:
+            lines.append(f"{i}번 밭: 비어있음")
+            continue
+
+        if now >= plot["harvest_time"]:
+            lines.append(f"{i}번 밭: 🌾 {plot['crop']} 수확 가능")
+        else:
+            remain = int((plot["harvest_time"] - now).total_seconds())
+            minutes = remain // 60
+            seconds = remain % 60
+            lines.append(f"{i}번 밭: 🌱 {plot['crop']} 성장중 ({minutes}분 {seconds}초)")
+
+    await interaction.response.send_message(
+        "🚜 **내 농밭**\n\n" + "\n".join(lines)
+    )
+
+
+@bot.tree.command(name="심기", description="농밭에 씨앗을 심는다", guild=GUILD)
+@app_commands.describe(
+    칸="1~9번 밭 칸",
+    씨앗="심을 씨앗 이름",
+    비료사용="비료 사용 여부"
+)
+async def plant_seed(
+    interaction: discord.Interaction,
+    칸: int,
+    씨앗: str,
+    비료사용: bool = False
+):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    if 칸 < 1 or 칸 > FARM_SIZE:
+        await interaction.response.send_message("❌ 밭 칸은 1~9번만 가능.", ephemeral=True)
+        return
+
+    index = 칸 - 1
+
+    if farm_data[user_id]["field"][index] is not None:
+        await interaction.response.send_message("❌ 이미 뭐가 심어져 있음.", ephemeral=True)
+        return
+
+    if 씨앗 not in SEED_DATA:
+        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
+        return
+
+    if farm_data[user_id]["seeds"][씨앗] <= 0:
+        await interaction.response.send_message("❌ 씨앗 없음. `/상점`에서 사셈.", ephemeral=True)
+        return
+
+    grow_time = random.randint(
+        SEED_DATA[씨앗]["grow_min"],
+        SEED_DATA[씨앗]["grow_max"]
+    )
+
+    used_fertilizer = False
+
+    if 비료사용:
+        if farm_data[user_id]["fertilizer"] <= 0:
+            await interaction.response.send_message("❌ 비료 없음.", ephemeral=True)
+            return
+
+        farm_data[user_id]["fertilizer"] -= 1
+        grow_time //= 2
+        used_fertilizer = True
+
+    farm_data[user_id]["seeds"][씨앗] -= 1
+
+    farm_data[user_id]["field"][index] = {
+        "crop": 씨앗,
+        "planted_at": now,
+        "harvest_time": now + timedelta(seconds=grow_time),
+        "fertilizer": used_fertilizer
+    }
+
+    await interaction.response.send_message(
+        f"🌱 {칸}번 밭에 **{씨앗}** 심음!\n"
+        f"예상 성장 시간: **{grow_time}초**\n"
+        f"비료 사용: **{'O' if used_fertilizer else 'X'}**"
+    )
+
+
+@bot.tree.command(name="수확", description="다 자란 농작물을 수확한다", guild=GUILD)
+@app_commands.describe(칸="수확할 밭 칸")
+async def harvest_crop(interaction: discord.Interaction, 칸: int):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    if 칸 < 1 or 칸 > FARM_SIZE:
+        await interaction.response.send_message("❌ 밭 칸은 1~9번만 가능.", ephemeral=True)
+        return
+
+    index = 칸 - 1
+    plot = farm_data[user_id]["field"][index]
+
+    if plot is None:
+        await interaction.response.send_message("❌ 이 칸은 비어있음.", ephemeral=True)
+        return
+
+    if now < plot["harvest_time"]:
+        remain = int((plot["harvest_time"] - now).total_seconds())
+        await interaction.response.send_message(
+            f"❌ 아직 덜 자람. {remain}초 남음.",
+            ephemeral=True
+        )
+        return
+
+    crop_name = plot["crop"]
+
+    farm_data[user_id]["crops"][crop_name] += 1
+    crop_dex[user_id].add(crop_name)
+    farm_data[user_id]["field"][index] = None
+
+    await interaction.response.send_message(
+        f"🌾 수확 완료!\n"
+        f"획득 농작물: **{crop_name} 1개**"
+    )
+
+
+@bot.tree.command(name="판매", description="농작물을 판매한다", guild=GUILD)
+@app_commands.describe(
+    농작물="판매할 농작물 이름",
+    갯수="판매할 갯수"
+)
+async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: int):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_farm(user_id)
+
+    if 농작물 not in SEED_DATA:
+        await interaction.response.send_message("❌ 그런 농작물 없음.", ephemeral=True)
+        return
+
+    if 갯수 <= 0:
+        await interaction.response.send_message("❌ 1개 이상 팔아야 함.", ephemeral=True)
+        return
+
+    if farm_data[user_id]["crops"][농작물] < 갯수:
+        await interaction.response.send_message(
+            f"❌ {농작물} 부족함.\n"
+            f"보유: {farm_data[user_id]['crops'][농작물]}개",
+            ephemeral=True
+        )
+        return
+
+    if not crop_prices:
+        update_crop_prices()
+
+    price = crop_prices[농작물]
+    total = price * 갯수
+
+    farm_data[user_id]["crops"][농작물] -= 갯수
+    money_data[user_id] += total
+
+    await interaction.response.send_message(
+        f"💰 판매 완료!\n\n"
+        f"농작물: **{농작물}**\n"
+        f"수량: **{갯수}개**\n"
+        f"현재 단가: **{price}원**\n"
+        f"총 판매가: **{total}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
+
+
+@bot.tree.command(name="변동가", description="현재 농작물 시세 확인", guild=GUILD)
+async def crop_price_info(interaction: discord.Interaction):
+    if not crop_prices:
+        update_crop_prices()
+
+    text = "\n".join(
+        f"{name}: {crop_prices[name]}원 "
+        f"(기준가 {data['base_price']}원)"
+        for name, data in SEED_DATA.items()
+    )
+
+    await interaction.response.send_message(
+        f"📈 **현재 농작물 변동가**\n\n{text}\n\n"
+        f"시세는 1시간마다 1%~7% 변동됨."
+    )
+
+
+@bot.tree.command(name="도감2", description="농작물 도감 확인", guild=GUILD)
+async def crop_book(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_farm(user_id)
+
+    lines = []
+
+    for name, data in SEED_DATA.items():
+        discovered = "✅" if name in crop_dex[user_id] else "❌"
+
+        lines.append(
+            f"{discovered} **{name}**\n"
+            f"씨앗 가격: {data['seed_price']}원\n"
+            f"기준 판매가: {data['base_price']}원\n"
+            f"성장 시간: {data['grow_min']}초 ~ {data['grow_max']}초"
+        )
+
+    await interaction.response.send_message(
+        "📖 **농작물 도감**\n\n" + "\n\n".join(lines)
+    )
+
 bot.run(TOKEN)
