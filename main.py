@@ -1105,7 +1105,8 @@ JACKPOT_MULTIPLIER = {
 def get_wallet(user_id):
     if user_id not in money_data:
         money_data[user_id] = 5000
-        save_data()
+        return True
+    return False
 
 
 def get_log(user_id):
@@ -1116,7 +1117,8 @@ def get_log(user_id):
             "earned": 0,
             "plays": 0
         }
-        save_data()
+        return True
+    return False
 
 
 @bot.tree.command(name="돈받기", description="24시간마다 1000원을 받는다", guild=GUILD)
@@ -1150,20 +1152,26 @@ async def claim_money(interaction: discord.Interaction):
 
 @bot.tree.command(name="지갑", description="현재 잔액을 확인한다", guild=GUILD)
 async def wallet(interaction: discord.Interaction):
+    await interaction.response.defer()
+
     user_id = interaction.user.id
+    created = get_wallet(user_id)
 
-    get_wallet(user_id)
-
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"👛 현재 잔액: **{money_data[user_id]}원**"
     )
+
+    if created:
+        save_data()
 
 
 @bot.tree.command(name="로그", description="룰렛 기록을 확인한다", guild=GUILD)
 async def roulette_log(interaction: discord.Interaction):
+    await interaction.response.defer()
+
     user_id = interaction.user.id
 
-    get_log(user_id)
+    created = get_log(user_id)
     log = roulette_logs[user_id]
 
     symbol_text = "\n".join(
@@ -1171,13 +1179,16 @@ async def roulette_log(interaction: discord.Interaction):
         for symbol, count in log["symbols"].items()
     )
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"📊 **룰렛 로그**\n\n"
         f"🎰 룰렛 횟수: **{log['plays']}회**\n"
         f"💸 쓴 금액: **{log['spent']}원**\n"
         f"💰 딴 금액: **{log['earned']}원**\n\n"
         f"나온 심볼 개수:\n{symbol_text}"
     )
+
+    if created:
+        save_data()
 
 
 @bot.tree.command(name="룰렛", description="슬롯머신을 돌린다", guild=GUILD)
@@ -1257,6 +1268,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
         money_data[user_id] += reward
         roulette_logs[user_id]["earned"] += reward
+        save_data()
 
         result_text += (
             f"✨ 2개 일치!\n"
@@ -1828,8 +1840,7 @@ def get_tank(user_id):
         fish_dex[user_id] = set()
         changed = True
 
-    if changed:
-        save_data()
+    return changed
 
 
 def fish_price(fish_name, kg):
@@ -2250,8 +2261,7 @@ def get_farm(user_id):
         crop_dex[user_id] = set()
         changed = True
 
-    if changed:
-        save_data()
+    return changed
 
 
 def update_crop_prices():
