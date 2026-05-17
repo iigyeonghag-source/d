@@ -2106,17 +2106,6 @@ class FishingButtonView(discord.ui.View):
             if catch_count == 2:
                 double_text = "\n\n🔥 **더블 낚시 발동!**\n"
 
-            await interaction.response.edit_message(
-                content=(
-                    f"🎣 낚시 성공!"
-                    f"{double_text}\n"
-                    f"사용 낚싯대: **{rod_name}**\n"
-                    f"사용 미끼: **{bait_name}**\n\n"
-                    + "\n\n".join(caught_text)
-                ),
-                view=None
-            )
-
     rod_name = equipped_rods.get(user_id, "기본 낚싯대")
     bait_name = equipped_baits.get(user_id, "미끼 없음")
 
