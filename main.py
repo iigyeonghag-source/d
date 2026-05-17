@@ -2905,44 +2905,38 @@ async def trade_fish(
         f"총 무게: **{total_kg}kg**\n"
         f"총 예상가: **{total_price}원**"
     )
-@bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
+@@bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
 async def money_leaderboard(interaction: discord.Interaction):
     await interaction.response.defer()
 
     user_id = interaction.user.id
-    guild = interaction.guild
-
     get_wallet(user_id)
 
-    guild_members = {
-        member.id: member
-        for member in guild.members
-        if not member.bot
-    }
-
-    ranking_data = []
-
-    for member_id, money in money_data.items():
-        if member_id in guild_members:
-            ranking_data.append((member_id, money))
-
-    ranking_data.sort(key=lambda x: x[1], reverse=True)
-
-    top_10 = ranking_data[:10]
+    ranking_data = sorted(
+        money_data.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
     if not ranking_data:
         await interaction.followup.send("📊 아직 리더보드에 표시할 유저가 없음.")
         return
 
+    top_10 = ranking_data[:10]
     lines = []
 
     for rank, (member_id, money) in enumerate(top_10, start=1):
-        member = guild_members.get(member_id)
+        member = interaction.guild.get_member(member_id)
 
-        if member:
-            name = member.display_name
+        if member is None:
+            try:
+                member = await interaction.guild.fetch_member(member_id)
+                name = member.display_name
+            except:
+                name = f"알 수 없음({member_id})"
         else:
-            name = f"알 수 없음({member_id})"
+            name = member.display_name
+
         medal = ""
         if rank == 1:
             medal = "🥇 "
@@ -2951,12 +2945,9 @@ async def money_leaderboard(interaction: discord.Interaction):
         elif rank == 3:
             medal = "🥉 "
 
-        lines.append(
-            f"{rank}위. {medal}{name} - **{money}원**"
-        )
+        lines.append(f"{rank}위. {medal}{name} - **{money:,}원**")
 
     my_rank = None
-
     for rank, (member_id, money) in enumerate(ranking_data, start=1):
         if member_id == user_id:
             my_rank = rank
@@ -2967,7 +2958,7 @@ async def money_leaderboard(interaction: discord.Interaction):
     await interaction.followup.send(
         f"🏆 **잔액 리더보드 TOP 10**\n\n"
         f"{chr(10).join(lines)}\n\n"
-        f"📌 내 순위: **{my_rank}위** / 잔액: **{my_money}원**"
+        f"📌 내 순위: **{my_rank}위** / 잔액: **{my_money:,}원**"
     )
 # =========================
 # 은행 시스템
