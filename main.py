@@ -2832,5 +2832,9 @@ async def trade_fish(
         f"총 무게: **{total_kg}kg**\n"
         f"총 예상가: **{total_price}원**"
     )
+
+print("저장 위치:", os.path.abspath(DATA_FILE))
+print("파일 존재 여부:", os.path.exists(DATA_FILE))
+
 load_data()
 bot.run(TOKEN)
