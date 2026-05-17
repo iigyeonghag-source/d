@@ -14,6 +14,9 @@ import math
 
 import json
 
+def money(value):
+    return f"{round(value):,}"
+
 DATA_DIR = "/data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -237,9 +240,6 @@ def save_data():
 
     except Exception as e:
         print("저장 실패:", e)
-
-def money(value):
-    return f"{round(value):,}"
     
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
