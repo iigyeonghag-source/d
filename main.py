@@ -1917,7 +1917,7 @@ def pick_fish():
     return random.choices(names, weights=chances, k=1)[0]
 
 fishing_cooldowns = {}
-FISHING_COOLDOWN = timedelta(seconds=5)
+FISHING_COOLDOWN = timedelta(seconds=15)
 
 
 class FishingButtonView(discord.ui.View):
