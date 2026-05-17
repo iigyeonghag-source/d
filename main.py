@@ -2016,7 +2016,13 @@ ROD_DATA = {
         "time_reduce": 60,
         "double_chance": 35,
         "triple_chance": 15
-}
+    },
+    "운영자의 낚싯대": {
+        "price": 99999999999999999,
+        "luck": 999,
+        "time_reduce": 999,
+        "double_chance": 50,
+        "triple_chance": 50
 }
 
 BAIT_DATA = {
