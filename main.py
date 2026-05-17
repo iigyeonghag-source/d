@@ -1981,19 +1981,19 @@ ROD_DATA = {
         "double_chance": 5
     },
     "고급 낚싯대": {
-        "price": 1100000,
+        "price": 1500000,
         "luck": 25,
         "time_reduce": 25,
         "double_chance": 10
     },
     "개쩌는 낚싯대": {
-        "price": 5000000,
+        "price": 7000000,
         "luck": 45,
         "time_reduce": 40,
         "double_chance": 18
     },
     "신의 낚싯대": {
-        "price": 15000000,
+        "price": 20000000,
         "luck": 80,
         "time_reduce": 60,
         "double_chance": 35
@@ -2006,28 +2006,28 @@ BAIT_DATA = {
         "luck": 0
     },
     "장구벌레": {
-        "price": 3000,
+        "price": 300,
         "luck": 5
     },
     "지렁이": {
-        "price": 7000,
+        "price": 700,
         "luck": 10
     },
     "귀뚜라미": {
-        "price": 15000,
+        "price": 1300,
         "luck": 18
     },
     "거미": {
-        "price": 30000,
+        "price": 2300,
         "luck": 28
     },
     "영양볼": {
-        "price": 70000,
+        "price": 4500,
         "luck": 45
     },
     "강태공의 미끼": {
-        "price": 200000,
-        "luck": 60
+        "price": 15000,
+        "luck": 75
     }
 }
 
