@@ -2059,7 +2059,7 @@ FISHING_COOLDOWN = timedelta(seconds=12)
 
 class FishingButtonView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=12)
+        super().__init__(timeout=9)
         self.user_id = user_id
         self.can_catch = False
         self.clicked = False
