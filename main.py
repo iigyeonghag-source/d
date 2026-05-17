@@ -7,6 +7,178 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from discord import app_commands
 
+# =========================
+# 데이터 저장 시스템
+# =========================
+
+import json
+
+DATA_FILE = "data.json"
+
+DATA_KEYS = [
+    "money_data",
+    "daily_claims",
+    "roulette_logs",
+    "talk_states",
+    "talk_counts",
+    "cooldowns",
+    "fish_tanks",
+    "fish_dex",
+    "fishing_cooldowns",
+    "farm_data",
+    "crop_dex",
+    "crop_prices",
+]
+
+data = {key: {} for key in DATA_KEYS}
+
+
+def serialize_datetime(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+
+    if isinstance(obj, set):
+        return list(obj)
+
+    raise TypeError(f"{type(obj)} is not serializable")
+
+
+def to_int_key_dict(raw):
+    result = {}
+
+    for key, value in raw.items():
+        try:
+            new_key = int(key)
+        except (ValueError, TypeError):
+            new_key = key
+
+        result[new_key] = value
+
+    return result
+
+
+def restore_datetime(value):
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return value
+
+    return value
+
+
+def bind_storage_globals():
+    global money_data, daily_claims, roulette_logs
+    global talk_states, talk_counts, cooldowns
+    global fish_tanks, fish_dex, fishing_cooldowns
+    global farm_data, crop_dex, crop_prices
+
+    money_data = data["money_data"]
+    daily_claims = data["daily_claims"]
+    roulette_logs = data["roulette_logs"]
+
+    talk_states = data["talk_states"]
+    talk_counts = data["talk_counts"]
+    cooldowns = data["cooldowns"]
+
+    fish_tanks = data["fish_tanks"]
+    fish_dex = data["fish_dex"]
+    fishing_cooldowns = data["fishing_cooldowns"]
+
+    farm_data = data["farm_data"]
+    crop_dex = data["crop_dex"]
+    crop_prices = data["crop_prices"]
+
+
+def sync_storage_globals():
+    data["money_data"] = money_data
+    data["daily_claims"] = daily_claims
+    data["roulette_logs"] = roulette_logs
+
+    data["talk_states"] = talk_states
+    data["talk_counts"] = talk_counts
+    data["cooldowns"] = cooldowns
+
+    data["fish_tanks"] = fish_tanks
+    data["fish_dex"] = fish_dex
+    data["fishing_cooldowns"] = fishing_cooldowns
+
+    data["farm_data"] = farm_data
+    data["crop_dex"] = crop_dex
+    data["crop_prices"] = crop_prices
+
+
+def load_data():
+    global data
+
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+
+        for key in DATA_KEYS:
+            data[key] = loaded.get(key, {})
+
+    for key in [
+        "money_data",
+        "daily_claims",
+        "roulette_logs",
+        "talk_states",
+        "talk_counts",
+        "cooldowns",
+        "fish_tanks",
+        "fish_dex",
+        "fishing_cooldowns",
+        "farm_data",
+        "crop_dex",
+    ]:
+        data[key] = to_int_key_dict(data[key])
+
+    for user_id, value in list(data["daily_claims"].items()):
+        data["daily_claims"][user_id] = restore_datetime(value)
+
+    for user_id, value in list(data["cooldowns"].items()):
+        data["cooldowns"][user_id] = restore_datetime(value)
+
+    for user_id, value in list(data["fishing_cooldowns"].items()):
+        data["fishing_cooldowns"][user_id] = restore_datetime(value)
+
+    for user_id, value in list(data["talk_states"].items()):
+        if isinstance(value, dict) and "expires" in value:
+            value["expires"] = restore_datetime(value["expires"])
+
+    for user_id, value in list(data["fish_dex"].items()):
+        data["fish_dex"][user_id] = set(value)
+
+    for user_id, value in list(data["crop_dex"].items()):
+        data["crop_dex"][user_id] = set(value)
+
+    for user_id, farm in list(data["farm_data"].items()):
+        if not isinstance(farm, dict):
+            continue
+
+        for plot in farm.get("field", []):
+            if isinstance(plot, dict):
+                if "planted_at" in plot:
+                    plot["planted_at"] = restore_datetime(plot["planted_at"])
+                if "harvest_time" in plot:
+                    plot["harvest_time"] = restore_datetime(plot["harvest_time"])
+
+    bind_storage_globals()
+    save_data()
+
+
+def save_data():
+    sync_storage_globals()
+
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(
+            data,
+            f,
+            ensure_ascii=False,
+            indent=4,
+            default=serialize_datetime
+        )
+
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -556,6 +728,11 @@ async def on_ready():
 
     auto_message_started = True
 
+    if not crop_price_loop.is_running():
+        if not crop_prices:
+            update_crop_prices()
+        crop_price_loop.start()
+
     for channel_data in CHANNELS:
         bot.loop.create_task(random_message_loop(channel_data))
 
@@ -633,6 +810,7 @@ COOLDOWN_TIME = timedelta(seconds=15)
 def reset_talk(user_id):
     if user_id in talk_states:
         del talk_states[user_id]
+        save_data()
 
 
 @bot.tree.command(name="카운트", description="현재 대화 카운트 확인", guild=GUILD)
@@ -657,6 +835,7 @@ async def talk(interaction: discord.Interaction):
         return
 
     talk_counts[user_id] = talk_counts.get(user_id, 0) + 1
+    save_data()
 
     state_data = talk_states.get(user_id)
 
@@ -669,6 +848,7 @@ async def talk(interaction: discord.Interaction):
             "state": next_state,
             "expires": now + TALK_TIMEOUT
         }
+        save_data()
 
     async def reply_50(positive_msgs, negative_msgs, next_state):
         is_positive = random.choice([True, False])
@@ -680,6 +860,7 @@ async def talk(interaction: discord.Interaction):
             msg = random.choice(negative_msgs)
             cooldowns[user_id] = now + COOLDOWN_TIME
             reset_talk(user_id)
+            save_data()
 
         await interaction.response.send_message(msg)
 
@@ -792,6 +973,7 @@ async def talk(interaction: discord.Interaction):
     if state == "ending":
         talk_counts[user_id] = 0
         reset_talk(user_id)
+        save_data()
         await interaction.response.send_message("다음에 또 대화하자.")
         return
 
@@ -923,6 +1105,7 @@ JACKPOT_MULTIPLIER = {
 def get_wallet(user_id):
     if user_id not in money_data:
         money_data[user_id] = 5000
+        save_data()
 
 
 def get_log(user_id):
@@ -933,6 +1116,7 @@ def get_log(user_id):
             "earned": 0,
             "plays": 0
         }
+        save_data()
 
 
 @bot.tree.command(name="돈받기", description="24시간마다 1000원을 받는다", guild=GUILD)
@@ -957,6 +1141,7 @@ async def claim_money(interaction: discord.Interaction):
 
     money_data[user_id] += 1000
     daily_claims[user_id] = now
+    save_data()
 
     await interaction.response.send_message(
         f"💰 1000원 받음!\n현재 잔액: **{money_data[user_id]}원**"
@@ -1020,6 +1205,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
     money_data[user_id] -= 베팅
     roulette_logs[user_id]["spent"] += 베팅
     roulette_logs[user_id]["plays"] += 1
+    save_data()
 
     await interaction.response.send_message("🎰 슬롯머신 돌리는 중...")
 
@@ -1047,6 +1233,8 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
     for symbol in slots:
         roulette_logs[user_id]["symbols"][symbol] += 1
 
+    save_data()
+
     result_text = f"🎰 슬롯머신 결과 🎰\n\n| {' | '.join(slots)} |\n\n"
 
     if slots[0] == slots[1] == slots[2]:
@@ -1055,6 +1243,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
         money_data[user_id] += reward
         roulette_logs[user_id]["earned"] += reward
+        save_data()
 
         result_text += (
             f"🔥 JACKPOT 🔥\n"
@@ -1128,6 +1317,7 @@ async def transfer(
     # 송금
     money_data[sender_id] -= 금액
     money_data[target_id] += 금액
+    save_data()
 
     await interaction.response.send_message(
         f"💸 송금 완료!\n\n"
@@ -1180,6 +1370,7 @@ async def horse_race(
         return
 
     money_data[user_id] -= 베팅
+    save_data()
 
     await interaction.response.send_message(
         "🏇 경마 시작..."
@@ -1211,6 +1402,7 @@ async def horse_race(
     if 말번호 == winner:
         reward = 베팅 * 3
         money_data[user_id] += reward
+        save_data()
 
         result += (
             f"🎉 적중!\n"
@@ -1626,11 +1818,18 @@ FISH_DATA = {
 }
 
 def get_tank(user_id):
+    changed = False
+
     if user_id not in fish_tanks:
         fish_tanks[user_id] = []
+        changed = True
 
     if user_id not in fish_dex:
         fish_dex[user_id] = set()
+        changed = True
+
+    if changed:
+        save_data()
 
 
 def fish_price(fish_name, kg):
@@ -1731,6 +1930,7 @@ async def fishing_success(interaction: discord.Interaction, button):
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
+        save_data()
 
         await interaction.response.edit_message(
             content=(
@@ -1756,6 +1956,7 @@ async def fishing_success(interaction: discord.Interaction, button):
     })
 
     fish_dex[user_id].add(fish_name)
+    save_data()
 
     await interaction.response.edit_message(
         content=(
@@ -1787,6 +1988,7 @@ async def fishing(interaction: discord.Interaction):
         return
 
     fishing_cooldowns[user_id] = now + FISHING_COOLDOWN
+    save_data()
 
     view = FishingButtonView(user_id)
 
@@ -1875,6 +2077,7 @@ async def sell_fish(interaction: discord.Interaction, 물고기: str, 갯수: in
 
     fish_tanks[user_id] = new_tank
     money_data[user_id] += total_price
+    save_data()
 
     await interaction.response.send_message(
         f"💰 판매 완료!\n\n"
@@ -1950,6 +2153,7 @@ async def sell_all_fish(interaction: discord.Interaction):
 
     fish_tanks[user_id] = []
     money_data[user_id] += total_price
+    save_data()
 
     sold_text = "\n".join(
         f"{name}: {count}마리"
@@ -2022,6 +2226,8 @@ SEED_DATA = {
 
 
 def get_farm(user_id):
+    changed = False
+
     if user_id not in farm_data:
         farm_data[user_id] = {
             "seeds": {name: 0 for name in SEED_DATA},
@@ -2029,9 +2235,23 @@ def get_farm(user_id):
             "field": [None for _ in range(FARM_SIZE)],
             "crops": {name: 0 for name in SEED_DATA}
         }
+        changed = True
+
+    for name in SEED_DATA:
+        if name not in farm_data[user_id]["seeds"]:
+            farm_data[user_id]["seeds"][name] = 0
+            changed = True
+
+        if name not in farm_data[user_id]["crops"]:
+            farm_data[user_id]["crops"][name] = 0
+            changed = True
 
     if user_id not in crop_dex:
         crop_dex[user_id] = set()
+        changed = True
+
+    if changed:
+        save_data()
 
 
 def update_crop_prices():
@@ -2053,6 +2273,8 @@ def update_crop_prices():
         max_price = int(base * 1.5)
 
         crop_prices[crop_name] = max(min_price, min(max_price, current))
+
+    save_data()
 
 
 @tasks.loop(hours=1)
@@ -2115,6 +2337,7 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
 
         money_data[user_id] -= price
         farm_data[user_id]["fertilizer"] += 갯수
+        save_data()
 
         await interaction.response.send_message(
             f"🧪 비료 {갯수}개 구매 완료!\n"
@@ -2135,6 +2358,7 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
 
     money_data[user_id] -= price
     farm_data[user_id]["seeds"][아이템] += 갯수
+    save_data()
 
     await interaction.response.send_message(
         f"🌱 {아이템} 씨앗 {갯수}개 구매 완료!\n"
@@ -2229,6 +2453,7 @@ async def plant_seed(
         "harvest_time": now + timedelta(seconds=grow_time),
         "fertilizer": used_fertilizer
     }
+    save_data()
 
     await interaction.response.send_message(
         f"🌱 {칸}번 밭에 **{씨앗}** 심음!\n"
@@ -2269,6 +2494,7 @@ async def harvest_crop(interaction: discord.Interaction, 칸: int):
     farm_data[user_id]["crops"][crop_name] += 1
     crop_dex[user_id].add(crop_name)
     farm_data[user_id]["field"][index] = None
+    save_data()
 
     await interaction.response.send_message(
         f"🌾 수확 완료!\n"
@@ -2311,6 +2537,7 @@ async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: in
 
     farm_data[user_id]["crops"][농작물] -= 갯수
     money_data[user_id] += total
+    save_data()
 
     await interaction.response.send_message(
         f"💰 판매 완료!\n\n"
@@ -2424,6 +2651,8 @@ async def plant_all_seed(
 
         planted += 1
 
+    save_data()
+
     await interaction.response.send_message(
         f"🌱 **전체 심기 완료!**\n\n"
         f"심은 작물: **{씨앗}**\n"
@@ -2460,6 +2689,8 @@ async def harvest_all_crop(interaction: discord.Interaction):
     if not harvested:
         await interaction.response.send_message("🌱 수확 가능한 농작물이 없음.", ephemeral=True)
         return
+
+    save_data()
 
     text = "\n".join(
         f"{name}: {count}개"
@@ -2507,6 +2738,7 @@ async def sell_all_crop(interaction: discord.Interaction):
         return
 
     money_data[user_id] += total_price
+    save_data()
 
     text = "\n".join(
         f"{name}: {data['count']}개 / 단가 {data['price']}원 / {data['total']}원"
@@ -2520,4 +2752,5 @@ async def sell_all_crop(interaction: discord.Interaction):
         f"총 판매가: **{total_price}원**\n\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
+load_data()
 bot.run(TOKEN)
