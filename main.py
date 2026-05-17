@@ -2586,7 +2586,8 @@ async def my_rods(interaction: discord.Interaction):
             f"{mark} **{rod_name}**\n"
             f"운빨 증가: **{rod['luck']}%**\n"
             f"잡히는 시간 감소율: **{rod['time_reduce']}%**\n"
-            f"더블 확률: **{rod['double_chance']}%**"
+            f"더블 확률: **{rod['double_chance']}%**"\n
+            f"트리플 확률: **{rod{'triple_chance']}%**"
         )
 
     await interaction.response.send_message(
