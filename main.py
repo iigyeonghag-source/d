@@ -2018,7 +2018,7 @@ ROD_DATA = {
         "triple_chance": 15
     },
     "운영자의 낚싯대": {
-    "price": 99999999999999999,
+    "price": 99999999999999,
     "luck": 999,
     "time_reduce": 999,
     "double_chance": 50,
