@@ -1999,51 +1999,12 @@ class FishingButtonView(discord.ui.View):
         self.clicked = True
         button.disabled = True
 
-        await fishing_success(interaction, button)
-        self.stop()
-
-    async def start_waiting(self):
-        rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
-        rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
-
-        base_wait = random.randint(3, 10)
-        reduce_rate = rod["time_reduce"] / 100
-        wait_time = max(1, int(base_wait * (1 - reduce_rate)))
-        await asyncio.sleep(wait_time)
-
-        if self.clicked:
-            return
-
-        self.can_catch = True
-
-        button = self.children[0]
-        button.label = "지금이다!"
-        button.style = discord.ButtonStyle.green
-
-        await self.message.edit(
-            content="🎣 찌가 흔들린다! 지금 버튼 누르자!",
-            view=self
-        )
-
-    async def on_timeout(self):
-        if self.clicked:
-            return
-
-        for item in self.children:
-            item.disabled = True
-
-        if self.message:
-            await self.message.edit(
-                content="🐟 시간이 지나서 물고기가 도망갔다...",
-                view=self
-            )
-
-
-async def fishing_success(interaction: discord.Interaction, button):
+        async def fishing_success(interaction: discord.Interaction, button):
     user_id = interaction.user.id
 
     get_wallet(user_id)
     get_tank(user_id)
+    get_fishing_gear(user_id)
 
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
@@ -2052,13 +2013,82 @@ async def fishing_success(interaction: discord.Interaction, button):
 
         await interaction.response.edit_message(
             content=(
-                f"🐟💀 **간고등어 출현**\n\n"
+                f"🐟💀 간고등어 출현\n\n"
                 f"간고등어가 당신의 지갑을 물고 튀었다..\n"
                 f"💸 -{stolen}원\n\n"
                 f"현재 잔액: **{money_data[user_id]}원**"
             ),
             view=None
         )
+        return
+
+    rod_name = equipped_rods.get(user_id, "기본 낚싯대")
+    bait_name = equipped_baits.get(user_id, "미끼 없음")
+
+    rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
+    bait = BAIT_DATA.get(bait_name, BAIT_DATA["미끼 없음"])
+
+    luck_bonus = rod["luck"] + bait["luck"]
+
+    catch_count = 1
+
+    if random.randint(1, 100) <= rod["double_chance"]:
+        catch_count = 2
+
+    caught_text = []
+
+    for _ in range(catch_count):
+        fish_name = pick_fish(luck_bonus)
+        data = FISH_DATA[fish_name]
+
+        kg = round(
+            random.uniform(
+                data["min_kg"],
+                data["max_kg"]
+            ),
+            2
+        )
+
+        price = fish_price(fish_name, kg)
+
+        fish_tanks[user_id].append({
+            "name": fish_name,
+            "kg": kg,
+            "price": price
+        })
+
+        fish_dex[user_id].add(fish_name)
+
+        caught_text.append(
+            f"잡은 물고기: **{fish_name}**\n"
+            f"무게: **{kg}kg**\n"
+            f"예상 판매가: **{price}원**"
+        )
+
+    if bait_name != "미끼 없음":
+        owned_baits[user_id][bait_name] -= 1
+
+        if owned_baits[user_id][bait_name] <= 0:
+            del owned_baits[user_id][bait_name]
+            equipped_baits[user_id] = "미끼 없음"
+
+    save_data()
+
+    double_text = ""
+
+    if catch_count == 2:
+        double_text = "\n\n🔥 **더블 낚시 발동!**\n"
+
+    await interaction.response.edit_message(
+        content=(
+            f"🎣 낚시 성공!"
+            f"{double_text}\n"
+            f"사용 낚싯대: **{rod_name}**\n"
+            f"사용 미끼: **{bait_name}**\n\n"
+            + "\n\n".join(caught_text)
+        ),
+        view=None
+    )
         return
 
     get_fishing_gear(user_id)
