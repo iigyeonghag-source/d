@@ -2752,7 +2752,7 @@ async def sell_all_crop(interaction: discord.Interaction):
         f"총 판매가: **{total_price}원**\n\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
-    @bot.tree.command(name="거래", description="내가 잡은 물고기를 다른 유저에게 준다.", guild=GUILD)
+@bot.tree.command(name="거래", description="내가 잡은 물고기를 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
     대상="물고기를 받을 유저",
     물고기="줄 물고기 이름",
