@@ -1966,38 +1966,44 @@ ROD_DATA = {
         "price": 0,
         "luck": 0,
         "time_reduce": 0,
-        "double_chance": 0
+        "double_chance": 0,
+        "triple_chance": 0
     },
     "초급 낚싯대": {
-        "price": 120000,
+        "price": 150000,
         "luck": 5,
         "time_reduce": 5,
-        "double_chance": 2
+        "double_chance": 2,
+        "triple_chance": 0.1
     },
     "중급 낚싯대": {
-        "price": 500000,
+        "price": 600000,
         "luck": 12,
         "time_reduce": 12,
-        "double_chance": 5
+        "double_chance": 5,
+        "triple_chance": 1
     },
     "고급 낚싯대": {
         "price": 1500000,
         "luck": 25,
         "time_reduce": 25,
-        "double_chance": 10
+        "double_chance": 10,
+        "triple_chance": 2
     },
     "개쩌는 낚싯대": {
         "price": 7000000,
         "luck": 45,
         "time_reduce": 40,
-        "double_chance": 18
+        "double_chance": 18,
+        "triple_chance": 8
     },
     "신의 낚싯대": {
         "price": 20000000,
         "luck": 80,
         "time_reduce": 60,
-        "double_chance": 35
-    }
+        "double_chance": 35,
+        "triple_chance": 15
+}
 }
 
 BAIT_DATA = {
@@ -2027,7 +2033,7 @@ BAIT_DATA = {
     },
     "강태공의 미끼": {
         "price": 15000,
-        "luck": 75
+        "luck": 85
     }
 }
 
@@ -2170,7 +2176,11 @@ async def fishing_success(interaction: discord.Interaction):
     luck_bonus = rod["luck"] + bait["luck"]
 
     catch_count = 1
-    if random.randint(1, 100) <= rod["double_chance"]:
+    roll = random.uniform(0, 100)
+
+    if roll <= rod.get("triple_chance", 0):
+        catch_count = 3
+    elif roll <= rod.get("triple_chance", 0) + rod["double_chance"]:
         catch_count = 2
 
     caught_text = []
@@ -2212,21 +2222,23 @@ async def fishing_success(interaction: discord.Interaction):
 
     save_data()
 
-    double_text = ""
-    if catch_count == 2:
-        double_text = "\n\n🔥 **더블 낚시 발동!**\n"
+    bonus_text = ""
+
+    if catch_count == 3:
+        bonus_text = "\n\n🌊🔥 **트리플 낚시 발동!**\n"
+    elif catch_count == 2:
+        bonus_text = "\n\n🔥 **더블 낚시 발동!**\n"
 
     await interaction.response.edit_message(
         content=(
             f"🎣 낚시 성공!"
-            f"{double_text}\n"
+            f"{bonus_text}\n"
             f"사용 낚싯대: **{rod_name}**\n"
             f"사용 미끼: **{bait_name}**\n\n"
             + "\n\n".join(caught_text)
         ),
         view=None
     )
-
 
 @bot.tree.command(name="낚시", description="버튼 타이밍에 맞춰 물고기를 낚는다", guild=GUILD)
 async def fishing(interaction: discord.Interaction):
