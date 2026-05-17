@@ -2905,7 +2905,7 @@ async def trade_fish(
         f"총 무게: **{total_kg}kg**\n"
         f"총 예상가: **{total_price}원**"
     )
-@@bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
+@bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
 async def money_leaderboard(interaction: discord.Interaction):
     await interaction.response.defer()
 
