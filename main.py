@@ -2,7 +2,7 @@ import os
 import discord
 import random
 import asyncio
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from discord import app_commands
