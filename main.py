@@ -2942,7 +2942,7 @@ async def money_leaderboard(interaction: discord.Interaction):
         if member:
             name = member.display_name
         else:
-    name = f"알 수 없음({member_id})"
+            name = f"알 수 없음({member_id})"
         medal = ""
         if rank == 1:
             medal = "🥇 "
