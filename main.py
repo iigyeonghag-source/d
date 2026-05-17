@@ -36,7 +36,8 @@ DATA_KEYS = [
     "owned_rods",
     "equipped_rods",
     "owned_baits",
-    "equipped_baits"
+    "equipped_baits",
+    "loan_data"
 ]
 
 data = {key: {} for key in DATA_KEYS}
@@ -83,11 +84,13 @@ def bind_storage_globals():
     global farm_data, crop_dex, crop_prices
     global bank_data
     global owned_rods, equipped_rods, owned_baits, equipped_baits
+    global loan_data
     
     money_data = data["money_data"]
     daily_claims = data["daily_claims"]
     roulette_logs = data["roulette_logs"]
     bank_data = data["bank_data"]
+    loan_data = data["loan_data"]
     
     talk_states = data["talk_states"]
     talk_counts = data["talk_counts"]
@@ -124,6 +127,7 @@ def sync_storage_globals():
     data["crop_prices"] = crop_prices
 
     data["bank_data"] = bank_data
+    data["loan_data"] = loan_data
 
     data["owned_rods"] = owned_rods
     data["equipped_rods"] = equipped_rods
@@ -143,6 +147,8 @@ def load_data():
 
     for key in [
         "money_data",
+        "bank_data",
+        "loan_data",
         "daily_claims",
         "roulette_logs",
         "talk_states",
@@ -176,12 +182,19 @@ def load_data():
     for user_id, value in list(data["fish_dex"].items()):
         data["fish_dex"][user_id] = set(value)
 
-    for user_id, value in list(data["crop_dex"].items()):
-        data["crop_dex"][user_id] = set(value)
-
-    for user_id, farm in list(data["farm_data"].items()):
-        if not isinstance(farm, dict):
+    for user_id, bank in list(data["bank_data"].items()):
+        if not isinstance(bank, dict):
             continue
+
+        if "last_interest" in bank:
+            bank["last_interest"] = restore_datetime(bank["last_interest"])
+
+        if "loan_time" in bank:
+            bank["loan_time"] = restore_datetime(bank["loan_time"])
+
+        for user_id, farm in list(data["farm_data"].items()):
+            if not isinstance(farm, dict):
+                continue
 
         for plot in farm.get("field", []):
             if isinstance(plot, dict):
