@@ -170,14 +170,20 @@ def load_data():
 def save_data():
     sync_storage_globals()
 
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(
-            data,
-            f,
-            ensure_ascii=False,
-            indent=4,
-            default=serialize_datetime
-        )
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(
+                data,
+                f,
+                ensure_ascii=False,
+                indent=4,
+                default=serialize_datetime
+            )
+
+        print("저장 성공")
+
+    except Exception as e:
+        print("저장 실패:", e)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
