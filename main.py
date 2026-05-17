@@ -2005,10 +2005,13 @@ class FishingButtonView(discord.ui.View):
             get_wallet(user_id)
             get_tank(user_id)
             get_fishing_gear(user_id)
-    
+
+
             if random.randint(1, 100) == 1:
                 stolen = int(money_data[user_id] * 0.05)
+
                 money_data[user_id] -= stolen
+
                 save_data()
 
                 await interaction.response.edit_message(
@@ -2020,13 +2023,28 @@ class FishingButtonView(discord.ui.View):
                     ),
                     view=None
                 )
+
                 return
 
-            rod_name = equipped_rods.get(user_id, "기본 낚싯대")
-            bait_name = equipped_baits.get(user_id, "미끼 없음")
+            rod_name = equipped_rods.get(
+                user_id,
+                "기본 낚싯대"
+            )
 
-            rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
-            bait = BAIT_DATA.get(bait_name, BAIT_DATA["미끼 없음"])
+            bait_name = equipped_baits.get(
+                user_id,
+                "미끼 없음"
+            )
+
+            rod = ROD_DATA.get(
+                rod_name,
+                ROD_DATA["기본 낚싯대"]
+            )
+
+            bait = BAIT_DATA.get(
+                bait_name,
+                BAIT_DATA["미끼 없음"]
+            )
 
             luck_bonus = rod["luck"] + bait["luck"]
 
@@ -2038,7 +2056,9 @@ class FishingButtonView(discord.ui.View):
             caught_text = []
 
             for _ in range(catch_count):
+
                 fish_name = pick_fish(luck_bonus)
+
                 data = FISH_DATA[fish_name]
 
                 kg = round(
@@ -2049,7 +2069,10 @@ class FishingButtonView(discord.ui.View):
                     2
                 )
 
-                price = fish_price(fish_name, kg)
+                price = fish_price(
+                    fish_name,
+                    kg
+                )
 
                 fish_tanks[user_id].append({
                     "name": fish_name,
@@ -2065,11 +2088,15 @@ class FishingButtonView(discord.ui.View):
                     f"예상 판매가: **{price}원**"
                 )
 
+    # 미끼 소모
             if bait_name != "미끼 없음":
+
                 owned_baits[user_id][bait_name] -= 1
 
                 if owned_baits[user_id][bait_name] <= 0:
+
                     del owned_baits[user_id][bait_name]
+
                     equipped_baits[user_id] = "미끼 없음"
 
             save_data()
