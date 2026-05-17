@@ -2027,31 +2027,30 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
     get_wallet(user_id)
     get_farm(user_id)
 
-    if 아이템 is None:
+     if 아이템 is None:
+        seed_lines = []
 
-    seed_lines = []
+        for name, data in SEED_DATA.items():
+            seed_lines.append(
+                f"🌱 {name}\n"
+                f"씨앗 가격: {data['seed_price']}원\n"
+                f"기준 판매가: {data['base_price']}원\n"
+                f"성장 시간: {data['grow_min']}초 ~ {data['grow_max']}초"
+            )
 
-    for name, data in SEED_DATA.items():
-        seed_lines.append(
-            f"🌱 {name}\n"
-            f"씨앗 가격: {data['seed_price']}원\n"
-            f"기준 판매가: {data['base_price']}원\n"
-            f"성장 시간: {data['grow_min']}초 ~ {data['grow_max']}초"
+        shop_text = "\n\n".join(seed_lines)
+
+        await interaction.response.send_message(
+            f"🏪 **농사 상점**\n\n"
+            f"{shop_text}\n\n"
+            f"🧪 비료\n"
+            f"가격: {FERTILIZER_PRICE}원\n"
+            f"효과: 성장 시간 50% 감소\n\n"
+            f"구매 예시:\n"
+            f"`/상점 감자 3`\n"
+            f"`/상점 비료 2`"
         )
-
-    shop_text = "\n\n".join(seed_lines)
-
-    await interaction.response.send_message(
-        f"🏪 **농사 상점**\n\n"
-        f"{shop_text}\n\n"
-        f"🧪 비료\n"
-        f"가격: {FERTILIZER_PRICE}원\n"
-        f"효과: 성장 시간 50% 감소\n\n"
-        f"구매 예시:\n"
-        f"`/상점 감자 3`\n"
-        f"`/상점 비료 2`"
-    )
-    return
+        return
 
     if 갯수 <= 0:
         await interaction.response.send_message("❌ 1개 이상 사야 함.", ephemeral=True)
