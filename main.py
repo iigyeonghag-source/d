@@ -181,7 +181,10 @@ def load_data():
 
     for user_id, value in list(data["fish_dex"].items()):
         data["fish_dex"][user_id] = set(value)
-
+        
+    for user_id, value in list(data["crop_dex"].items()):
+         data["crop_dex"][user_id] = set(value)
+    
     for user_id, bank in list(data["bank_data"].items()):
         if not isinstance(bank, dict):
             continue
@@ -203,7 +206,7 @@ def load_data():
 
                 if "harvest_time" in plot:
                     plot["harvest_time"] = restore_datetime(plot["harvest_time"])
-
+    
     bind_storage_globals()
     save_data()
 
@@ -2743,8 +2746,8 @@ def get_farm(user_id):
             farm["crops"][name] = 0
             changed = True
 
-    if user_id not in crop_dex:
-        crop_dex[user_id] = set()
+    if user_id not in crop_dex or not isinstance(crop_dex[user_id], set):
+        crop_dex[user_id] = set(crop_dex.get(user_id, []))
         changed = True
 
     if changed:
