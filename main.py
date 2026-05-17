@@ -192,14 +192,15 @@ def load_data():
         if "loan_time" in bank:
             bank["loan_time"] = restore_datetime(bank["loan_time"])
 
-        for user_id, farm in list(data["farm_data"].items()):
-            if not isinstance(farm, dict):
-                continue
+    for user_id, farm in list(data["farm_data"].items()):
+        if not isinstance(farm, dict):
+            continue
 
         for plot in farm.get("field", []):
             if isinstance(plot, dict):
                 if "planted_at" in plot:
                     plot["planted_at"] = restore_datetime(plot["planted_at"])
+
                 if "harvest_time" in plot:
                     plot["harvest_time"] = restore_datetime(plot["harvest_time"])
 
@@ -2672,76 +2673,82 @@ FARM_SIZE = 9
 FERTILIZER_PRICE = 1500
 
 SEED_DATA = {
-    "감자": {
-        "seed_price": 500,
-        "base_price": 900,
-        "grow_min": 60,
-        "grow_max": 180
-    },
-    "당근": {
-        "seed_price": 700,
-        "base_price": 1300,
-        "grow_min": 120,
-        "grow_max": 300
-    },
-    "토마토": {
-        "seed_price": 1200,
-        "base_price": 2200,
-        "grow_min": 300,
-        "grow_max": 600
-    },
-    "딸기": {
-        "seed_price": 2500,
-        "base_price": 5000,
-        "grow_min": 600,
-        "grow_max": 1200
-    },
-    "황금옥수수": {
-        "seed_price": 10000,
-        "base_price": 25000,
-        "grow_min": 1800,
-        "grow_max": 3600
-    },
-    "만년초": {
-    "seed_price": 50000,
-    "base_price": 100000,
-    "grow_min": 1800,
-    "grow_max": 3600
-    },
-
+    "감자": {"seed_price": 500, "base_price": 900, "grow_min": 60, "grow_max": 180},
+    "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300},
+    "토마토": {"seed_price": 1200, "base_price": 2200, "grow_min": 300, "grow_max": 600},
+    "딸기": {"seed_price": 2500, "base_price": 5000, "grow_min": 600, "grow_max": 1200},
+    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 1800, "grow_max": 3600},
+    "만년초": {"seed_price": 50000, "base_price": 100000, "grow_min": 1800, "grow_max": 3600},
     "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
-    "seed_price": 1000000,
-    "base_price": 2500000,
-    "grow_min": 129600,
-    "grow_max": 129600
+        "seed_price": 1000000,
+        "base_price": 2500000,
+        "grow_min": 129600,
+        "grow_max": 129600
     }
 }
+
+
+def fix_datetime(value):
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    return None
 
 
 def get_farm(user_id):
     changed = False
 
-    if user_id not in farm_data:
-        farm_data[user_id] = {
-            "seeds": {name: 0 for name in SEED_DATA},
-            "fertilizer": 0,
-            "field": [None for _ in range(FARM_SIZE)],
-            "crops": {name: 0 for name in SEED_DATA}
-        }
+    if user_id not in farm_data or not isinstance(farm_data[user_id], dict):
+        farm_data[user_id] = {}
+        changed = True
+
+    farm = farm_data[user_id]
+
+    if "seeds" not in farm or not isinstance(farm["seeds"], dict):
+        farm["seeds"] = {}
+        changed = True
+
+    if "fertilizer" not in farm:
+        farm["fertilizer"] = 0
+        changed = True
+
+    if "field" not in farm or not isinstance(farm["field"], list):
+        farm["field"] = [None for _ in range(FARM_SIZE)]
+        changed = True
+
+    while len(farm["field"]) < FARM_SIZE:
+        farm["field"].append(None)
+        changed = True
+
+    if len(farm["field"]) > FARM_SIZE:
+        farm["field"] = farm["field"][:FARM_SIZE]
+        changed = True
+
+    if "crops" not in farm or not isinstance(farm["crops"], dict):
+        farm["crops"] = {}
         changed = True
 
     for name in SEED_DATA:
-        if name not in farm_data[user_id]["seeds"]:
-            farm_data[user_id]["seeds"][name] = 0
+        if name not in farm["seeds"]:
+            farm["seeds"][name] = 0
             changed = True
 
-        if name not in farm_data[user_id]["crops"]:
-            farm_data[user_id]["crops"][name] = 0
+        if name not in farm["crops"]:
+            farm["crops"][name] = 0
             changed = True
 
     if user_id not in crop_dex:
         crop_dex[user_id] = set()
         changed = True
+
+    if changed:
+        save_data()
 
     return changed
 
@@ -2772,12 +2779,6 @@ def update_crop_prices():
 @tasks.loop(hours=1)
 async def crop_price_loop():
     update_crop_prices()
-
-
-# on_ready 안에 이거 추가해야 함
-# if not crop_price_loop.is_running():
-#     update_crop_prices()
-#     crop_price_loop.start()
 
 
 @bot.tree.command(name="상점", description="씨앗과 비료를 구매한다", guild=GUILD)
@@ -2873,10 +2874,16 @@ async def farm_field(interaction: discord.Interaction):
             lines.append(f"{i}번 밭: 비어있음")
             continue
 
-        if now >= plot["harvest_time"]:
+        harvest_time = fix_datetime(plot.get("harvest_time"))
+
+        if harvest_time is None:
+            lines.append(f"{i}번 밭: ⚠️ 작물 시간 데이터 오류")
+            continue
+
+        if now >= harvest_time:
             lines.append(f"{i}번 밭: 🌾 {plot['crop']} 수확 가능")
         else:
-            remain = int((plot["harvest_time"] - now).total_seconds())
+            remain = int((harvest_time - now).total_seconds())
             minutes = remain // 60
             seconds = remain % 60
             lines.append(f"{i}번 밭: 🌱 {plot['crop']} 성장중 ({minutes}분 {seconds}초)")
@@ -2892,12 +2899,7 @@ async def farm_field(interaction: discord.Interaction):
     씨앗="심을 씨앗 이름",
     비료사용="비료 사용 여부"
 )
-async def plant_seed(
-    interaction: discord.Interaction,
-    칸: int,
-    씨앗: str,
-    비료사용: bool = False
-):
+async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, 비료사용: bool = False):
     user_id = interaction.user.id
     now = datetime.now()
 
@@ -2921,10 +2923,7 @@ async def plant_seed(
         await interaction.response.send_message("❌ 씨앗 없음. `/상점`에서 사셈.", ephemeral=True)
         return
 
-    grow_time = random.randint(
-        SEED_DATA[씨앗]["grow_min"],
-        SEED_DATA[씨앗]["grow_max"]
-    )
+    grow_time = random.randint(SEED_DATA[씨앗]["grow_min"], SEED_DATA[씨앗]["grow_max"])
 
     used_fertilizer = False
 
@@ -2945,6 +2944,7 @@ async def plant_seed(
         "harvest_time": now + timedelta(seconds=grow_time),
         "fertilizer": used_fertilizer
     }
+
     save_data()
 
     await interaction.response.send_message(
@@ -2973,8 +2973,14 @@ async def harvest_crop(interaction: discord.Interaction, 칸: int):
         await interaction.response.send_message("❌ 이 칸은 비어있음.", ephemeral=True)
         return
 
-    if now < plot["harvest_time"]:
-        remain = int((plot["harvest_time"] - now).total_seconds())
+    harvest_time = fix_datetime(plot.get("harvest_time"))
+
+    if harvest_time is None:
+        await interaction.response.send_message("⚠️ 작물 시간 데이터 오류.", ephemeral=True)
+        return
+
+    if now < harvest_time:
+        remain = int((harvest_time - now).total_seconds())
         await interaction.response.send_message(
             f"❌ 아직 덜 자람. {remain}초 남음.",
             ephemeral=True
@@ -2986,6 +2992,7 @@ async def harvest_crop(interaction: discord.Interaction, 칸: int):
     farm_data[user_id]["crops"][crop_name] += 1
     crop_dex[user_id].add(crop_name)
     farm_data[user_id]["field"][index] = None
+
     save_data()
 
     await interaction.response.send_message(
@@ -3029,6 +3036,7 @@ async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: in
 
     farm_data[user_id]["crops"][농작물] -= 갯수
     money_data[user_id] += total
+
     save_data()
 
     await interaction.response.send_message(
@@ -3047,8 +3055,7 @@ async def crop_price_info(interaction: discord.Interaction):
         update_crop_prices()
 
     text = "\n".join(
-        f"{name}: {crop_prices[name]}원 "
-        f"(기준가 {data['base_price']}원)"
+        f"{name}: {crop_prices[name]}원 (기준가 {data['base_price']}원)"
         for name, data in SEED_DATA.items()
     )
 
@@ -3079,16 +3086,14 @@ async def crop_book(interaction: discord.Interaction):
     await interaction.response.send_message(
         "📖 **농작물 도감**\n\n" + "\n\n".join(lines)
     )
+
+
 @bot.tree.command(name="전체심기", description="빈 밭에 같은 씨앗을 전부 심는다", guild=GUILD)
 @app_commands.describe(
     씨앗="심을 씨앗 이름",
     비료사용="비료를 가능한 만큼 사용할지 여부"
 )
-async def plant_all_seed(
-    interaction: discord.Interaction,
-    씨앗: str,
-    비료사용: bool = False
-):
+async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료사용: bool = False):
     user_id = interaction.user.id
     now = datetime.now()
 
@@ -3119,10 +3124,7 @@ async def plant_all_seed(
     used_fertilizer_count = 0
 
     for index in empty_indexes[:plant_count]:
-        grow_time = random.randint(
-            SEED_DATA[씨앗]["grow_min"],
-            SEED_DATA[씨앗]["grow_max"]
-        )
+        grow_time = random.randint(SEED_DATA[씨앗]["grow_min"], SEED_DATA[씨앗]["grow_max"])
 
         used_fertilizer = False
 
@@ -3167,7 +3169,12 @@ async def harvest_all_crop(interaction: discord.Interaction):
         if plot is None:
             continue
 
-        if now < plot["harvest_time"]:
+        harvest_time = fix_datetime(plot.get("harvest_time"))
+
+        if harvest_time is None:
+            continue
+
+        if now < harvest_time:
             continue
 
         crop_name = plot["crop"]
@@ -3230,6 +3237,7 @@ async def sell_all_crop(interaction: discord.Interaction):
         return
 
     money_data[user_id] += total_price
+
     save_data()
 
     text = "\n".join(
