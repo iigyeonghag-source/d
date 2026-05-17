@@ -1353,6 +1353,55 @@ async def transfer(
         f"현재 잔액: **{money_data[sender_id]}원**"
     )
 
+@bot.tree.command(
+    name="돈",
+    description="관리자 전용 돈 지급",
+    guild=GUILD
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    유저="돈 받을 유저",
+    금액="지급할 금액"
+)
+async def add_money(
+    interaction: discord.Interaction,
+    유저: discord.Member,
+    금액: int
+):
+    if 금액 <= 0:
+        await interaction.response.send_message(
+            "❌ 1원 이상 입력해야 함.",
+            ephemeral=True
+        )
+        return
+
+    user_id = 유저.id
+
+    get_wallet(user_id)
+
+    money_data[user_id] += 금액
+    save_data()
+
+    await interaction.response.send_message(
+        f"💰 지급 완료!\n\n"
+        f"대상: {유저.mention}\n"
+        f"지급 금액: **{금액:,}원**\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
+    )
+
+
+@add_money.error
+async def add_money_error(
+    interaction: discord.Interaction,
+    error: app_commands.AppCommandError
+):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ 관리자 전용 명령어임.",
+            ephemeral=True
+        )
+        
 HORSES = {
     1: "🐎 번개도로",
     2: "🐴 흑룡마",
