@@ -2752,5 +2752,85 @@ async def sell_all_crop(interaction: discord.Interaction):
         f"총 판매가: **{total_price}원**\n\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
+    @bot.tree.command(name="거래", description="내가 잡은 물고기를 다른 유저에게 준다.", guild=GUILD)
+@app_commands.describe(
+    대상="물고기를 받을 유저",
+    물고기="줄 물고기 이름",
+    갯수="줄 물고기 갯수"
+)
+async def trade_fish(
+    interaction: discord.Interaction,
+    대상: discord.Member,
+    물고기: str,
+    갯수: int
+):
+    sender_id = interaction.user.id
+    target_id = 대상.id
+
+    get_tank(sender_id)
+    get_tank(target_id)
+
+    if sender_id == target_id:
+        await interaction.response.send_message(
+            "❌ 자기 자신에게는 거래 못함.",
+            ephemeral=True
+        )
+        return
+
+    if 대상.bot:
+        await interaction.response.send_message(
+            "❌ 봇한테는 물고기 못 줌.",
+            ephemeral=True
+        )
+        return
+
+    if 갯수 <= 0:
+        await interaction.response.send_message(
+            "❌ 1마리 이상 줘야 함.",
+            ephemeral=True
+        )
+        return
+
+    owned = [fish for fish in fish_tanks[sender_id] if fish["name"] == 물고기]
+
+    if len(owned) < 갯수:
+        await interaction.response.send_message(
+            f"❌ {물고기} 부족함.\n보유: {len(owned)}마리",
+            ephemeral=True
+        )
+        return
+
+    trade_list = owned[:갯수]
+
+    removed = 0
+    new_tank = []
+
+    for fish in fish_tanks[sender_id]:
+        if fish["name"] == 물고기 and removed < 갯수:
+            removed += 1
+            continue
+
+        new_tank.append(fish)
+
+    fish_tanks[sender_id] = new_tank
+    fish_tanks[target_id].extend(trade_list)
+
+    for fish in trade_list:
+        fish_dex[target_id].add(fish["name"])
+
+    save_data()
+
+    total_kg = round(sum(fish["kg"] for fish in trade_list), 2)
+    total_price = sum(fish["price"] for fish in trade_list)
+
+    await interaction.response.send_message(
+        f"🤝 **물고기 거래 완료!**\n\n"
+        f"보낸 사람: {interaction.user.mention}\n"
+        f"받는 사람: {대상.mention}\n"
+        f"물고기: **{물고기}**\n"
+        f"수량: **{갯수}마리**\n"
+        f"총 무게: **{total_kg}kg**\n"
+        f"총 예상가: **{total_price}원**"
+    )
 load_data()
 bot.run(TOKEN)
