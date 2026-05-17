@@ -3113,7 +3113,77 @@ async def crop_price_info(interaction: discord.Interaction):
         f"📈 **현재 농작물 변동가**\n\n{text}\n\n"
         f"시세는 1시간마다 1%~7% 변동됨."
     )
+@bot.tree.command(name="농작물업글", description="농작물 성장/판매가를 업그레이드한다", guild=GUILD)
+async def crop_upgrade(interaction: discord.Interaction):
+    user_id = interaction.user.id
 
+    get_wallet(user_id)
+    get_farm(user_id)
+    get_farm_upgrade(user_id)
+
+    level = farm_levels[user_id]
+
+    if level >= 10:
+        await interaction.response.send_message("❌ 이미 농작물 업그레이드 최대 단계임.")
+        return
+
+    cost = 5000 * (3 ** (level - 1))
+
+    if money_data[user_id] < cost:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n필요 금액: **{cost:,}원**\n현재 잔액: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= cost
+    farm_levels[user_id] += 1
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"🌾 **농작물 업그레이드 완료!**\n\n"
+        f"현재 단계: **{farm_levels[user_id]}단계**\n"
+        f"사용 금액: **{cost:,}원**\n\n"
+        f"효과:\n"
+        f"판매가 증가 / 성장 시간 감소"
+    )
+
+
+@bot.tree.command(name="밭업글", description="밭 칸 수를 업그레이드한다", guild=GUILD)
+async def field_upgrade(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_farm(user_id)
+    get_farm_upgrade(user_id)
+
+    current_size = field_sizes[user_id]
+
+    if current_size >= 50:
+        await interaction.response.send_message("❌ 이미 밭 최대 크기임.")
+        return
+
+    cost = 3000 * (2 ** (current_size - 1))
+
+    if money_data[user_id] < cost:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n필요 금액: **{cost:,}원**\n현재 잔액: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= cost
+    field_sizes[user_id] += 1
+    farm_data[user_id]["field"].append(None)
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"🟫 **밭 업그레이드 완료!**\n\n"
+        f"현재 밭 크기: **{field_sizes[user_id]}칸**\n"
+        f"사용 금액: **{cost:,}원**"
+    )
 
 @bot.tree.command(name="도감2", description="농작물 도감 확인", guild=GUILD)
 async def crop_book(interaction: discord.Interaction):
