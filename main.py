@@ -2027,7 +2027,7 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
     get_wallet(user_id)
     get_farm(user_id)
 
-     if 아이템 is None:
+    if 아이템 is None:
         seed_lines = []
 
         for name, data in SEED_DATA.items():
