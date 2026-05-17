@@ -1137,4 +1137,92 @@ async def transfer(
         f"현재 잔액: **{money_data[sender_id]}원**"
     )
 
+HORSES = {
+    1: "🐎 번개도로",
+    2: "🐴 흑룡마",
+    3: "🦄 도로콘",
+    4: "🐐 염소련마"
+}
+
+@bot.tree.command(name="경마", description="말 한 마리에 올인하는 경마 게임", guild=GUILD)
+@app_commands.describe(
+    말번호="1~4번 말 중 하나 선택",
+    베팅="베팅할 금액"
+)
+async def horse_race(
+    interaction: discord.Interaction,
+    말번호: int,
+    베팅: int
+):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+
+    if 말번호 not in HORSES:
+        await interaction.response.send_message(
+            "❌ 1~4번 말 중에서 골라야 함.",
+            ephemeral=True
+        )
+        return
+
+    if 베팅 < 500:
+        await interaction.response.send_message(
+            "❌ 최소 베팅은 500원부터 가능함.",
+            ephemeral=True
+        )
+        return
+
+    if money_data[user_id] < 베팅:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n현재 잔액: {money_data[user_id]}원",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= 베팅
+
+    await interaction.response.send_message(
+        "🏇 경마 시작..."
+    )
+
+    msg = await interaction.original_response()
+
+    race_track = ["🐎", "🐴", "🦄", "🐐"]
+
+    for i in range(8):
+        lines = []
+
+        for horse in race_track:
+            pos = random.randint(0, 20)
+            lines.append(f"{'─' * pos}{horse}")
+
+        await msg.edit(
+            content="🏇 경마 진행중...\n\n" + "\n".join(lines)
+        )
+
+        await asyncio.sleep(0.7)
+
+    winner = random.randint(1, 4)
+
+    result = (
+        f"🏁 우승 말: {HORSES[winner]}\n\n"
+    )
+
+    if 말번호 == winner:
+        reward = 베팅 * 3
+        money_data[user_id] += reward
+
+        result += (
+            f"🎉 적중!\n"
+            f"💰 +{reward}원\n\n"
+        )
+    else:
+        result += (
+            f"☠️ 실패...\n"
+            f"💸 -{베팅}원\n\n"
+        )
+
+    result += f"현재 잔액: **{money_data[user_id]}원**"
+
+    await msg.edit(content=result)
 bot.run(TOKEN)
