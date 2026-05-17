@@ -14,7 +14,10 @@ import math
 
 import json
 
-DATA_FILE = "data.json"
+DATA_DIR = "/data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATA_FILE = "/data/data.json"
 
 DATA_KEYS = [
     "money_data",
