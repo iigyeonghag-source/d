@@ -189,11 +189,6 @@ def save_data():
 
     except Exception as e:
         print("저장 실패:", e)
-
-def sync_storage_globals():
-    data["money_data"] = money_data
-    data["inventory_data"] = inventory_data
-    data["bank_data"] = bank_data
     
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -2919,175 +2914,9 @@ async def money_leaderboard(interaction: discord.Interaction):
         f"{chr(10).join(lines)}\n\n"
         f"📌 내 순위: **{my_rank}위** / 잔액: **{my_money}원**"
     )
-
-    bank_data = {}
-
-LOAN_MAX = 500000
-LOAN_WARNING_1_HOURS = 32
-LOAN_ADMIN_WARNING_HOURS = 100
-
-
-def get_user_bank(user_id):
-    user_id = str(user_id)
-
-    if user_id not in bank_data:
-        bank_data[user_id] = {
-            "deposit": 0,
-            "deposit_updated": datetime.now().isoformat(),
-
-            "loan": 0,
-            "loan_time": None,
-            "loan_interest": 0,
-            "first_warning_applied": False
-        }
-
-    return bank_data[user_id]
-
-
-def update_deposit_interest(user_id):
-    data = get_user_bank(user_id)
-
-    now = datetime.now()
-    last = datetime.fromisoformat(data["deposit_updated"])
-
-    hours = int((now - last).total_seconds() // 3600)
-
-    if hours > 0 and data["deposit"] > 0:
-        # 1시간마다 2% 복리
-        data["deposit"] = int(data["deposit"] * (1.02 ** hours))
-        data["deposit_updated"] = now.isoformat()
-
-
-def update_loan_interest(user_id):
-    data = get_user_bank(user_id)
-
-    if data["loan"] <= 0 or data["loan_time"] is None:
-        return
-
-    now = datetime.now()
-    loan_time = datetime.fromisoformat(data["loan_time"])
-    passed_hours = (now - loan_time).total_seconds() / 3600
-
-    # 32시간 지나면 1차 경고 + 이자 2% 추가
-    if passed_hours >= LOAN_WARNING_1_HOURS and not data["first_warning_applied"]:
-        data["loan_interest"] += 2
-        data["first_warning_applied"] = True
-
-
-@bot.tree.command(name="대출", description="은행에서 돈을 대출받습니다", guild=GUILD)
-@app_commands.describe(금액="대출할 금액. 최대 500000원")
-async def loan(interaction: discord.Interaction, 금액: int):
-    user_id = str(interaction.user.id)
-
-    if 금액 <= 0:
-        await interaction.response.send_message("대출 금액은 1원 이상이어야 함.")
-        return
-
-    if 금액 > LOAN_MAX:
-        await interaction.response.send_message("최대 대출 가능 금액은 **500,000원**임.")
-        return
-
-    data = get_user_bank(user_id)
-    update_loan_interest(user_id)
-
-    if data["loan"] > 0:
-        await interaction.response.send_message("이미 대출이 있어서 못 빌림. 먼저 갚아야 함.")
-        return
-
-    # 기본 이자 5%, 5만원마다 1% 추가
-    extra_interest = 금액 // 50000
-    interest = 5 + extra_interest
-
-    data["loan"] = 금액
-    data["loan_time"] = datetime.now().isoformat()
-    data["loan_interest"] = interest
-    data["first_warning_applied"] = False
-
-    money_data[user_id] = money_data.get(user_id, 0) + 금액
-
-    await interaction.response.send_message(
-        f"🏦 **대출 완료**\n"
-        f"대출 금액: **{금액:,}원**\n"
-        f"현재 이자: **{interest}%**\n"
-        f"갚을 금액: **{int(금액 * (1 + interest / 100)):,}원**\n\n"
-        f"32시간 지나면 1차 경고로 이자 **+2%**,\n"
-        f"100시간 지나면 관리자 수동 경고 대상임."
-    )
-
-
-@bot.tree.command(name="상환", description="대출금을 갚습니다", guild=GUILD)
-async def repay(interaction: discord.Interaction):
-    user_id = str(interaction.user.id)
-
-    data = get_user_bank(user_id)
-    update_loan_interest(user_id)
-
-    if data["loan"] <= 0:
-        await interaction.response.send_message("갚을 대출이 없음.")
-        return
-
-    total = int(data["loan"] * (1 + data["loan_interest"] / 100))
-    current_money = money_data.get(user_id, 0)
-
-    if current_money < total:
-        await interaction.response.send_message(
-            f"돈이 부족함.\n"
-            f"갚아야 할 금액: **{total:,}원**\n"
-            f"현재 잔액: **{current_money:,}원**"
-        )
-        return
-
-    money_data[user_id] -= total
-
-    data["loan"] = 0
-    data["loan_time"] = None
-    data["loan_interest"] = 0
-    data["first_warning_applied"] = False
-
-    await interaction.response.send_message(
-        f"✅ 대출 상환 완료!\n"
-        f"상환 금액: **{total:,}원**"
-    )
-
-
-@bot.tree.command(name="남은시간", description="대출 경고까지 남은 시간을 확인합니다", guild=GUILD)
-async def loan_time_left(interaction: discord.Interaction):
-    user_id = str(interaction.user.id)
-
-    data = get_user_bank(user_id)
-    update_loan_interest(user_id)
-
-    if data["loan"] <= 0:
-        await interaction.response.send_message("현재 대출이 없음.")
-        return
-
-    now = datetime.now()
-    loan_time = datetime.fromisoformat(data["loan_time"])
-    passed = now - loan_time
-
-    first_warning_time = loan_time + timedelta(hours=32)
-    admin_warning_time = loan_time + timedelta(hours=100)
-
-    first_left = first_warning_time - now
-    admin_left = admin_warning_time - now
-
-    def format_time(td):
-        seconds = int(td.total_seconds())
-        if seconds <= 0:
-            return "이미 지남"
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        return f"{hours}시간 {minutes}분"
-
-    await interaction.response.send_message(
-        f"🏦 **대출 상태**\n"
-        f"빌린 금액: **{data['loan']:,}원**\n"
-        f"현재 이자: **{data['loan_interest']}%**\n"
-        f"갚을 금액: **{int(data['loan'] * (1 + data['loan_interest'] / 100)):,}원**\n\n"
-        f"1차 경고까지: **{format_time(first_left)}**\n"
-        f"관리자 수동 경고 대상까지: **{format_time(admin_left)}**"
-    )
-
+# =========================
+# 은행 시스템
+# =========================
 
 bank_data = {}
 
@@ -3095,6 +2924,7 @@ LOAN_MAX = 500000
 
 
 def get_bank(user_id):
+
     if user_id not in bank_data:
         bank_data[user_id] = {
             "deposit": 0,
@@ -3109,16 +2939,20 @@ def get_bank(user_id):
 
 
 def update_bank(user_id):
+
     bank = get_bank(user_id)
 
     now = datetime.now()
 
     # 예금 이자
     passed_hours = int(
-        (now - bank["last_interest"]).total_seconds() // 3600
+        (
+            now - restore_datetime(bank["last_interest"])
+        ).total_seconds() // 3600
     )
 
     if passed_hours > 0 and bank["deposit"] > 0:
+
         for _ in range(passed_hours):
             bank["deposit"] = int(bank["deposit"] * 1.02)
 
@@ -3126,11 +2960,13 @@ def update_bank(user_id):
 
     # 대출 이자 증가
     if bank["loan"] > 0 and bank["loan_time"]:
+
         passed = (
             now - restore_datetime(bank["loan_time"])
         ).total_seconds() / 3600
 
         if passed >= 32 and not bank["warning_added"]:
+
             bank["loan_interest"] += 2
             bank["warning_added"] = True
 
@@ -3141,6 +2977,7 @@ async def loan(interaction: discord.Interaction, 금액: int):
     user_id = interaction.user.id
 
     get_wallet(user_id)
+
     bank = get_bank(user_id)
 
     if bank["loan"] > 0:
@@ -3181,12 +3018,14 @@ async def loan(interaction: discord.Interaction, 금액: int):
         f"현재 이자: **{interest}%**"
     )
 
+
 @bot.tree.command(name="상환", description="대출금을 갚는다", guild=GUILD)
 async def repay(interaction: discord.Interaction):
 
     user_id = interaction.user.id
 
     get_wallet(user_id)
+
     bank = get_bank(user_id)
 
     update_bank(user_id)
@@ -3224,6 +3063,7 @@ async def repay(interaction: discord.Interaction):
         f"상환 금액: **{total}원**"
     )
 
+
 @bot.tree.command(name="남은시간", description="대출 상태 확인", guild=GUILD)
 async def left_time(interaction: discord.Interaction):
 
@@ -3255,6 +3095,7 @@ async def left_time(interaction: discord.Interaction):
         f"관리자 경고 기준까지: **{remain2}**"
     )
 
+
 @bot.tree.command(name="돈넣기", description="은행에 돈 예금", guild=GUILD)
 @app_commands.describe(금액="넣을 금액")
 async def deposit(interaction: discord.Interaction, 금액: int):
@@ -3262,6 +3103,7 @@ async def deposit(interaction: discord.Interaction, 금액: int):
     user_id = interaction.user.id
 
     get_wallet(user_id)
+
     bank = get_bank(user_id)
 
     update_bank(user_id)
@@ -3290,6 +3132,7 @@ async def deposit(interaction: discord.Interaction, 금액: int):
         f"현재 예금: **{bank['deposit']}원**"
     )
 
+
 @bot.tree.command(name="돈빼기", description="은행에서 돈 출금", guild=GUILD)
 @app_commands.describe(금액="뺄 금액")
 async def withdraw(interaction: discord.Interaction, 금액: int):
@@ -3297,6 +3140,7 @@ async def withdraw(interaction: discord.Interaction, 금액: int):
     user_id = interaction.user.id
 
     get_wallet(user_id)
+
     bank = get_bank(user_id)
 
     update_bank(user_id)
