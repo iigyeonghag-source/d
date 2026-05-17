@@ -3762,44 +3762,59 @@ async def deposit(interaction: discord.Interaction, 금액: int):
     )
 
 
-@bot.tree.command(name="돈빼기", description="은행에서 돈 출금", guild=GUILD)
-@app_commands.describe(금액="뺄 금액")
-async def withdraw(interaction: discord.Interaction, 금액: int):
+@bot.tree.command(
+    name="돈삭제",
+    description="관리자 전용 돈 차감",
+    guild=GUILD
+)
+@app_commands.default_permissions(administrator=True)
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    유저="돈 차감할 유저",
+    금액="차감할 금액"
+)
+async def remove_money(
+    interaction: discord.Interaction,
+    유저: discord.Member,
+    금액: int
+):
+    if 금액 <= 0:
+        await interaction.response.send_message(
+            "❌ 1원 이상 입력해야 함.",
+            ephemeral=True
+        )
+        return
 
-    user_id = interaction.user.id
+    user_id = 유저.id
 
     get_wallet(user_id)
 
-    bank = get_bank(user_id)
-
-    update_bank(user_id)
-
-    if 금액 <= 0:
-        await interaction.response.send_message(
-            "❌ 1원 이상 가능.",
-            ephemeral=True
-        )
-        return
-
-    if bank["deposit"] < 금액:
-        await interaction.response.send_message(
-            "❌ 예금 부족.",
-            ephemeral=True
-        )
-        return
-
-    bank["deposit"] -= 금액
-    money_data[user_id] += 금액
+    # 현재 돈보다 많이 삭제 시 0원 처리
+    money_data[user_id] = max(
+        0,
+        round(float(money_data[user_id])) - round(float(금액))
+    )
 
     save_data()
 
     await interaction.response.send_message(
-        f"💸 출금 완료!\n"
-        f"현재 예금: **{bank['deposit']}원**"
+        f"💸 차감 완료!\n\n"
+        f"대상: {유저.mention}\n"
+        f"차감 금액: **{금액:,}원**\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
     )
 
-print("저장 위치:", os.path.abspath(DATA_FILE))
-print("파일 존재 여부:", os.path.exists(DATA_FILE))
+
+@remove_money.error
+async def remove_money_error(
+    interaction: discord.Interaction,
+    error: app_commands.AppCommandError
+):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ 관리자 전용 명령어임.",
+            ephemeral=True
+        )
 
 load_data()
 bot.run(TOKEN)
