@@ -2938,8 +2938,11 @@ async def money_leaderboard(interaction: discord.Interaction):
 
     for rank, (member_id, money) in enumerate(top_10, start=1):
         member = guild_members.get(member_id)
-        name = member.display_name if member else f"알 수 없음({member_id})"
 
+        if member:
+            name = member.display_name
+        else:
+    name = f"알 수 없음({member_id})"
         medal = ""
         if rank == 1:
             medal = "🥇 "
