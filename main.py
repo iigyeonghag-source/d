@@ -37,7 +37,9 @@ DATA_KEYS = [
     "equipped_rods",
     "owned_baits",
     "equipped_baits",
-    "loan_data"
+    "loan_data",
+    "farm_levels",
+    "field_sizes"
 ]
 
 data = {key: {} for key in DATA_KEYS}
@@ -85,6 +87,7 @@ def bind_storage_globals():
     global bank_data
     global owned_rods, equipped_rods, owned_baits, equipped_baits
     global loan_data
+    global farm_levels, field_sizes
     
     money_data = data["money_data"]
     daily_claims = data["daily_claims"]
@@ -103,6 +106,8 @@ def bind_storage_globals():
     farm_data = data["farm_data"]
     crop_dex = data["crop_dex"]
     crop_prices = data["crop_prices"]
+    farm_levels = data["farm_levels"]
+    field_sizes = data["field_sizes"]
 
     owned_rods = data["owned_rods"]
     equipped_rods = data["equipped_rods"]
@@ -125,6 +130,8 @@ def sync_storage_globals():
     data["farm_data"] = farm_data
     data["crop_dex"] = crop_dex
     data["crop_prices"] = crop_prices
+    data["farm_levels"] = farm_levels
+    data["field_sizes"] = field_sizes
 
     data["bank_data"] = bank_data
     data["loan_data"] = loan_data
@@ -162,7 +169,9 @@ def load_data():
         "owned_rods",
         "equipped_rods",
         "owned_baits",
-        "equipped_baits"
+        "equipped_baits",
+        "farm_levels",
+        "field_sizes"
     ]:
         data[key] = to_int_key_dict(data[key])
 
@@ -2675,6 +2684,34 @@ crop_prices = {}
 FARM_SIZE = 9
 FERTILIZER_PRICE = 1500
 
+def get_farm_upgrade(user_id):
+    changed = False
+
+    if user_id not in farm_levels:
+        farm_levels[user_id] = 1
+        changed = True
+
+    if user_id not in field_sizes:
+        field_sizes[user_id] = 1
+        changed = True
+
+    return changed
+
+def get_crop_upgrade_bonus(user_id):
+    level = farm_levels.get(user_id, 1)
+
+    multiplier = 1 + ((level - 1) * 0.2)
+
+    return multiplier
+
+
+def get_crop_price_for_user(user_id, crop_name):
+    base = crop_prices[crop_name]
+
+    multiplier = get_crop_upgrade_bonus(user_id)
+
+    return int(base * multiplier)
+
 SEED_DATA = {
     "감자": {"seed_price": 500, "base_price": 900, "grow_min": 60, "grow_max": 180},
     "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300},
@@ -2926,7 +2963,17 @@ async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, �
         await interaction.response.send_message("❌ 씨앗 없음. `/상점`에서 사셈.", ephemeral=True)
         return
 
-    grow_time = random.randint(SEED_DATA[씨앗]["grow_min"], SEED_DATA[씨앗]["grow_max"])
+    seed = SEED_DATA[씨앗]
+
+    level = farm_levels.get(user_id, 1)
+
+    time_reduce = 1 - ((level - 1) * 0.05)
+    time_reduce = max(0.45, time_reduce)
+
+    grow_min = int(seed["grow_min"] * time_reduce)
+    grow_max = int(seed["grow_max"] * time_reduce)
+
+    grow_time = random.randint(grow_min, grow_max)
 
     used_fertilizer = False
 
@@ -3127,7 +3174,17 @@ async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료�
     used_fertilizer_count = 0
 
     for index in empty_indexes[:plant_count]:
-        grow_time = random.randint(SEED_DATA[씨앗]["grow_min"], SEED_DATA[씨앗]["grow_max"])
+        seed = SEED_DATA[씨앗]
+
+        level = farm_levels.get(user_id, 1)
+
+        time_reduce = 1 - ((level - 1) * 0.05)
+        time_reduce = max(0.45, time_reduce)
+
+        grow_min = int(seed["grow_min"] * time_reduce)
+        grow_max = int(seed["grow_max"] * time_reduce)
+
+        grow_time = random.randint(grow_min, grow_max)
 
         used_fertilizer = False
 
