@@ -237,6 +237,9 @@ def save_data():
 
     except Exception as e:
         print("저장 실패:", e)
+
+def money(value):
+    return f"{round(value):,}"
     
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
