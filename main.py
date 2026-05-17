@@ -1225,4 +1225,17 @@ async def horse_race(
     result += f"현재 잔액: **{money_data[user_id]}원**"
 
     await msg.edit(content=result)
+
+@bot.tree.command(name="말목록", description="경마에 참가하는 말 목록 확인", guild=GUILD)
+async def horse_list(interaction: discord.Interaction):
+
+    horse_text = "\n".join(
+        f"{number}번 - {name}"
+        for number, name in HORSES.items()
+    )
+
+    await interaction.response.send_message(
+        f"🏇 현재 참가중인 말 목록\n\n{horse_text}\n\n"
+        f"/경마 [말번호] [베팅금액]"
+    )
 bot.run(TOKEN)
