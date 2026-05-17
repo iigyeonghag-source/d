@@ -1643,24 +1643,103 @@ def pick_fish():
     chances = [FISH_DATA[name]["chance"] for name in names]
     return random.choices(names, weights=chances, k=1)[0]
 
+fishing_cooldowns = {}
+FISHING_COOLDOWN = timedelta(seconds=5)
 
-@bot.tree.command(name="낚시", description="물고기를 낚는다", guild=GUILD)
-async def fishing(interaction: discord.Interaction):
+
+class FishingButtonView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=12)
+        self.user_id = user_id
+        self.can_catch = False
+        self.clicked = False
+        self.message = None
+
+    @discord.ui.button(
+        label="기다리는 중...",
+        style=discord.ButtonStyle.gray
+    )
+    async def catch_button(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(
+                "❌ 낚싯대가 다르다.",
+                ephemeral=True
+            )
+            return
+
+        if not self.can_catch:
+            self.clicked = True
+            button.label = "너무 빨랐다..."
+            button.style = discord.ButtonStyle.red
+            button.disabled = True
+
+            await interaction.response.edit_message(
+                content="🐟 낚싯대엔 아무것도 안잡혔다..",
+                view=self
+            )
+            self.stop()
+            return
+
+        self.clicked = True
+        button.disabled = True
+
+        await fishing_success(interaction, button)
+        self.stop()
+
+    async def start_waiting(self):
+        wait_time = random.randint(3, 10)
+        await asyncio.sleep(wait_time)
+
+        if self.clicked:
+            return
+
+        self.can_catch = True
+
+        button = self.children[0]
+        button.label = "지금이다!"
+        button.style = discord.ButtonStyle.green
+
+        await self.message.edit(
+            content="🎣 찌가 흔들린다! 지금 버튼 누르자!",
+            view=self
+        )
+
+    async def on_timeout(self):
+        if self.clicked:
+            return
+
+        for item in self.children:
+            item.disabled = True
+
+        if self.message:
+            await self.message.edit(
+                content="🐟 시간이 지나서 물고기가 도망갔다...",
+                view=self
+            )
+
+
+async def fishing_success(interaction: discord.Interaction, button):
     user_id = interaction.user.id
 
     get_wallet(user_id)
     get_tank(user_id)
 
-    # 1% 간고등어
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
 
-        await interaction.response.send_message(
-            f"🐟💀 **간고등어 출현**\n\n"
-            f"간고등어의 당신의 지갑을 훔쳐갔다..\n"
-            f"💸 -{stolen}원\n\n"
-            f"현재 잔액: **{money_data[user_id]}원**"
+        await interaction.response.edit_message(
+            content=(
+                f"🐟💀 **간고등어 출현**\n\n"
+                f"간고등어가 당신의 지갑을 물고 튀었다..\n"
+                f"💸 -{stolen}원\n\n"
+                f"현재 잔액: **{money_data[user_id]}원**"
+            ),
+            view=None
         )
         return
 
@@ -1678,14 +1757,47 @@ async def fishing(interaction: discord.Interaction):
 
     fish_dex[user_id].add(fish_name)
 
-    await interaction.response.send_message(
-        f"🎣 낚시 성공!\n\n"
-        f"잡은 물고기: **{fish_name}**\n"
-        f"무게: **{kg}kg**\n"
-        f"예상 판매가: **{price}원**"
+    await interaction.response.edit_message(
+        content=(
+            f"🎣 낚시 성공!\n\n"
+            f"잡은 물고기: **{fish_name}**\n"
+            f"무게: **{kg}kg**\n"
+            f"예상 판매가: **{price}원**"
+        ),
+        view=None
     )
 
 
+@bot.tree.command(name="낚시", description="버튼 타이밍에 맞춰 물고기를 낚는다", guild=GUILD)
+async def fishing(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_wallet(user_id)
+    get_tank(user_id)
+
+    cooldown = fishing_cooldowns.get(user_id)
+
+    if cooldown and now < cooldown:
+        remain = int((cooldown - now).total_seconds())
+        await interaction.response.send_message(
+            f"🎣 아직 낚시 준비중임. {remain}초 남음.",
+            ephemeral=True
+        )
+        return
+
+    fishing_cooldowns[user_id] = now + FISHING_COOLDOWN
+
+    view = FishingButtonView(user_id)
+
+    await interaction.response.send_message(
+        "🎣 낚싯대를 던졌다...\n버튼이 초록색이 되면 눌러!",
+        view=view
+    )
+
+    view.message = await interaction.original_response()
+
+    asyncio.create_task(view.start_waiting())
 @bot.tree.command(name="어항", description="내가 잡은 물고기 목록 확인", guild=GUILD)
 async def fish_tank(interaction: discord.Interaction):
     user_id = interaction.user.id
