@@ -1238,4 +1238,580 @@ async def horse_list(interaction: discord.Interaction):
         f"🏇 현재 참가중인 말 목록\n\n{horse_text}\n\n"
         f"/경마 [말번호] [베팅금액]"
     )
+
+# =========================
+# 낚시 시스템
+# =========================
+
+fish_tanks = {}
+fish_dex = {}
+FISH_DATA = {
+    "붕어": {
+        "min_kg": 0.3,
+        "max_kg": 2.0,
+        "habitat": "연못",
+        "base_price": 300,
+        "kg_price": 120,
+        "chance": 35
+    },
+
+    "잉어": {
+        "min_kg": 1.0,
+        "max_kg": 8.0,
+        "habitat": "강",
+        "base_price": 700,
+        "kg_price": 180,
+        "chance": 25
+    },
+
+    "메기": {
+        "min_kg": 2.0,
+        "max_kg": 15.0,
+        "habitat": "늪 / 강바닥",
+        "base_price": 1200,
+        "kg_price": 250,
+        "chance": 15
+    },
+
+    "송어": {
+        "min_kg": 1.0,
+        "max_kg": 6.0,
+        "habitat": "계곡",
+        "base_price": 1400,
+        "kg_price": 300,
+        "chance": 18
+    },
+
+    "배스": {
+        "min_kg": 1.0,
+        "max_kg": 10.0,
+        "habitat": "강",
+        "base_price": 1500,
+        "kg_price": 260,
+        "chance": 16
+    },
+
+    "가물치": {
+        "min_kg": 3.0,
+        "max_kg": 20.0,
+        "habitat": "늪",
+        "base_price": 2400,
+        "kg_price": 350,
+        "chance": 10
+    },
+
+    "피라미": {
+        "min_kg": 0.1,
+        "max_kg": 0.7,
+        "habitat": "시냇물",
+        "base_price": 120,
+        "kg_price": 90,
+        "chance": 40
+    },
+
+    "금붕어": {
+        "min_kg": 0.2,
+        "max_kg": 1.0,
+        "habitat": "연못",
+        "base_price": 500,
+        "kg_price": 150,
+        "chance": 20
+    },
+
+    "장어": {
+        "min_kg": 1.0,
+        "max_kg": 12.0,
+        "habitat": "강 / 바다",
+        "base_price": 3500,
+        "kg_price": 450,
+        "chance": 9
+    },
+
+    "철갑상어": {
+        "min_kg": 20.0,
+        "max_kg": 200.0,
+        "habitat": "심해 강",
+        "base_price": 12000,
+        "kg_price": 800,
+        "chance": 3
+    },
+
+    "비단잉어": {
+        "min_kg": 2.0,
+        "max_kg": 15.0,
+        "habitat": "고급 연못",
+        "base_price": 8000,
+        "kg_price": 600,
+        "chance": 5
+    },
+
+    "무지개송어": {
+        "min_kg": 1.0,
+        "max_kg": 7.0,
+        "habitat": "차가운 계곡",
+        "base_price": 2800,
+        "kg_price": 350,
+        "chance": 12
+    },
+
+    "연어": {
+        "min_kg": 2.0,
+        "max_kg": 18.0,
+        "habitat": "강 / 바다",
+        "base_price": 3000,
+        "kg_price": 420,
+        "chance": 14
+    },
+
+    "구피": {
+        "min_kg": 0.05,
+        "max_kg": 0.3,
+        "habitat": "수족관",
+        "base_price": 100,
+        "kg_price": 50,
+        "chance": 45
+    },
+
+    "고등어": {
+        "min_kg": 0.5,
+        "max_kg": 5.0,
+        "habitat": "바다",
+        "base_price": 900,
+        "kg_price": 180,
+        "chance": 25
+    },
+
+    "갈치": {
+        "min_kg": 2.0,
+        "max_kg": 12.0,
+        "habitat": "심해",
+        "base_price": 3200,
+        "kg_price": 400,
+        "chance": 12
+    },
+
+    "참치": {
+        "min_kg": 20.0,
+        "max_kg": 250.0,
+        "habitat": "먼바다",
+        "base_price": 5000,
+        "kg_price": 80,
+        "chance": 8
+    },
+
+    "광어": {
+        "min_kg": 1.0,
+        "max_kg": 10.0,
+        "habitat": "바다",
+        "base_price": 2600,
+        "kg_price": 300,
+        "chance": 14
+    },
+
+    "우럭": {
+        "min_kg": 1.0,
+        "max_kg": 8.0,
+        "habitat": "바다",
+        "base_price": 2400,
+        "kg_price": 280,
+        "chance": 14
+    },
+
+    "놀래미": {
+        "min_kg": 0.5,
+        "max_kg": 4.0,
+        "habitat": "바다",
+        "base_price": 1700,
+        "kg_price": 220,
+        "chance": 18
+    },
+
+    "복어": {
+        "min_kg": 1.0,
+        "max_kg": 6.0,
+        "habitat": "바다",
+        "base_price": 4200,
+        "kg_price": 500,
+        "chance": 7
+    },
+
+    "대구": {
+        "min_kg": 3.0,
+        "max_kg": 25.0,
+        "habitat": "심해",
+        "base_price": 3800,
+        "kg_price": 420,
+        "chance": 11
+    },
+
+    "아귀": {
+        "min_kg": 5.0,
+        "max_kg": 40.0,
+        "habitat": "심해",
+        "base_price": 6000,
+        "kg_price": 550,
+        "chance": 6
+    },
+
+    "병어": {
+        "min_kg": 0.5,
+        "max_kg": 3.0,
+        "habitat": "바다",
+        "base_price": 1300,
+        "kg_price": 170,
+        "chance": 20
+    },
+
+    "민어": {
+        "min_kg": 3.0,
+        "max_kg": 20.0,
+        "habitat": "바다",
+        "base_price": 4500,
+        "kg_price": 480,
+        "chance": 9
+    },
+
+    "다금바리": {
+        "min_kg": 10.0,
+        "max_kg": 80.0,
+        "habitat": "심해 암초",
+        "base_price": 15000,
+        "kg_price": 900,
+        "chance": 2
+    },
+
+    "얼음 송어": {
+        "min_kg": 3.0,
+        "max_kg": 15.0,
+        "habitat": "빙하 호수",
+        "base_price": 22000,
+        "kg_price": 1200,
+        "chance": 1
+    },
+
+    "그림자 메기": {
+        "min_kg": 5.0,
+        "max_kg": 30.0,
+        "habitat": "어둠의 늪",
+        "base_price": 26000,
+        "kg_price": 1400,
+        "chance": 1
+    },
+
+    "전기 뱀장어": {
+        "min_kg": 4.0,
+        "max_kg": 25.0,
+        "habitat": "폭풍 강",
+        "base_price": 28000,
+        "kg_price": 1500,
+        "chance": 1
+    },
+
+    "무지개 고래어": {
+        "min_kg": 100.0,
+        "max_kg": 800.0,
+        "habitat": "환상의 바다",
+        "base_price": 100000,
+        "kg_price": 2500,
+        "chance": 0.3
+    },
+
+    "별빛 해파리": {
+        "min_kg": 1.0,
+        "max_kg": 8.0,
+        "habitat": "밤바다",
+        "base_price": 75000,
+        "kg_price": 2200,
+        "chance": 0.5
+    },
+
+    "심연의 포식어": {
+        "min_kg": 150.0,
+        "max_kg": 900.0,
+        "habitat": "심연",
+        "base_price": 250000,
+        "kg_price": 5000,
+        "chance": 0.1
+    },
+
+    "아카브 심해종": {
+        "min_kg": 200.0,
+        "max_kg": 1200.0,
+        "habitat": "아카브 심해",
+        "base_price": 500000,
+        "kg_price": 8000,
+        "chance": 0.05
+    },
+
+    "낡은 신발": {
+        "min_kg": 0.3,
+        "max_kg": 1.5,
+        "habitat": "하수구",
+        "base_price": 50,
+        "kg_price": 10,
+        "chance": 18
+    },
+
+    "찢어진 양말": {
+        "min_kg": 0.1,
+        "max_kg": 0.5,
+        "habitat": "하수구",
+        "base_price": 20,
+        "kg_price": 5,
+        "chance": 15
+    },
+
+    "녹슨 깡통": {
+        "min_kg": 0.2,
+        "max_kg": 2.0,
+        "habitat": "강바닥",
+        "base_price": 80,
+        "kg_price": 15,
+        "chance": 16
+    },
+
+    "폐타이어": {
+        "min_kg": 3.0,
+        "max_kg": 15.0,
+        "habitat": "강바닥",
+        "base_price": 100,
+        "kg_price": 20,
+        "chance": 7
+    },
+
+    "비닐봉지": {
+        "min_kg": 0.05,
+        "max_kg": 0.3,
+        "habitat": "물 위",
+        "base_price": 10,
+        "kg_price": 3,
+        "chance": 20
+    },
+
+    "부러진 낚싯대": {
+        "min_kg": 1.0,
+        "max_kg": 4.0,
+        "habitat": "호수",
+        "base_price": 300,
+        "kg_price": 40,
+        "chance": 5
+    },
+
+    "해초": {
+        "min_kg": 0.1,
+        "max_kg": 1.0,
+        "habitat": "얕은 바다",
+        "base_price": 30,
+        "kg_price": 8,
+        "chance": 25
+    },
+
+    "젖은 종이": {
+        "min_kg": 0.05,
+        "max_kg": 0.2,
+        "habitat": "강",
+        "base_price": 5,
+        "kg_price": 1,
+        "chance": 15
+    },
+
+    "고장난 스마트폰": {
+        "min_kg": 0.2,
+        "max_kg": 0.6,
+        "habitat": "강바닥",
+        "base_price": 1000,
+        "kg_price": 50,
+        "chance": 2
+    }
+}
+
+def get_tank(user_id):
+    if user_id not in fish_tanks:
+        fish_tanks[user_id] = []
+
+    if user_id not in fish_dex:
+        fish_dex[user_id] = set()
+
+
+def fish_price(fish_name, kg):
+    fish = FISH_DATA[fish_name]
+    return int(fish["base_price"] + kg * fish["kg_price"])
+
+
+def pick_fish():
+    names = list(FISH_DATA.keys())
+    chances = [FISH_DATA[name]["chance"] for name in names]
+    return random.choices(names, weights=chances, k=1)[0]
+
+
+@bot.tree.command(name="낚시", description="물고기를 낚는다", guild=GUILD)
+async def fishing(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_tank(user_id)
+
+    # 1% 간고등어
+    if random.randint(1, 100) == 1:
+        stolen = int(money_data[user_id] * 0.05)
+        money_data[user_id] -= stolen
+
+        await interaction.response.send_message(
+            f"🐟💀 **간고등어 출현**\n\n"
+            f"간고등어의 당신의 지갑을 훔쳐갔다..\n"
+            f"💸 -{stolen}원\n\n"
+            f"현재 잔액: **{money_data[user_id]}원**"
+        )
+        return
+
+    fish_name = pick_fish()
+    data = FISH_DATA[fish_name]
+
+    kg = round(random.uniform(data["min_kg"], data["max_kg"]), 2)
+    price = fish_price(fish_name, kg)
+
+    fish_tanks[user_id].append({
+        "name": fish_name,
+        "kg": kg,
+        "price": price
+    })
+
+    fish_dex[user_id].add(fish_name)
+
+    await interaction.response.send_message(
+        f"🎣 낚시 성공!\n\n"
+        f"잡은 물고기: **{fish_name}**\n"
+        f"무게: **{kg}kg**\n"
+        f"예상 판매가: **{price}원**"
+    )
+
+
+@bot.tree.command(name="어항", description="내가 잡은 물고기 목록 확인", guild=GUILD)
+async def fish_tank(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_tank(user_id)
+
+    tank = fish_tanks[user_id]
+
+    if not tank:
+        await interaction.response.send_message("🐠 어항이 비어있다.")
+        return
+
+    count_data = {}
+
+    for fish in tank:
+        name = fish["name"]
+
+        if name not in count_data:
+            count_data[name] = {
+                "count": 0,
+                "total_kg": 0,
+                "total_price": 0
+            }
+
+        count_data[name]["count"] += 1
+        count_data[name]["total_kg"] += fish["kg"]
+        count_data[name]["total_price"] += fish["price"]
+
+    text = "\n".join(
+        f"{name}: {data['count']}마리 / 총 {round(data['total_kg'], 2)}kg / 총 {data['total_price']}원"
+        for name, data in count_data.items()
+    )
+
+    await interaction.response.send_message(
+        f"🐠 **내 어항**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="팔기", description="물고기를 판매한다.", guild=GUILD)
+@app_commands.describe(
+    물고기="판매할 물고기 이름",
+    갯수="판매할 갯수"
+)
+async def sell_fish(interaction: discord.Interaction, 물고기: str, 갯수: int):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_tank(user_id)
+
+    if 갯수 <= 0:
+        await interaction.response.send_message("❌ 1마리 이상 팔아야 한다.", ephemeral=True)
+        return
+
+    owned = [fish for fish in fish_tanks[user_id] if fish["name"] == 물고기]
+
+    if len(owned) < 갯수:
+        await interaction.response.send_message(
+            f"❌ {물고기} 부족함.\n"
+            f"보유: {len(owned)}마리",
+            ephemeral=True
+        )
+        return
+
+    sell_list = owned[:갯수]
+    total_price = sum(fish["price"] for fish in sell_list)
+
+    removed = 0
+    new_tank = []
+
+    for fish in fish_tanks[user_id]:
+        if fish["name"] == 물고기 and removed < 갯수:
+            removed += 1
+            continue
+
+        new_tank.append(fish)
+
+    fish_tanks[user_id] = new_tank
+    money_data[user_id] += total_price
+
+    await interaction.response.send_message(
+        f"💰 판매 완료!\n\n"
+        f"판매 물고기: **{물고기}**\n"
+        f"판매 수량: **{갯수}마리**\n"
+        f"획득 금액: **{total_price}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
+
+
+@bot.tree.command(name="도감", description="내가 잡아본 물고기 도감 확인", guild=GUILD)
+async def fish_book(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_tank(user_id)
+
+    if not fish_dex[user_id]:
+        await interaction.response.send_message("📖 아직 도감에 등록된 물고기가 없음.")
+        return
+
+    text = "\n".join(
+        f"✅ {fish_name}"
+        for fish_name in fish_dex[user_id]
+    )
+
+    await interaction.response.send_message(
+        f"📖 **물고기 도감**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="물고기정보", description="물고기 정보를 확인한다", guild=GUILD)
+@app_commands.describe(물고기="정보를 볼 물고기 이름")
+async def fish_info(interaction: discord.Interaction, 물고기: str):
+    if 물고기 not in FISH_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 물고기는 없음.",
+            ephemeral=True
+        )
+        return
+
+    data = FISH_DATA[물고기]
+
+    await interaction.response.send_message(
+        f"🐟 **{물고기} 정보**\n\n"
+        f"무게 범위: **{data['min_kg']}kg ~ {data['max_kg']}kg**\n"
+        f"서식지: **{data['habitat']}**\n"
+        f"기본 판매가격: **{data['base_price']}원**\n"
+        f"kg당 추가 가격: **{data['kg_price']}원**\n\n"
+        f"판매가 계산식:\n"
+        f"`기본 가격 + kg × kg당 가격`"
+    )
+
 bot.run(TOKEN)
