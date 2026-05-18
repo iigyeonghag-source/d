@@ -5,6 +5,11 @@ from discord.ui import View, Button
 from main import money_data, get_wallet, save_data
 
 def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
+
+    RPG_FILE = "/data/rpg_data.json"
+    os.makedirs("/data", exist_ok=True)
+
+    active_battles = {}
     
 RPG_FILE = "/data/rpg_data.json"
 os.makedirs("/data", exist_ok=True)
