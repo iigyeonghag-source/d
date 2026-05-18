@@ -346,9 +346,6 @@ async def on_ready():
             update_crop_prices()
         crop_price_loop.start()
 
-    for channel_data in CHANNELS:
-        bot.loop.create_task(random_message_loop(channel_data))
-
 
 # =========================
 # 명령어
