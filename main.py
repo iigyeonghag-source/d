@@ -1937,8 +1937,28 @@ FISH_DATA = {
         "base_price": 1000,
         "kg_price": 50,
         "chance": 2
+    },
+    
+    "메갈로돈": {
+        "min_kg": 3000.0,
+        "max_kg": 120000.0,
+        "habitat": "고대 심해",
+        "base_price": 800000,
+        "kg_price": 700,
+        "chance": 0.003
+    },
+
+    "크라켄": {
+        "min_kg": 300.0,
+        "max_kg": 1000.0,
+        "habitat": "심연의 균열",
+        "base_price": 3000000,
+        "kg_price": 12000,
+        "chance": 0.002
     }
 }
+
+BOSS_FISH = ["메갈로돈", "크라켄"]
 
 for fish in FISH_DATA.values():
     fish["chance"] /= 2
@@ -2099,86 +2119,149 @@ fishing_cooldowns = {}
 FISHING_COOLDOWN = timedelta(seconds=12)
 
 
-class FishingButtonView(discord.ui.View):
-    def __init__(self, user_id):
-        super().__init__(timeout=9)
+class BossFishingView(discord.ui.View):
+    def __init__(self, user_id, boss_name, rod_name, bait_name):
+        super().__init__(timeout=40)
         self.user_id = user_id
-        self.can_catch = False
-        self.clicked = False
+        self.boss_name = boss_name
+        self.rod_name = rod_name
+        self.bait_name = bait_name
+
+        self.required_hits = random.randint(5, 12)
+        self.current_hits = 0
+        self.target_index = None
+        self.failed = False
         self.message = None
 
-    @discord.ui.button(
-        label="기다리는 중...",
-        style=discord.ButtonStyle.gray
-    )
-    async def catch_button(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message(
-                "❌ 낚싯대가 다르다.",
-                ephemeral=True
-            )
-            return
+        for i in range(9):
+            self.add_item(BossFishingButton(i))
 
-        if not self.can_catch:
-            self.clicked = True
-            button.label = "너무 빨랐다..."
-            button.style = discord.ButtonStyle.red
-            button.disabled = True
+    async def start_round(self):
+        while self.current_hits < self.required_hits and not self.failed:
+            self.target_index = random.randint(0, 8)
 
-            await interaction.response.edit_message(
-                content="🐟 낚싯대엔 아무것도 안잡혔다..",
+            for item in self.children:
+                item.label = "⬛"
+                item.style = discord.ButtonStyle.gray
+                item.disabled = False
+
+            self.children[self.target_index].label = "🟩"
+            self.children[self.target_index].style = discord.ButtonStyle.green
+
+            await self.message.edit(
+                content=(
+                    f"🐲 **보스 출현: {self.boss_name}**\n\n"
+                    f"초록 칸을 3초 안에 눌러!\n"
+                    f"진행도: **{self.current_hits}/{self.required_hits}**"
+                ),
                 view=self
             )
-            self.stop()
-            return
 
-        self.clicked = True
-        button.disabled = True
+            before = self.current_hits
+            await asyncio.sleep(3)
 
-        await fishing_success(interaction)
-        self.stop()
+            if self.current_hits == before:
+                await self.fail_boss("시간 초과")
+                return
 
-    async def start_waiting(self):
-        rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
-        rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
+        if not self.failed:
+            await self.success_boss()
 
-        base_wait = random.randint(3, 10)
-        reduce_rate = rod["time_reduce"] / 100
-        wait_time = max(1, int(base_wait * (1 - reduce_rate)))
-
-        await asyncio.sleep(wait_time)
-
-        if self.clicked:
-            return
-
-        self.can_catch = True
-
-        button = self.children[0]
-        button.label = "지금이다!"
-        button.style = discord.ButtonStyle.green
-
-        await self.message.edit(
-            content="🎣 찌가 흔들린다! 지금 버튼 누르자!",
-            view=self
-        )
-
-    async def on_timeout(self):
-        if self.clicked:
-            return
+    async def fail_boss(self, reason):
+        self.failed = True
 
         for item in self.children:
             item.disabled = True
 
-        if self.message:
-            await self.message.edit(
-                content="🐟 시간이 지나서 물고기가 도망갔다...",
-                view=self
-            )
+        await self.message.edit(
+            content=(
+                f"💀 **{self.boss_name} 도주**\n\n"
+                f"사유: **{reason}**\n"
+                f"진행도: **{self.current_hits}/{self.required_hits}**"
+            ),
+            view=self
+        )
 
+        self.stop()
+
+    async def success_boss(self):
+        fish_data = FISH_DATA[self.boss_name]
+
+        kg = round(
+            random.uniform(
+                fish_data["min_kg"],
+                fish_data["max_kg"]
+            ),
+            2
+        )
+
+        price = fish_price(self.boss_name, kg)
+
+        fish_tanks[self.user_id].append({
+            "name": self.boss_name,
+            "kg": kg,
+            "price": price
+        })
+
+        fish_dex[self.user_id].add(self.boss_name)
+
+        save_data()
+
+        for item in self.children:
+            item.disabled = True
+
+        await self.message.edit(
+            content=(
+                f"🔥🐲 **보스 낚시 성공!**\n\n"
+                f"잡은 보스: **{self.boss_name}**\n"
+                f"무게: **{kg}kg**\n"
+                f"예상 판매가: **{money(price)}원**\n\n"
+                f"사용 낚싯대: **{self.rod_name}**\n"
+                f"사용 미끼: **{self.bait_name}**"
+            ),
+            view=self
+        )
+
+        self.stop()
+
+
+class BossFishingButton(discord.ui.Button):
+    def __init__(self, index):
+        super().__init__(
+            label="⬛",
+            style=discord.ButtonStyle.gray,
+            row=index // 3
+        )
+        self.index = index
+
+    async def callback(self, interaction: discord.Interaction):
+        view: BossFishingView = self.view
+
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message(
+                "❌ 니 보스 아님.",
+                ephemeral=True
+            )
+            return
+
+        if self.index != view.target_index:
+            await interaction.response.defer()
+            await view.fail_boss("잘못된 칸 클릭")
+            return
+
+        view.current_hits += 1
+
+        for item in view.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(
+            content=(
+                f"✅ 명중!\n\n"
+                f"보스: **{view.boss_name}**\n"
+                f"진행도: **{view.current_hits}/{view.required_hits}**"
+            ),
+            view=view
+        )
 
 async def fishing_success(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -2196,8 +2279,8 @@ async def fishing_success(interaction: discord.Interaction):
             content=(
                 f"🐟💀 간고등어 출현\n\n"
                 f"간고등어가 당신의 지갑을 물고 튀었다..\n"
-                f"💸 -{stolen}원\n\n"
-                f"현재 잔액: **{money_data[user_id]}원**"
+                f"💸 -{money(stolen)}원\n\n"
+                f"현재 잔액: **{money(money_data[user_id])}원**"
             ),
             view=None
         )
@@ -2211,6 +2294,36 @@ async def fishing_success(interaction: discord.Interaction):
 
     luck_bonus = rod["luck"] + bait["luck"]
 
+    def use_bait():
+        if bait_name != "미끼 없음":
+            owned_baits[user_id][bait_name] -= 1
+
+            if owned_baits[user_id][bait_name] <= 0:
+                del owned_baits[user_id][bait_name]
+                equipped_baits[user_id] = "미끼 없음"
+
+    first_fish = pick_fish(luck_bonus)
+
+    # 보스 뜨면 더블/트리플 무시하고 보스전만 시작
+    if first_fish in BOSS_FISH:
+        use_bait()
+        save_data()
+
+        view = BossFishingView(user_id, first_fish, rod_name, bait_name)
+
+        await interaction.response.edit_message(
+            content=(
+                f"🌊⚠️ **수면 아래에서 거대한 그림자가 움직인다...**\n\n"
+                f"🐲 보스 몹 **{first_fish}** 출현!\n"
+                f"잠시 후 9칸 보스전 시작."
+            ),
+            view=view
+        )
+
+        view.message = await interaction.original_response()
+        asyncio.create_task(view.start_round())
+        return
+
     catch_count = 1
     roll = random.uniform(0, 100)
 
@@ -2221,8 +2334,18 @@ async def fishing_success(interaction: discord.Interaction):
 
     caught_text = []
 
-    for _ in range(catch_count):
+    fish_list = [first_fish]
+
+    for _ in range(catch_count - 1):
         fish_name = pick_fish(luck_bonus)
+
+        # 추가 물고기에서 보스가 떠도 보스는 무시하고 일반 물고기 다시 뽑음
+        while fish_name in BOSS_FISH:
+            fish_name = pick_fish(luck_bonus)
+
+        fish_list.append(fish_name)
+
+    for fish_name in fish_list:
         fish_data = FISH_DATA[fish_name]
 
         kg = round(
@@ -2246,16 +2369,10 @@ async def fishing_success(interaction: discord.Interaction):
         caught_text.append(
             f"잡은 물고기: **{fish_name}**\n"
             f"무게: **{kg}kg**\n"
-            f"예상 판매가: **{price}원**"
+            f"예상 판매가: **{money(price)}원**"
         )
 
-    if bait_name != "미끼 없음":
-        owned_baits[user_id][bait_name] -= 1
-
-        if owned_baits[user_id][bait_name] <= 0:
-            del owned_baits[user_id][bait_name]
-            equipped_baits[user_id] = "미끼 없음"
-
+    use_bait()
     save_data()
 
     bonus_text = ""
@@ -2721,7 +2838,7 @@ SEED_DATA = {
     "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300},
     "토마토": {"seed_price": 1200, "base_price": 2200, "grow_min": 300, "grow_max": 600},
     "딸기": {"seed_price": 2500, "base_price": 5000, "grow_min": 600, "grow_max": 1200},
-    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 1800, "grow_max": 3600},
+    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 900, "grow_max": 2100},
     "만년초": {"seed_price": 50000, "base_price": 100000, "grow_min": 1800, "grow_max": 3600},
     "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
         "seed_price": 1000000,
