@@ -2019,7 +2019,7 @@ FISH_DATA = {
         "max_kg": 250.0,
         "habitat": "먼바다",
         "base_price": 5000,
-        "kg_price": 800,
+        "kg_price": 80,
         "chance": 7
     },
 
