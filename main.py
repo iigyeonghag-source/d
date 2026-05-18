@@ -4482,8 +4482,6 @@ async def collect_mine(interaction: discord.Interaction):
         f"회수 금액: **{gained:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
-    
-setup_rpg(bot, GUILD, money_data, get_wallet, save_data)
 
 load_data()
 bot.run(TOKEN)
