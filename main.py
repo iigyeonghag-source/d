@@ -42,7 +42,12 @@ DATA_KEYS = [
     "equipped_baits",
     "loan_data",
     "farm_levels",
-    "field_sizes"
+    "field_sizes",
+    "ore_bags",
+    "owned_pickaxes",
+    "equipped_pickaxes",
+    "mine_data",
+    "mining_cooldowns"
 ]
 
 data = {key: {} for key in DATA_KEYS}
@@ -91,6 +96,8 @@ def bind_storage_globals():
     global owned_rods, equipped_rods, owned_baits, equipped_baits
     global loan_data
     global farm_levels, field_sizes
+    global ore_bags, owned_pickaxes, equipped_pickaxes
+    global mine_data, mining_cooldowns
     
     money_data = data["money_data"]
     daily_claims = data["daily_claims"]
@@ -116,6 +123,12 @@ def bind_storage_globals():
     equipped_rods = data["equipped_rods"]
     owned_baits = data["owned_baits"]
     equipped_baits = data["equipped_baits"]
+
+    ore_bags = data["ore_bags"]
+    owned_pickaxes = data["owned_pickaxes"]
+    equipped_pickaxes = data["equipped_pickaxes"]
+    mine_data = data["mine_data"]
+    mining_cooldowns = data["mining_cooldowns"]
     
 def sync_storage_globals():
     data["money_data"] = money_data
@@ -143,6 +156,12 @@ def sync_storage_globals():
     data["equipped_rods"] = equipped_rods
     data["owned_baits"] = owned_baits
     data["equipped_baits"] = equipped_baits
+
+    data["ore_bags"] = ore_bags
+    data["owned_pickaxes"] = owned_pickaxes
+    data["equipped_pickaxes"] = equipped_pickaxes
+    data["mine_data"] = mine_data
+    data["mining_cooldowns"] = mining_cooldowns
 
 
 def load_data():
@@ -174,7 +193,12 @@ def load_data():
         "owned_baits",
         "equipped_baits",
         "farm_levels",
-        "field_sizes"
+        "field_sizes",
+        "ore_bags",
+        "owned_pickaxes",
+        "equipped_pickaxes",
+        "mine_data",
+        "mining_cooldowns"
     ]:
         data[key] = to_int_key_dict(data[key])
 
@@ -218,6 +242,13 @@ def load_data():
 
                 if "harvest_time" in plot:
                     plot["harvest_time"] = restore_datetime(plot["harvest_time"])
+
+    for user_id, value in list(data["mining_cooldowns"].items()):
+        data["mining_cooldowns"][user_id] = restore_datetime(value)
+
+    for user_id, mine in list(data["mine_data"].items()):
+        if isinstance(mine, dict) and "last_collect" in mine:
+            mine["last_collect"] = restore_datetime(mine["last_collect"])
     
     bind_storage_globals()
     save_data()
@@ -707,8 +738,6 @@ CHANNELS = [
             "니들 뭔 겜함?",
             "내가 진짜 도로다!",
             "와 도로!",
-            "@naigyejeongjugum",
-            "@_1doro1_",
             "뭐임마",
             "나랑 놀자",
             "끝말잇기 시~작!"
@@ -4046,6 +4075,608 @@ async def remove_money_error(
             "❌ 관리자 전용 명령어임.",
             ephemeral=True
         )
+
+# =========================
+# 광산 시스템
+# =========================
+
+ore_bags = {}
+owned_pickaxes = {}
+equipped_pickaxes = {}
+mine_data = {}
+mining_cooldowns = {}
+
+ORE_DATA = {
+    "돌": {"price": 80, "chance": 45},
+    "석탄": {"price": 250, "chance": 30},
+    "구리": {"price": 500, "chance": 22},
+    "철광석": {"price": 1200, "chance": 15},
+    "은광석": {"price": 2500, "chance": 9},
+    "금광석": {"price": 5000, "chance": 5},
+    "다이아몬드": {"price": 20000, "chance": 1.2},
+    "에메랄드": {"price": 35000, "chance": 0.7},
+    "흑요석": {"price": 80000, "chance": 0.25},
+    "신기루": {"price": 250000, "chance": 0.05}
+}
+
+PICKAXE_DATA = {
+    "나무 곡괭이": {
+        "price": 0,
+        "ores": {},
+        "luck": 0,
+        "time_reduce": 0,
+        "double_chance": 2,
+        "triple_chance": 0
+    },
+    "돌 곡괭이": {
+        "price": 50000,
+        "ores": {},
+        "luck": 5,
+        "time_reduce": 5,
+        "double_chance": 4,
+        "triple_chance": 0.5
+    },
+    "철 곡괭이": {
+        "price": 150000,
+        "ores": {"철광석": 20, "석탄": 30},
+        "luck": 12,
+        "time_reduce": 10,
+        "double_chance": 7,
+        "triple_chance": 1
+    },
+    "금 곡괭이": {
+        "price": 500000,
+        "ores": {"금광석": 15, "은광석": 25},
+        "luck": 22,
+        "time_reduce": 18,
+        "double_chance": 12,
+        "triple_chance": 3
+    },
+    "다이아몬드 곡괭이": {
+        "price": 1500000,
+        "ores": {"다이아몬드": 10, "철광석": 80},
+        "luck": 38,
+        "time_reduce": 28,
+        "double_chance": 20,
+        "triple_chance": 6
+    },
+    "에메랄드 곡괭이": {
+        "price": 4000000,
+        "ores": {"에메랄드": 8, "다이아몬드": 15},
+        "luck": 55,
+        "time_reduce": 40,
+        "double_chance": 28,
+        "triple_chance": 10
+    },
+    "흑요석 곡괭이": {
+        "price": 12000000,
+        "ores": {"흑요석": 6, "에메랄드": 15},
+        "luck": 80,
+        "time_reduce": 50,
+        "double_chance": 38,
+        "triple_chance": 16
+    },
+    "드워프 장인의 곡괭이": {
+        "price": 30000000,
+        "ores": {"아카브 결정": 3, "흑요석": 15},
+        "luck": 120,
+        "time_reduce": 60,
+        "double_chance": 50,
+        "triple_chance": 25
+    },
+    "신의 곡괭이": {
+        "price": 100000000,
+        "ores": {"아카브 결정": 10, "흑요석": 40, "에메랄드": 50},
+        "luck": 200,
+        "time_reduce": 70,
+        "double_chance": 65,
+        "triple_chance": 35
+    }
+}
+
+MAX_MINE_LEVEL = 12
+
+
+def get_mining(user_id):
+    changed = False
+
+    if user_id not in ore_bags:
+        ore_bags[user_id] = {}
+        changed = True
+
+    if user_id not in owned_pickaxes:
+        owned_pickaxes[user_id] = ["나무 곡괭이"]
+        changed = True
+
+    if user_id not in equipped_pickaxes:
+        equipped_pickaxes[user_id] = "나무 곡괭이"
+        changed = True
+
+    if user_id not in mine_data:
+        mine_data[user_id] = {
+            "level": 1,
+            "money": 0,
+            "last_collect": datetime.now()
+        }
+        changed = True
+
+    if user_id not in mining_cooldowns:
+        mining_cooldowns[user_id] = None
+        changed = True
+
+    return changed
+
+
+def pick_ore(luck_bonus=0):
+    names = list(ORE_DATA.keys())
+    weights = []
+
+    for name in names:
+        ore = ORE_DATA[name]
+        chance = ore["chance"]
+        price = ore["price"]
+
+        if price >= 80000:
+            chance *= 1 + (luck_bonus / 45)
+        elif price >= 20000:
+            chance *= 1 + (luck_bonus / 70)
+        elif price >= 5000:
+            chance *= 1 + (luck_bonus / 100)
+        else:
+            chance *= max(0.2, 1 - (luck_bonus / 250))
+
+        weights.append(chance)
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+
+def calc_mine_income(level):
+    return 5000 + ((level - 1) * 2500)
+
+
+def update_mine_money(user_id):
+    get_mining(user_id)
+
+    mine = mine_data[user_id]
+    now = datetime.now()
+
+    last_collect = mine.get("last_collect", now)
+    if isinstance(last_collect, str):
+        last_collect = restore_datetime(last_collect)
+
+    passed_seconds = int((now - last_collect).total_seconds())
+    cycles = passed_seconds // 600
+
+    if cycles <= 0:
+        return 0
+
+    income = calc_mine_income(mine["level"]) * cycles
+    mine["money"] += income
+    mine["last_collect"] = last_collect + timedelta(seconds=cycles * 600)
+
+    save_data()
+    return income
+
+
+class MiningBlockButton(discord.ui.Button):
+    def __init__(self, index):
+        super().__init__(
+            label="⬛",
+            style=discord.ButtonStyle.gray,
+            row=index // 3
+        )
+        self.index = index
+
+    async def callback(self, interaction: discord.Interaction):
+        view = self.view
+
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message(
+                "❌ 남의 광산 블록은 못 깐다.",
+                ephemeral=True
+            )
+            return
+
+        if self.index in view.opened:
+            await interaction.response.send_message(
+                "❌ 이미 깐 칸임.",
+                ephemeral=True
+            )
+            return
+
+        ore_name = pick_ore(view.pickaxe["luck"])
+        amount = 1
+        bonus_text = ""
+
+        roll = random.uniform(0, 100)
+
+        if roll <= view.pickaxe["triple_chance"]:
+            amount += 3
+            bonus_text = "\n🔥 트리플 찬스! 광물 3개 추가!"
+        elif roll <= view.pickaxe["triple_chance"] + view.pickaxe["double_chance"]:
+            amount += 2
+            bonus_text = "\n✨ 더블 찬스! 광물 2개 추가!"
+
+        ore_bags[view.user_id][ore_name] = ore_bags[view.user_id].get(ore_name, 0) + amount
+        view.opened.add(self.index)
+
+        self.label = "🟫"
+        self.style = discord.ButtonStyle.green
+        self.disabled = True
+
+        view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
+
+        if len(view.opened) >= 9:
+            for item in view.children:
+                item.disabled = True
+
+            save_data()
+
+            await interaction.response.edit_message(
+                content=(
+                    "⛏️ **광질 완료!**\n\n"
+                    + "\n".join(view.results)
+                ),
+                view=view
+            )
+            view.stop()
+            return
+
+        save_data()
+
+        await interaction.response.edit_message(
+            content=(
+                f"⛏️ 블록을 캐는 중...\n"
+                f"남은 블록: **{9 - len(view.opened)}칸**\n\n"
+                + "\n".join(view.results[-5:])
+            ),
+            view=view
+        )
+
+
+class MiningBlockView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=120)
+        self.user_id = user_id
+        self.opened = set()
+        self.results = []
+
+        pickaxe_name = equipped_pickaxes.get(user_id, "나무 곡괭이")
+        self.pickaxe = PICKAXE_DATA[pickaxe_name]
+
+        for i in range(9):
+            self.add_item(MiningBlockButton(i))
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+
+
+@bot.tree.command(name="광질", description="1분~15분 동안 광질 후 9칸 블록을 깐다", guild=GUILD)
+async def mining(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    cooldown = mining_cooldowns.get(user_id)
+
+    if cooldown and now < cooldown:
+        remain = int((cooldown - now).total_seconds())
+        await interaction.response.send_message(
+            f"⛏️ 이미 광질 중임.\n남은 시간: **{remain}초**",
+            ephemeral=True
+        )
+        return
+
+    pickaxe_name = equipped_pickaxes[user_id]
+    pickaxe = PICKAXE_DATA[pickaxe_name]
+
+    base_wait = random.randint(60, 900)
+    wait_time = max(30, int(base_wait * (1 - pickaxe["time_reduce"] / 100)))
+
+    mining_cooldowns[user_id] = now + timedelta(seconds=wait_time)
+    save_data()
+
+    await interaction.response.send_message(
+        f"⛏️ 광질 시작!\n"
+        f"사용 곡괭이: **{pickaxe_name}**\n"
+        f"남은 시간: **{wait_time}초**"
+    )
+
+    msg = await interaction.original_response()
+
+    remain = wait_time
+
+    while remain > 0:
+        await asyncio.sleep(min(10, remain))
+        remain = int((mining_cooldowns[user_id] - datetime.now()).total_seconds())
+
+        if remain > 0:
+            try:
+                await msg.edit(
+                    content=(
+                        f"⛏️ 광질 중...\n"
+                        f"사용 곡괭이: **{pickaxe_name}**\n"
+                        f"남은 시간: **{remain}초**"
+                    )
+                )
+            except:
+                pass
+
+    mining_cooldowns[user_id] = None
+    save_data()
+
+    view = MiningBlockView(user_id)
+
+    await msg.edit(
+        content=(
+            "💎 광질 완료!\n\n"
+            "아래 9칸 블록을 하나씩 눌러서 광물을 캐라!"
+        ),
+        view=view
+    )
+
+
+@bot.tree.command(name="가방", description="내 광석 가방을 확인한다", guild=GUILD)
+async def ore_bag(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_mining(user_id)
+
+    bag = ore_bags[user_id]
+
+    if not bag:
+        await interaction.response.send_message("🎒 가방이 비어있다.")
+        return
+
+    text = "\n".join(
+        f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
+        for ore, count in bag.items()
+        if count > 0
+    )
+
+    await interaction.response.send_message(
+        f"🎒 **내 광석 가방**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="팔기2", description="광석을 판매한다", guild=GUILD)
+@app_commands.describe(
+    광석="판매할 광석 이름",
+    갯수="판매할 갯수"
+)
+async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    if 광석 not in ORE_DATA:
+        await interaction.response.send_message("❌ 없는 광석임.", ephemeral=True)
+        return
+
+    if 갯수 <= 0:
+        await interaction.response.send_message("❌ 1개 이상 팔아야 함.", ephemeral=True)
+        return
+
+    if ore_bags[user_id].get(광석, 0) < 갯수:
+        await interaction.response.send_message(
+            f"❌ 광석 부족.\n현재 {광석}: {ore_bags[user_id].get(광석, 0)}개",
+            ephemeral=True
+        )
+        return
+
+    total = ORE_DATA[광석]["price"] * 갯수
+
+    ore_bags[user_id][광석] -= 갯수
+    if ore_bags[user_id][광석] <= 0:
+        del ore_bags[user_id][광석]
+
+    money_data[user_id] += total
+    save_data()
+
+    await interaction.response.send_message(
+        f"💰 판매 완료!\n"
+        f"{광석} x{갯수}\n"
+        f"+{total:,}원\n\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
+    )
+
+
+@bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
+async def sell_all_ores(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    bag = ore_bags[user_id]
+
+    if not bag:
+        await interaction.response.send_message("🎒 팔 광석이 없다.")
+        return
+
+    total = 0
+    sold_text = []
+
+    for ore, count in list(bag.items()):
+        if count <= 0:
+            continue
+
+        price = ORE_DATA[ore]["price"] * count
+        total += price
+        sold_text.append(f"{ore} x{count} = {price:,}원")
+
+    ore_bags[user_id] = {}
+    money_data[user_id] += total
+    save_data()
+
+    await interaction.response.send_message(
+        f"💰 **전체 판매 완료!**\n\n"
+        + "\n".join(sold_text)
+        + f"\n\n총 수익: **{total:,}원**\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
+    )
+
+
+@bot.tree.command(name="제작", description="곡괭이를 제작하거나 장착한다", guild=GUILD)
+@app_commands.describe(곡괭이="제작/장착할 곡괭이 이름")
+async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    if 곡괭이 is None:
+        lines = []
+
+        for name, pickaxe in PICKAXE_DATA.items():
+            owned = "✅" if name in owned_pickaxes[user_id] else "❌"
+            ore_cost = ", ".join(
+                f"{ore} x{count}"
+                for ore, count in pickaxe["ores"].items()
+            )
+
+            if not ore_cost:
+                ore_cost = "없음"
+
+            lines.append(
+                f"{owned} **{name}**\n"
+                f"가격: **{pickaxe['price']:,}원**\n"
+                f"광석 재료: {ore_cost}\n"
+                f"운빨 증가: {pickaxe['luck']}% / 시간 감소: {pickaxe['time_reduce']}%\n"
+                f"더블: {pickaxe['double_chance']}% / 트리플: {pickaxe['triple_chance']}%"
+            )
+
+        await interaction.response.send_message(
+            "⛏️ **곡괭이 목록**\n\n"
+            + "\n\n".join(lines)
+            + "\n\n`/제작 곡괭이이름` 으로 제작/장착"
+        )
+        return
+
+    if 곡괭이 not in PICKAXE_DATA:
+        await interaction.response.send_message("❌ 없는 곡괭이임.", ephemeral=True)
+        return
+
+    if 곡괭이 in owned_pickaxes[user_id]:
+        equipped_pickaxes[user_id] = 곡괭이
+        save_data()
+
+        await interaction.response.send_message(
+            f"⛏️ **{곡괭이}** 장착 완료!"
+        )
+        return
+
+    pickaxe = PICKAXE_DATA[곡괭이]
+
+    if money_data[user_id] < pickaxe["price"]:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n필요 돈: {pickaxe['price']:,}원\n현재 돈: {money_data[user_id]:,}원",
+            ephemeral=True
+        )
+        return
+
+    for ore, need_count in pickaxe["ores"].items():
+        if ore_bags[user_id].get(ore, 0) < need_count:
+            await interaction.response.send_message(
+                f"❌ 재료 부족.\n"
+                f"필요: {ore} x{need_count}\n"
+                f"보유: {ore_bags[user_id].get(ore, 0)}개",
+                ephemeral=True
+            )
+            return
+
+    money_data[user_id] -= pickaxe["price"]
+
+    for ore, need_count in pickaxe["ores"].items():
+        ore_bags[user_id][ore] -= need_count
+        if ore_bags[user_id][ore] <= 0:
+            del ore_bags[user_id][ore]
+
+    owned_pickaxes[user_id].append(곡괭이)
+    equipped_pickaxes[user_id] = 곡괭이
+    save_data()
+
+    await interaction.response.send_message(
+        f"✅ 제작 완료!\n"
+        f"**{곡괭이}** 제작 후 바로 장착함."
+    )
+
+
+@bot.tree.command(name="광산", description="광산에 쌓인 돈을 확인하고 수금한다", guild=GUILD)
+async def mine(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    update_mine_money(user_id)
+
+    mine = mine_data[user_id]
+    income = calc_mine_income(mine["level"])
+
+    if mine["money"] <= 0:
+        await interaction.response.send_message(
+            f"⛏️ **내 광산**\n\n"
+            f"광산 강화: **{mine['level']}강**\n"
+            f"10분마다 수익: **{income:,}원**\n"
+            f"현재 쌓인 돈: **0원**"
+        )
+        return
+
+    gained = mine["money"]
+    mine["money"] = 0
+    money_data[user_id] += gained
+    save_data()
+
+    await interaction.response.send_message(
+        f"⛏️ **광산 수금 완료!**\n\n"
+        f"광산 강화: **{mine['level']}강**\n"
+        f"10분마다 수익: **{income:,}원**\n"
+        f"수금액: **{gained:,}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
+    )
+
+
+@bot.tree.command(name="광산업글", description="광산 수익을 강화한다", guild=GUILD)
+async def mine_upgrade(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    update_mine_money(user_id)
+
+    mine = mine_data[user_id]
+    level = mine["level"]
+
+    if level >= MAX_MINE_LEVEL:
+        await interaction.response.send_message("❌ 이미 광산 최대 강화임.")
+        return
+
+    cost = 100000 * (2 ** (level - 1))
+
+    if money_data[user_id] < cost:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n"
+            f"필요 금액: **{cost:,}원**\n"
+            f"현재 잔액: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= cost
+    mine["level"] += 1
+    save_data()
+
+    await interaction.response.send_message(
+        f"✅ 광산 강화 성공!\n\n"
+        f"현재 강화: **{mine['level']}강**\n"
+        f"10분마다 수익: **{calc_mine_income(mine['level']):,}원**\n"
+        f"사용 금액: **{cost:,}원**"
+    )
 
 load_data()
 bot.run(TOKEN)
