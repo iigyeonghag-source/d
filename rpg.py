@@ -2,12 +2,7 @@ import os, json, random, math
 import discord
 from discord import app_commands
 from discord.ui import View, Button
-from main import money_data, get_wallet, save_data
 
-def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
-
-    RPG_FILE = "/data/rpg_data.json"
-    os.makedirs("/data", exist_ok=True)
 
     active_battles = {}
     
@@ -557,23 +552,21 @@ def setup_rpg(bot, GUILD):
 
     @bot.tree.command(name="프로필", description="내 RPG 프로필 확인", guild=GUILD)
     async def profile(interaction: discord.Interaction):
-        p = get_player(interaction.user.id)
+    p = get_player(interaction.user.id)
 
-        await interaction.response.send_message(
-            get_wallet(interaction.user.id)
+    get_wallet(interaction.user.id)
 
-        await interaction.response.send_message(
-            f"🧾 **프로필**\n\n"
-            f"레벨: **{p['level']}**\n"
-            f"직업: **{p['job']}** Lv.{p['job_level']}\n"
-            f"골드: **{money_data[interaction.user.id]:,}원**\n"
-            f"무기: **{p['weapon'] or '없음'}**\n"
-            f"갑옷: **{p['armor'] or '없음'}**\n"
-            f"보유 무기: {len(p['weapons'])}개\n"
-            f"보유 갑옷: {len(p['armors'])}개\n"
-            f"아이템 종류: {len(p['inventory'])}개"
-            )
-        )
+    await interaction.response.send_message(
+        f"🧾 **프로필**\n\n"
+        f"레벨: **{p['level']}**\n"
+        f"직업: **{p['job']}** Lv.{p['job_level']}\n"
+        f"골드: **{money_data[interaction.user.id]:,}원**\n"
+        f"무기: **{p['weapon'] or '없음'}**\n"
+        f"갑옷: **{p['armor'] or '없음'}**\n"
+        f"보유 무기: {len(p['weapons'])}개\n"
+        f"보유 갑옷: {len(p['armors'])}개\n"
+        f"아이템 종류: {len(p['inventory'])}개"
+    )
 
     @bot.tree.command(name="무기상점", description="무기상점 보기 또는 구매", guild=GUILD)
     @app_commands.describe(무기이름="구매할 무기 이름")
