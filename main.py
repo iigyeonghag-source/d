@@ -1954,7 +1954,7 @@ FISH_DATA = {
         "habitat": "심연의 균열",
         "base_price": 3000000,
         "kg_price": 12000,
-        "chance": 0.002
+        "chance": 100
     }
 }
 
