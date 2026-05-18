@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from discord import app_commands
 import math
+from rpg import setup_rpg
+setup_rpg(bot, GUILD)
 
 # =========================
 # 데이터 저장 시스템
