@@ -130,6 +130,11 @@ SKILLBOOKS = {
     for i in range(1, 4)
 }
 
+ITEM_PRICES = {
+    name: 100 + i * 25
+    for i, name in enumerate(CONSUMABLES.keys(), start=1)
+}
+
 def load_rpg():
     if not os.path.exists(RPG_FILE):
         return {}
@@ -158,11 +163,32 @@ def get_player(user_id):
             "armor": None,
             "inventory": {},
             "weapons": [],
-            "armors": []
+            "armors": [],
+            "learned_skills": []
         }
         save_rpg(rpg_data)
 
-    return rpg_data[user_id]
+    p = rpg_data[user_id]
+
+    # 예전 저장 데이터 호환용
+    p.setdefault("level", 1)
+    p.setdefault("exp", 0)
+    p.setdefault("gold", 0)
+    p.setdefault("job", "초보자")
+    p.setdefault("job_level", 0)
+    p.setdefault("stat_points", 3)
+    p.setdefault("stats", BASE_STATS.copy())
+    p.setdefault("weapon", None)
+    p.setdefault("armor", None)
+    p.setdefault("inventory", {})
+    p.setdefault("weapons", [])
+    p.setdefault("armors", [])
+    p.setdefault("learned_skills", [])
+
+    for stat_name in BASE_STATS:
+        p["stats"].setdefault(stat_name, 0)
+
+    return p
 
 def need_exp(level):
     return 100 + level * 50
@@ -328,6 +354,11 @@ class BattleView(View):
                 item = random.choice(list(CONSUMABLES.keys()))
                 p["inventory"][item] = p["inventory"].get(item, 0) + 1
                 drop_text += f"\n🧪 아이템 드랍: **{item}**"
+
+            if random.random() < 0.03:
+                book = random.choice(list(SKILLBOOKS.keys()))
+                p["inventory"][book] = p["inventory"].get(book, 0) + 1
+                drop_text += f"\n📘 스킬북 드랍: **{book}**"
 
             active_battles.pop(uid, None)
             save_rpg(rpg_data)
@@ -653,13 +684,8 @@ def setup_rpg(bot, GUILD):
     ):
         p = get_player(interaction.user.id)
 
-        item_prices = {
-            name: 100 + i * 25
-            for i, name in enumerate(CONSUMABLES.keys(), start=1)
-        }
-
         if 아이템이름 is None:
-            sample_items = list(item_prices.items())[:30]
+            sample_items = list(ITEM_PRICES.items())[:30]
 
             text = "\n".join(
                 f"{name} - {price}G / 회복 {CONSUMABLES[name]['value']}"
@@ -682,7 +708,7 @@ def setup_rpg(bot, GUILD):
             await interaction.response.send_message("❌ 1개 이상 구매해야 함.")
             return
 
-        price = item_prices[아이템이름] * 갯수
+        price = ITEM_PRICES[아이템이름] * 갯수
 
         if p["gold"] < price:
             await interaction.response.send_message(
@@ -748,7 +774,88 @@ def setup_rpg(bot, GUILD):
             f"📘 스킬북 사용 완료!\n"
             f"새 스킬 습득: **{skill}**"
         )
-              if random.random() < 0.03:
-                book = random.choice(list(SKILLBOOKS.keys()))
-                p["inventory"][book] = p["inventory"].get(book, 0) + 1
-                drop_text += f"\n📘 스킬북 드랍: **{book}**"
+
+
+    @bot.tree.command(name="아이템사용", description="인벤토리 아이템 직접 사용", guild=GUILD)
+    @app_commands.describe(아이템이름="사용할 아이템 이름")
+    async def use_item(interaction: discord.Interaction, 아이템이름: str):
+        p = get_player(interaction.user.id)
+
+        if 아이템이름 not in p["inventory"] or p["inventory"][아이템이름] <= 0:
+            await interaction.response.send_message("❌ 해당 아이템을 가지고 있지 않음.")
+            return
+
+        if 아이템이름 in SKILLBOOKS:
+            await interaction.response.send_message("📘 스킬북은 `/스킬북사용`으로 써야 함.")
+            return
+
+        if 아이템이름 not in CONSUMABLES:
+            await interaction.response.send_message("❌ 사용할 수 없는 아이템임.")
+            return
+
+        item = CONSUMABLES[아이템이름]
+
+        p["inventory"][아이템이름] -= 1
+        if p["inventory"][아이템이름] <= 0:
+            del p["inventory"][아이템이름]
+
+        save_rpg(rpg_data)
+
+        await interaction.response.send_message(
+            f"🧪 **{아이템이름}** 사용 완료!\n"
+            f"효과: 회복량 **{item['value']}**\n"
+            f"※ 전투 중 회복은 `/배틀` 버튼의 `아이템`을 누르면 적용됨."
+        )
+
+
+    @bot.tree.command(name="스킬목록", description="현재 직업 스킬과 배운 스킬 확인", guild=GUILD)
+    async def skill_list(interaction: discord.Interaction):
+        p = get_player(interaction.user.id)
+
+        skills = JOB_SKILLS.get(p["job"], ["몸통박치기"])
+        unlocked = 2
+        if p["job_level"] >= 10:
+            unlocked += 1
+        if p["job_level"] >= 30:
+            unlocked += 1
+        if p["job_level"] >= 50:
+            unlocked += 1
+
+        unlocked_skills = "\n".join(f"✅ {s}" for s in skills[:unlocked]) or "없음"
+        locked_skills = "\n".join(f"🔒 {s}" for s in skills[unlocked:]) or "없음"
+        learned = "\n".join(f"📘 {s}" for s in p.get("learned_skills", [])) or "없음"
+
+        await interaction.response.send_message(
+            f"✨ **스킬목록**\n\n"
+            f"직업: **{p['job']}** Lv.{p['job_level']}\n\n"
+            f"**해금된 직업 스킬**\n{unlocked_skills}\n\n"
+            f"**잠긴 직업 스킬**\n{locked_skills}\n\n"
+            f"**스킬북으로 배운 스킬**\n{learned}"
+        )
+
+
+    @bot.tree.command(name="장비목록", description="전체 장비 도감 일부 확인", guild=GUILD)
+    async def equipment_list(interaction: discord.Interaction):
+        shop_w = "\n".join(f"⚔️ {name} / 공격 +{v['atk']} / 마공 +{v['matk']}" for name, v in list(SHOP_WEAPONS.items())[:20])
+        shop_a = "\n".join(f"🛡️ {name} / 방어 +{v['def']} / 체력 +{v['hp']}" for name, v in list(SHOP_ARMORS.items())[:20])
+
+        await interaction.response.send_message(
+            f"📚 **상점 장비 목록**\n\n"
+            f"**무기 20종**\n{shop_w}\n\n"
+            f"**갑옷 20종**\n{shop_a}\n\n"
+            f"드랍 전용 무기 120종 / 갑옷 120종은 몬스터에게서 각각 5% 확률로 드랍됨."
+        )
+
+
+    @bot.tree.command(name="몹목록", description="등장 몬스터 일부 확인", guild=GUILD)
+    async def monster_list(interaction: discord.Interaction):
+        text = "\n".join(
+            f"Lv.{m['level']} {m['name']} / HP {m['hp']} / ATK {m['atk']}"
+            for m in MONSTERS[:40]
+        )
+
+        await interaction.response.send_message(
+            f"👹 **몬스터 목록 일부**\n\n{text}\n\n"
+            f"총 몬스터: **{len(MONSTERS)}종**"
+        )
+
