@@ -2055,7 +2055,7 @@ ROD_DATA = {
     },
     "운영자의 낚싯대": {
     "price": 99999999999999,
-    "luck": 999,
+    "luck": 999999,
     "time_reduce": 999,
     "double_chance": 50,
     "triple_chance": 50
