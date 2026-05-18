@@ -379,6 +379,19 @@ async def random_message_loop(channel_data):
 
         await asyncio.sleep(wait_minutes * 60)
 
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
+
+GUILD_ID = 1502532691495751731
+GUILD = discord.Object(id=GUILD_ID)
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents
+)
 
 # =========================
 # 봇 준비 완료
