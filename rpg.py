@@ -3,6 +3,8 @@ import discord
 from discord import app_commands
 from discord.ui import View, Button
 
+RPG_FILE = "/data/rpg_data.json"
+os.makedirs("/data", exist_ok=True)
 
     active_battles = {}
     
