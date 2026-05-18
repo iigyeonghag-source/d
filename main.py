@@ -328,8 +328,6 @@ bot = commands.Bot(
     intents=intents
 )
 
-setup_rpg(bot, GUILD)
-
 # =========================
 # 봇 준비 완료
 # =========================
