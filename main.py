@@ -1945,7 +1945,7 @@ FISH_DATA = {
         "habitat": "고대 심해",
         "base_price": 800000,
         "kg_price": 700,
-        "chance": 0.003
+        "chance": 100
     },
 
     "크라켄": {
@@ -1953,8 +1953,8 @@ FISH_DATA = {
         "max_kg": 1000.0,
         "habitat": "심연의 균열",
         "base_price": 3000000,
-        "kg_price": 12000,
-        "chance": 100
+        "kg_price": 30000,
+        "chance": 0.001
     }
 }
 
