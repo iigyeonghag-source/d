@@ -3761,6 +3761,41 @@ async def deposit(interaction: discord.Interaction, 금액: int):
         f"현재 예금: **{bank['deposit']}원**"
     )
 
+@bot.tree.command(name="돈빼기", description="은행에서 돈 출금", guild=GUILD)
+@app_commands.describe(금액="뺄 금액")
+async def withdraw(interaction: discord.Interaction, 금액: int):
+
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+
+    bank = get_bank(user_id)
+
+    update_bank(user_id)
+
+    if 금액 <= 0:
+        await interaction.response.send_message(
+            "❌ 1원 이상 가능.",
+            ephemeral=True
+        )
+        return
+
+    if bank["deposit"] < 금액:
+        await interaction.response.send_message(
+            "❌ 예금 부족.",
+            ephemeral=True
+        )
+        return
+
+    bank["deposit"] -= 금액
+    money_data[user_id] += 금액
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"💸 출금 완료!\n"
+        f"현재 예금: **{bank['deposit']}원**"
+    )
 
 @bot.tree.command(
     name="돈삭제",
