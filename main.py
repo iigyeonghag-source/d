@@ -17,8 +17,6 @@ bot = commands.Bot(
     intents=intents
 )
 
-setup_rpg(bot, GUILD)
-
 # =========================
 # 데이터 저장 시스템
 # =========================
@@ -329,6 +327,8 @@ bot = commands.Bot(
     command_prefix="!",
     intents=intents
 )
+
+setup_rpg(bot, GUILD)
 
 # =========================
 # 봇 준비 완료
