@@ -281,80 +281,6 @@ def save_data():
 
     except Exception as e:
         print("저장 실패:", e)
-    
-# =========================
-# 채널별 자동 메시지 설정
-# =========================
-
-CHANNELS = [
-    {
-        "id": 1502532692275625985,
-        "messages": [
-            "도로롱!",
-            "\"DORO\"",
-            "날 숭배하라.",
-            "DORO 바보",
-            "DORO 천재",
-            "오늘의 날씨는 DORO합니다.",
-            "DORODORODORODORODORODORODORO",
-            "다들 뭐함?",
-            "뭔 겜하지",
-            "케케케",
-            "도로롱!",
-            "내가 가는 길이 곧 DORO야!",
-            "배고프다.",
-            "진짜 기분 like 종훈이",
-            "야이 씨발아",
-            "뭘봐",
-            "ㅋ",
-            "ㅋㅋㅋㅋ",
-            "내 이름은 DORO",
-            "졸리다.",
-            "니들 뭔 겜함?",
-            "내가 진짜 도로다!",
-            "와 도로!",
-            "뭐임마",
-            "나랑 놀자",
-            "끝말잇기 시~작!",
-            "너임마종훈",
-            "이 서버 나감 ㅅㄱ",
-            "너 밴 때린다",
-            "야이 새끼야"
-        ],
-        "min_time": 30,
-        "max_time": 120
-    },
-    {
-        "id": 1503162390735228928,
-        "messages": [
-            "도박 망했냐?",
-            "어케 했냐 ㄷㄷ"
-        ],
-        "min_time": 60,
-        "max_time": 600
-    },
-    {
-        "id": 1502533312902598799,
-        "messages": [
-            "내가 DORO다!",
-            "날 숭배하라.",
-            "도멘",
-            "솔직히 기독교 보단 도로교가 더 멋지다고 생각해요"
-        ],
-        "min_time": 120,
-        "max_time": 360
-    },
-    {
-        "id": 1502535053245284482,
-        "messages": [
-            "이 서버는 내꺼다 케케케",
-            "관리자 해치웠나?",
-            "테러를 시작하지 케케케"
-        ],
-        "min_time": 180,
-        "max_time": 720
-    }
-]
 
 
 # =========================
@@ -423,11 +349,6 @@ async def on_ready():
 # =========================
 # 명령어
 # =========================
-
-@bot.tree.command(name="dorodoro", description="DORODORODORODORO", guild=GUILD)
-async def doro_spam(interaction: discord.Interaction):
-    await interaction.response.send_message("DORODORODORODORO")
-
 
 @bot.tree.command(name="소개", description="봇 소개", guild=GUILD)
 async def intro(interaction: discord.Interaction):
