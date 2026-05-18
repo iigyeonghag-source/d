@@ -9,8 +9,6 @@ from discord import app_commands
 import math
 from rpg import setup_rpg
 
-setup_rpg(bot, GUILD, money_data, get_wallet, save_data)
-
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -705,6 +703,7 @@ def get_wallet(user_id):
         return True
     return False
 
+setup_rpg(bot, GUILD, money_data, get_wallet, save_data)
 
 def get_log(user_id):
     if user_id not in roulette_logs:
