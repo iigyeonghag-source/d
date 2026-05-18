@@ -321,7 +321,7 @@ GUILD_ID = 1502532691495751731
 GUILD = discord.Object(id=GUILD_ID)
 
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = False
 
 bot = commands.Bot(
     command_prefix="!",
@@ -336,17 +336,10 @@ setup_rpg(bot, GUILD)
 
 @bot.event
 async def on_ready():
-    global auto_message_started
-
     synced = await bot.tree.sync(guild=GUILD)
 
     print(f"{len(synced)}개 명령어 동기화됨")
     print(f"{bot.user} 로그인 완료!")
-
-    if auto_message_started:
-        return
-
-    auto_message_started = True
 
     if not crop_price_loop.is_running():
         if not crop_prices:
