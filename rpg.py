@@ -432,7 +432,7 @@ class BattleView(View):
     async def item(self, interaction, button):
         await self.do_turn(interaction, "item")
 
-def setup_rpg(bot, GUILD):
+def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
     @bot.tree.command(name="배틀", description="랜덤 몬스터와 턴제 전투", guild=GUILD)
     async def battle(interaction: discord.Interaction):
