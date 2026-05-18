@@ -6,11 +6,6 @@ from discord.ui import View, Button
 RPG_FILE = "/data/rpg_data.json"
 os.makedirs("/data", exist_ok=True)
 
-    active_battles = {}
-    
-RPG_FILE = "/data/rpg_data.json"
-os.makedirs("/data", exist_ok=True)
-
 active_battles = {}
 
 BASE_STATS = {
