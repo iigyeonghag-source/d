@@ -2118,7 +2118,86 @@ def get_fishing_gear(user_id):
 fishing_cooldowns = {}
 FISHING_COOLDOWN = timedelta(seconds=12)
 
+class FishingButtonView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=9)
+        self.user_id = user_id
+        self.can_catch = False
+        self.clicked = False
+        self.message = None
 
+    @discord.ui.button(
+        label="기다리는 중...",
+        style=discord.ButtonStyle.gray
+    )
+    async def catch_button(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(
+                "❌ 낚싯대가 다르다.",
+                ephemeral=True
+            )
+            return
+
+        if not self.can_catch:
+            self.clicked = True
+            button.label = "너무 빨랐다..."
+            button.style = discord.ButtonStyle.red
+            button.disabled = True
+
+            await interaction.response.edit_message(
+                content="🐟 낚싯대엔 아무것도 안잡혔다..",
+                view=self
+            )
+            self.stop()
+            return
+
+        self.clicked = True
+        button.disabled = True
+
+        await fishing_success(interaction)
+        self.stop()
+
+    async def start_waiting(self):
+        rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
+        rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
+
+        base_wait = random.randint(3, 10)
+        reduce_rate = rod["time_reduce"] / 100
+        wait_time = max(1, int(base_wait * (1 - reduce_rate)))
+
+        await asyncio.sleep(wait_time)
+
+        if self.clicked:
+            return
+
+        self.can_catch = True
+
+        button = self.children[0]
+        button.label = "지금이다!"
+        button.style = discord.ButtonStyle.green
+
+        await self.message.edit(
+            content="🎣 찌가 흔들린다! 지금 버튼 누르자!",
+            view=self
+        )
+
+    async def on_timeout(self):
+        if self.clicked:
+            return
+
+        for item in self.children:
+            item.disabled = True
+
+        if self.message:
+            await self.message.edit(
+                content="🐟 시간이 지나서 물고기가 도망갔다...",
+                view=self
+            )
+            
 class BossFishingView(discord.ui.View):
     def __init__(self, user_id, boss_name, rod_name, bait_name):
         super().__init__(timeout=40)
