@@ -2051,53 +2051,44 @@ equipped_baits = {}
 
 ROD_DATA = {
     "기본 낚싯대": {
-        "price": 0,
-        "luck": 0,
-        "time_reduce": 0,
-        "double_chance": 0,
-        "triple_chance": 0
+        "price": 0, "ores": {},
+        "luck": 0, "time_reduce": 0,
+        "double_chance": 0, "triple_chance": 0
     },
     "초급 낚싯대": {
-        "price": 150000,
-        "luck": 5,
-        "time_reduce": 5,
-        "double_chance": 2,
-        "triple_chance": 0.1
+        "price": 150000, "ores": {"돌": 30, "석탄": 10},
+        "luck": 5, "time_reduce": 5,
+        "double_chance": 2, "triple_chance": 0.1
     },
     "중급 낚싯대": {
-        "price": 600000,
-        "luck": 12,
-        "time_reduce": 12,
-        "double_chance": 5,
-        "triple_chance": 1
+        "price": 600000, "ores": {"구리": 25, "철광석": 10},
+        "luck": 12, "time_reduce": 12,
+        "double_chance": 5, "triple_chance": 1
     },
     "고급 낚싯대": {
-        "price": 1500000,
-        "luck": 25,
-        "time_reduce": 25,
-        "double_chance": 10,
-        "triple_chance": 2
+        "price": 1500000, "ores": {"철광석": 40, "은광석": 15},
+        "luck": 25, "time_reduce": 25,
+        "double_chance": 10, "triple_chance": 2
     },
     "개쩌는 낚싯대": {
-        "price": 7000000,
-        "luck": 45,
-        "time_reduce": 40,
-        "double_chance": 18,
-        "triple_chance": 8
+        "price": 7000000, "ores": {"금광석": 25, "다이아몬드": 5},
+        "luck": 45, "time_reduce": 40,
+        "double_chance": 18, "triple_chance": 8
+    },
+    "강태공의 낚싯대": {
+        "price": 18000000, "ores": {"다이아몬드": 15, "에메랄드": 8, "흑요석": 3},
+        "luck": 75, "time_reduce": 55,
+        "double_chance": 32, "triple_chance": 14
     },
     "신의 낚싯대": {
-        "price": 20000000,
-        "luck": 80,
-        "time_reduce": 60,
-        "double_chance": 35,
-        "triple_chance": 15
+        "price": 60000000, "ores": {"에메랄드": 25, "흑요석": 12, "신기루": 3},
+        "luck": 130, "time_reduce": 70,
+        "double_chance": 50, "triple_chance": 25
     },
     "운영자의 낚싯대": {
-    "price": 99999999999999,
-    "luck": 999999,
-    "time_reduce": 999,
-    "double_chance": 50,
-    "triple_chance": 50
+        "price": 99999999999999, "ores": {},
+        "luck": 999999, "time_reduce": 999,
+        "double_chance": 50, "triple_chance": 50
     }
 }
 
@@ -2155,7 +2146,7 @@ def get_fishing_gear(user_id):
     return changed
 
 fishing_cooldowns = {}
-FISHING_COOLDOWN = timedelta(seconds=12)
+FISHING_COOLDOWN = timedelta(seconds=10)
 
 class FishingButtonView(discord.ui.View):
     def __init__(self, user_id):
@@ -2726,6 +2717,7 @@ async def fishing_shop(
 
     get_wallet(user_id)
     get_fishing_gear(user_id)
+    get_mining(user_id)
 
     if 종류 not in ["낚싯대", "미끼"]:
         await interaction.response.send_message(
@@ -2743,29 +2735,58 @@ async def fishing_shop(
             await interaction.response.send_message("❌ 이미 가진 낚싯대임.", ephemeral=True)
             return
 
-        price = ROD_DATA[이름]["price"]
+        rod = ROD_DATA[이름]
+        price = rod["price"]
+        ore_costs = rod.get("ores", {})
 
         if money_data[user_id] < price:
             await interaction.response.send_message(
-                f"❌ 돈 부족.\n필요 금액: {price}원\n현재 잔액: {money_data[user_id]}원",
+                f"❌ 돈 부족.\n필요 금액: {price:,}원\n현재 잔액: {money_data[user_id]:,}원",
                 ephemeral=True
             )
             return
 
+        for ore_name, need_count in ore_costs.items():
+            have_count = ore_bags[user_id].get(ore_name, 0)
+
+            if have_count < need_count:
+                await interaction.response.send_message(
+                    f"❌ 광석 부족.\n"
+                    f"필요: **{ore_name} x{need_count}**\n"
+                    f"보유: **{have_count}개**",
+                    ephemeral=True
+                )
+                return
+
         money_data[user_id] -= price
+
+        for ore_name, need_count in ore_costs.items():
+            ore_bags[user_id][ore_name] -= need_count
+
+            if ore_bags[user_id][ore_name] <= 0:
+                del ore_bags[user_id][ore_name]
+
         owned_rods[user_id].append(이름)
         equipped_rods[user_id] = 이름
         save_data()
 
+        ore_text = ", ".join(
+            f"{ore} x{count}"
+            for ore, count in ore_costs.items()
+        )
+
+        if not ore_text:
+            ore_text = "없음"
+
         await interaction.response.send_message(
             f"🎣 낚싯대 구매 완료!\n\n"
             f"구매: **{이름}**\n"
-            f"가격: **{price}원**\n"
+            f"가격: **{price:,}원**\n"
+            f"사용 광석: **{ore_text}**\n"
             f"자동 장착됨.\n\n"
-            f"현재 잔액: **{money_data[user_id]}원**"
+            f"현재 잔액: **{money_data[user_id]:,}원**"
         )
         return
-
     if 종류 == "미끼":
         if 이름 not in BAIT_DATA or 이름 == "미끼 없음":
             await interaction.response.send_message("❌ 그런 미끼는 없음.", ephemeral=True)
@@ -2800,14 +2821,34 @@ async def fishing_shop(
 
 @bot.tree.command(name="낚시상점목록", description="낚시상점 판매 목록 확인", guild=GUILD)
 async def fishing_shop_list(interaction: discord.Interaction):
-    rod_text = "\n".join(
-        f"**{name}** - {data['price']}원 / 운빨 +{data['luck']}% / 시간 감소 {data['time_reduce']}% / 더블 {data['double_chance']}%"
-        for name, data in ROD_DATA.items()
-        if name != "기본 낚싯대"
-    )
+    rod_lines = []
+
+    for name, data in ROD_DATA.items():
+        if name == "기본 낚싯대":
+            continue
+
+        ore_text = ", ".join(
+            f"{ore} x{count}"
+            for ore, count in data.get("ores", {}).items()
+        )
+
+        if not ore_text:
+            ore_text = "없음"
+
+        rod_lines.append(
+            f"**{name}**\n"
+            f"가격: **{data['price']:,}원**\n"
+            f"재료: **{ore_text}**\n"
+            f"운빨: **+{data['luck']}%**\n"
+            f"시간 감소: **{data['time_reduce']}%**\n"
+            f"더블 확률: **{data['double_chance']}%**\n"
+            f"트리플 확률: **{data['triple_chance']}%**"
+        )
+
+    rod_text = "\n\n".join(rod_lines)
 
     bait_text = "\n".join(
-        f"**{name}** - {data['price']}원 / 희귀 확률 +{data['luck']}%"
+        f"**{name}** - {data['price']:,}원 / 희귀 확률 +{data['luck']}%"
         for name, data in BAIT_DATA.items()
         if name != "미끼 없음"
     )
@@ -2817,9 +2858,9 @@ async def fishing_shop_list(interaction: discord.Interaction):
         f"## 낚싯대\n{rod_text}\n\n"
         f"## 미끼\n{bait_text}\n\n"
         f"구매법: `/낚시상점 종류 이름 갯수`\n"
+        f"예시: `/낚시상점 낚싯대 강태공의 낚싯대`\n"
         f"예시: `/낚시상점 미끼 지렁이 5`"
     )
-
 
 @bot.tree.command(name="보유낚싯대", description="내가 가진 낚싯대를 확인한다", guild=GUILD)
 async def my_rods(interaction: discord.Interaction):
@@ -3645,16 +3686,18 @@ async def sell_all_crop(interaction: discord.Interaction):
         f"총 판매가: **{total_price}원**\n\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
-@bot.tree.command(name="거래", description="내가 잡은 물고기를 다른 유저에게 준다.", guild=GUILD)
+@bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
-    대상="물고기를 받을 유저",
-    물고기="줄 물고기 이름",
-    갯수="줄 물고기 갯수"
+    대상="받을 유저",
+    종류="물고기 또는 광석",
+    이름="줄 물고기/광석 이름",
+    갯수="줄 갯수"
 )
-async def trade_fish(
+async def trade_item(
     interaction: discord.Interaction,
     대상: discord.Member,
-    물고기: str,
+    종류: str,
+    이름: str,
     갯수: int
 ):
     sender_id = interaction.user.id
@@ -3662,6 +3705,8 @@ async def trade_fish(
 
     get_tank(sender_id)
     get_tank(target_id)
+    get_mining(sender_id)
+    get_mining(target_id)
 
     if sender_id == target_id:
         await interaction.response.send_message(
@@ -3672,58 +3717,101 @@ async def trade_fish(
 
     if 대상.bot:
         await interaction.response.send_message(
-            "❌ 봇한테는 물고기 못 줌.",
+            "❌ 봇한테는 거래 못함.",
             ephemeral=True
         )
         return
 
     if 갯수 <= 0:
         await interaction.response.send_message(
-            "❌ 1마리 이상 줘야 함.",
+            "❌ 1개 이상 줘야 함.",
             ephemeral=True
         )
         return
 
-    owned = [fish for fish in fish_tanks[sender_id] if fish["name"] == 물고기]
+    if 종류 == "물고기":
+        owned = [fish for fish in fish_tanks[sender_id] if fish["name"] == 이름]
 
-    if len(owned) < 갯수:
+        if len(owned) < 갯수:
+            await interaction.response.send_message(
+                f"❌ {이름} 부족함.\n보유: {len(owned)}마리",
+                ephemeral=True
+            )
+            return
+
+        trade_list = owned[:갯수]
+
+        removed = 0
+        new_tank = []
+
+        for fish in fish_tanks[sender_id]:
+            if fish["name"] == 이름 and removed < 갯수:
+                removed += 1
+                continue
+
+            new_tank.append(fish)
+
+        fish_tanks[sender_id] = new_tank
+        fish_tanks[target_id].extend(trade_list)
+
+        for fish in trade_list:
+            fish_dex[target_id].add(fish["name"])
+
+        save_data()
+
+        total_kg = round(sum(fish["kg"] for fish in trade_list), 2)
+        total_price = sum(fish["price"] for fish in trade_list)
+
         await interaction.response.send_message(
-            f"❌ {물고기} 부족함.\n보유: {len(owned)}마리",
-            ephemeral=True
+            f"🤝 **물고기 거래 완료!**\n\n"
+            f"보낸 사람: {interaction.user.mention}\n"
+            f"받는 사람: {대상.mention}\n"
+            f"물고기: **{이름}**\n"
+            f"수량: **{갯수}마리**\n"
+            f"총 무게: **{total_kg}kg**\n"
+            f"총 예상가: **{total_price:,}원**"
         )
         return
 
-    trade_list = owned[:갯수]
+    if 종류 == "광석":
+        if 이름 not in ORE_DATA:
+            await interaction.response.send_message(
+                "❌ 그런 광석은 없음.",
+                ephemeral=True
+            )
+            return
 
-    removed = 0
-    new_tank = []
+        if ore_bags[sender_id].get(이름, 0) < 갯수:
+            await interaction.response.send_message(
+                f"❌ {이름} 부족함.\n"
+                f"보유: {ore_bags[sender_id].get(이름, 0)}개",
+                ephemeral=True
+            )
+            return
 
-    for fish in fish_tanks[sender_id]:
-        if fish["name"] == 물고기 and removed < 갯수:
-            removed += 1
-            continue
+        ore_bags[sender_id][이름] -= 갯수
 
-        new_tank.append(fish)
+        if ore_bags[sender_id][이름] <= 0:
+            del ore_bags[sender_id][이름]
 
-    fish_tanks[sender_id] = new_tank
-    fish_tanks[target_id].extend(trade_list)
+        ore_bags[target_id][이름] = ore_bags[target_id].get(이름, 0) + 갯수
 
-    for fish in trade_list:
-        fish_dex[target_id].add(fish["name"])
+        save_data()
 
-    save_data()
-
-    total_kg = round(sum(fish["kg"] for fish in trade_list), 2)
-    total_price = sum(fish["price"] for fish in trade_list)
+        await interaction.response.send_message(
+            f"🤝 **광석 거래 완료!**\n\n"
+            f"보낸 사람: {interaction.user.mention}\n"
+            f"받는 사람: {대상.mention}\n"
+            f"광석: **{이름}**\n"
+            f"수량: **{갯수}개**"
+        )
+        return
 
     await interaction.response.send_message(
-        f"🤝 **물고기 거래 완료!**\n\n"
-        f"보낸 사람: {interaction.user.mention}\n"
-        f"받는 사람: {대상.mention}\n"
-        f"물고기: **{물고기}**\n"
-        f"수량: **{갯수}마리**\n"
-        f"총 무게: **{total_kg}kg**\n"
-        f"총 예상가: **{total_price}원**"
+        "❌ 종류는 `물고기` 또는 `광석`만 가능함.\n"
+        "예: `/거래 @유저 물고기 붕어 3`\n"
+        "예: `/거래 @유저 광석 철광석 10`",
+        ephemeral=True
     )
 @bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
 async def money_leaderboard(interaction: discord.Interaction):
@@ -4168,7 +4256,7 @@ PICKAXE_DATA = {
     },
     "드워프 장인의 곡괭이": {
         "price": 30000000,
-        "ores": {"아카브 결정": 3, "흑요석": 15},
+        "ores": {"신기루": 3, "흑요석": 15},
         "luck": 120,
         "time_reduce": 60,
         "double_chance": 50,
@@ -4176,7 +4264,7 @@ PICKAXE_DATA = {
     },
     "신의 곡괭이": {
         "price": 100000000,
-        "ores": {"아카브 결정": 10, "흑요석": 40, "에메랄드": 50},
+        "ores": {"신기루": 10, "흑요석": 40, "에메랄드": 50},
         "luck": 200,
         "time_reduce": 70,
         "double_chance": 65,
@@ -4267,7 +4355,6 @@ def update_mine_money(user_id):
     save_data()
     return income
 
-
 class MiningBlockButton(discord.ui.Button):
     def __init__(self, index):
         super().__init__(
@@ -4275,6 +4362,7 @@ class MiningBlockButton(discord.ui.Button):
             style=discord.ButtonStyle.gray,
             row=index // 3
         )
+
         self.index = index
 
     async def callback(self, interaction: discord.Interaction):
@@ -4289,59 +4377,81 @@ class MiningBlockButton(discord.ui.Button):
 
         if self.index in view.opened:
             await interaction.response.send_message(
-                "❌ 이미 깐 칸임.",
+                "❌ 이미 캔 블록임.",
                 ephemeral=True
             )
             return
 
-        ore_name = pick_ore(view.pickaxe["luck"])
-        amount = 1
-        bonus_text = ""
+        await interaction.response.defer()
 
-        roll = random.uniform(0, 100)
+        try:
+            ore_name = pick_ore(view.pickaxe["luck"])
 
-        if roll <= view.pickaxe["triple_chance"]:
-            amount += 3
-            bonus_text = "\n🔥 트리플 찬스! 광물 3개 추가!"
-        elif roll <= view.pickaxe["triple_chance"] + view.pickaxe["double_chance"]:
-            amount += 2
-            bonus_text = "\n✨ 더블 찬스! 광물 2개 추가!"
+            amount = 1
+            bonus_text = ""
 
-        ore_bags[view.user_id][ore_name] = ore_bags[view.user_id].get(ore_name, 0) + amount
-        view.opened.add(self.index)
+            roll = random.uniform(0, 100)
 
-        self.label = "🟫"
-        self.style = discord.ButtonStyle.green
-        self.disabled = True
+            if roll <= view.pickaxe.get("triple_chance", 0):
+                amount += 3
+                bonus_text = " 🔥 트리플 찬스!"
+            elif roll <= (
+                view.pickaxe.get("triple_chance", 0)
+                + view.pickaxe.get("double_chance", 0)
+            ):
+                amount += 2
+                bonus_text = " ✨ 더블 찬스!"
 
-        view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
+            ore_bags[view.user_id][ore_name] = (
+                ore_bags[view.user_id].get(ore_name, 0)
+                + amount
+            )
 
-        if len(view.opened) >= 9:
-            for item in view.children:
-                item.disabled = True
+            view.opened.add(self.index)
+
+            self.label = "🟫"
+            self.style = discord.ButtonStyle.green
+            self.disabled = True
+
+            view.results.append(
+                f"⛏️ {ore_name} x{amount}{bonus_text}"
+            )
 
             save_data()
 
-            await interaction.response.edit_message(
+            # 전부 캤으면 종료
+            if len(view.opened) >= 9:
+
+                for item in view.children:
+                    item.disabled = True
+
+                await interaction.message.edit(
+                    content=(
+                        "⛏️ **광질 완료!**\n\n"
+                        + "\n".join(view.results)
+                    ),
+                    view=view
+                )
+
+                view.stop()
+                return
+
+            await interaction.message.edit(
                 content=(
-                    "⛏️ **광질 완료!**\n\n"
-                    + "\n".join(view.results)
+                    f"⛏️ 블록 캐는 중...\n"
+                    f"남은 블록: **{9 - len(view.opened)}칸**\n\n"
+                    + "\n".join(view.results[-5:])
                 ),
                 view=view
             )
-            view.stop()
-            return
 
-        save_data()
+        except Exception as e:
+            print("광질 버튼 오류:", e)
 
-        await interaction.response.edit_message(
-            content=(
-                f"⛏️ 블록을 캐는 중...\n"
-                f"남은 블록: **{9 - len(view.opened)}칸**\n\n"
-                + "\n".join(view.results[-5:])
-            ),
-            view=view
-        )
+            await interaction.followup.send(
+                f"❌ 오류 발생\n```{e}```",
+                ephemeral=True
+            )
 
 
 class MiningBlockView(discord.ui.View):
@@ -4686,6 +4796,36 @@ async def mine_upgrade(interaction: discord.Interaction):
         f"현재 강화: **{mine['level']}강**\n"
         f"10분마다 수익: **{calc_mine_income(mine['level']):,}원**\n"
         f"사용 금액: **{cost:,}원**"
+    )
+
+@bot.tree.command(name="회수", description="광산에 쌓인 돈을 회수한다", guild=GUILD)
+async def collect_mine(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    update_mine_money(user_id)
+
+    mine = mine_data[user_id]
+
+    if mine["money"] <= 0:
+        await interaction.response.send_message(
+            "❌ 회수할 돈이 없음."
+        )
+        return
+
+    gained = mine["money"]
+
+    mine["money"] = 0
+    money_data[user_id] += gained
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"💰 광산 돈 회수 완료!\n\n"
+        f"회수 금액: **{gained:,}원**\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
     )
 
 load_data()
