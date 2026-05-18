@@ -4367,16 +4367,16 @@ mine_data = {}
 mining_cooldowns = {}
 
 ORE_DATA = {
-    "돌": {"price": 80, "chance": 45},
-    "석탄": {"price": 250, "chance": 30},
-    "구리": {"price": 500, "chance": 22},
-    "철광석": {"price": 1200, "chance": 15},
-    "은광석": {"price": 2500, "chance": 9},
-    "금광석": {"price": 5000, "chance": 5},
-    "다이아몬드": {"price": 20000, "chance": 1.2},
-    "에메랄드": {"price": 35000, "chance": 0.7},
-    "흑요석": {"price": 80000, "chance": 0.25},
-    "신기루": {"price": 250000, "chance": 0.05}
+    "돌": {"price": 1200, "chance": 45},
+    "석탄": {"price": 3200, "chance": 30},
+    "구리": {"price": 7500, "chance": 22},
+    "철광석": {"price": 12000, "chance": 15},
+    "은광석": {"price": 35000, "chance": 9},
+    "금광석": {"price": 55000, "chance": 5},
+    "다이아몬드": {"price": 200000, "chance": 1.2},
+    "에메랄드": {"price": 550000, "chance": 0.7},
+    "흑요석": {"price": 820000, "chance": 0.25},
+    "신기루": {"price": 6500000, "chance": 0.05}
 }
 
 PICKAXE_DATA = {
@@ -4907,7 +4907,7 @@ async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None)
     )
 
 
-@bot.tree.command(name="광산", description="광산에 쌓인 돈을 확인하고 수금한다", guild=GUILD)
+@bot.tree.command(name="광산", description="광산에 쌓인 돈을 확인한다", guild=GUILD)
 async def mine(interaction: discord.Interaction):
     user_id = interaction.user.id
 
@@ -4919,26 +4919,12 @@ async def mine(interaction: discord.Interaction):
     mine = mine_data[user_id]
     income = calc_mine_income(mine["level"])
 
-    if mine["money"] <= 0:
-        await interaction.response.send_message(
-            f"⛏️ **내 광산**\n\n"
-            f"광산 강화: **{mine['level']}강**\n"
-            f"10분마다 수익: **{income:,}원**\n"
-            f"현재 쌓인 돈: **0원**"
-        )
-        return
-
-    gained = mine["money"]
-    mine["money"] = 0
-    money_data[user_id] += gained
-    save_data()
-
     await interaction.response.send_message(
-        f"⛏️ **광산 수금 완료!**\n\n"
+        f"⛏️ **내 광산**\n\n"
         f"광산 강화: **{mine['level']}강**\n"
         f"10분마다 수익: **{income:,}원**\n"
-        f"수금액: **{gained:,}원**\n\n"
-        f"현재 잔액: **{money_data[user_id]:,}원**"
+        f"현재 쌓인 돈: **{mine['money']:,}원**\n\n"
+        f"회수하려면 `/회수` 사용"
     )
 
 
