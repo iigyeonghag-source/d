@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from discord import app_commands
 import math
-from rpg import setup_rpg
 
 intents = discord.Intents.default()
 intents.message_content = True
