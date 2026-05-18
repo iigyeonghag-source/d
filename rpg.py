@@ -1,12 +1,92 @@
-import os, json, random, math
+import os
+import json
+import random
+
 import discord
 from discord import app_commands
-from discord.ui import View, Button
+from discord.ui import View
+
 
 RPG_FILE = "/data/rpg_data.json"
 os.makedirs("/data", exist_ok=True)
 
 active_battles = {}
+
+_money_data = None
+_get_wallet = None
+_save_data = None
+
+
+# =========================
+# main.py 돈 시스템 연결
+# =========================
+
+def setup_money_system(money_data, get_wallet, save_data):
+    global _money_data, _get_wallet, _save_data
+    _money_data = money_data
+    _get_wallet = get_wallet
+    _save_data = save_data
+
+
+def money_key(user_id):
+    uid = int(user_id)
+
+    if _money_data is None:
+        raise RuntimeError("돈 시스템이 아직 연결되지 않음. setup_rpg(bot, GUILD, money_data, get_wallet, save_data)를 main.py에서 호출해야 함.")
+
+    # main.py 지갑 생성 함수 먼저 실행
+    if _get_wallet is not None:
+        _get_wallet(uid)
+
+    # 현재 main.py가 int 키를 쓰는 경우
+    if uid in _money_data:
+        return uid
+
+    # 혹시 저장 과정에서 str 키로 남은 경우를 int 키로 이동
+    sid = str(uid)
+    if sid in _money_data:
+        _money_data[uid] = _money_data.pop(sid)
+        if _save_data is not None:
+            _save_data()
+        return uid
+
+    # 진짜 없으면 0원으로 생성
+    _money_data[uid] = 0
+    if _save_data is not None:
+        _save_data()
+    return uid
+
+
+def get_money(user_id):
+    key = money_key(user_id)
+    return _money_data[key]
+
+
+def add_money(user_id, amount):
+    key = money_key(user_id)
+    _money_data[key] += int(amount)
+    if _save_data is not None:
+        _save_data()
+
+
+def use_money(user_id, amount):
+    key = money_key(user_id)
+    amount = int(amount)
+
+    if _money_data[key] < amount:
+        return False
+
+    _money_data[key] -= amount
+
+    if _save_data is not None:
+        _save_data()
+
+    return True
+
+
+# =========================
+# RPG 데이터
+# =========================
 
 BASE_STATS = {
     "힘": 0,
@@ -72,7 +152,7 @@ for i in range(120):
         "atk": 8 + level * 3,
         "def": level,
         "exp": 40 + level * 15,
-        "gold": 50 + level * 20,
+        "money": 50 + level * 20,
         "weapon": f"{name}의 무기",
         "armor": f"{name}의 갑옷"
     })
@@ -135,17 +215,26 @@ ITEM_PRICES = {
     for i, name in enumerate(CONSUMABLES.keys(), start=1)
 }
 
+
+# =========================
+# RPG 저장
+# =========================
+
 def load_rpg():
     if not os.path.exists(RPG_FILE):
         return {}
+
     with open(RPG_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_rpg(data):
+
+def save_rpg():
     with open(RPG_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+        json.dump(rpg_data, f, ensure_ascii=False, indent=4)
+
 
 rpg_data = load_rpg()
+
 
 def get_player(user_id):
     user_id = str(user_id)
@@ -154,7 +243,6 @@ def get_player(user_id):
         rpg_data[user_id] = {
             "level": 1,
             "exp": 0,
-            "gold": 0,
             "job": "초보자",
             "job_level": 0,
             "stat_points": 3,
@@ -166,14 +254,12 @@ def get_player(user_id):
             "armors": [],
             "learned_skills": []
         }
-        save_rpg(rpg_data)
+        save_rpg()
 
     p = rpg_data[user_id]
 
-    # 예전 저장 데이터 호환용
     p.setdefault("level", 1)
     p.setdefault("exp", 0)
-    p.setdefault("gold", 0)
     p.setdefault("job", "초보자")
     p.setdefault("job_level", 0)
     p.setdefault("stat_points", 3)
@@ -188,16 +274,22 @@ def get_player(user_id):
     for stat_name in BASE_STATS:
         p["stats"].setdefault(stat_name, 0)
 
+    save_rpg()
     return p
+
+
+# =========================
+# 계산
+# =========================
 
 def need_exp(level):
     return 100 + level * 50
+
 
 def calc_stat(p):
     s = p["stats"]
     weapon = SHOP_WEAPONS.get(p["weapon"]) or DROP_WEAPONS.get(p["weapon"]) or {"atk": 0, "matk": 0}
     armor = SHOP_ARMORS.get(p["armor"]) or DROP_ARMORS.get(p["armor"]) or {"def": 0, "hp": 0}
-
     bonus = JOB_BONUS.get(p["job"], BASE_STATS)
 
     hp = 100 + p["level"] * 20 + s["체력"] * 10 + bonus["체력"] * 10 + armor.get("hp", 0)
@@ -221,6 +313,7 @@ def calc_stat(p):
         "reduction": reduction
     }
 
+
 def add_exp(p, amount):
     p["exp"] += amount
     leveled = 0
@@ -233,6 +326,7 @@ def add_exp(p, amount):
 
     return leveled
 
+
 def lose_penalty(p):
     p["level"] = max(1, p["level"] - 1)
 
@@ -242,8 +336,10 @@ def lose_penalty(p):
 
         if p["weapon"]:
             candidates.append(("weapon", p["weapon"]))
+
         if p["armor"]:
             candidates.append(("armor", p["armor"]))
+
         for item, count in p["inventory"].items():
             if count > 0:
                 candidates.append(("item", item))
@@ -256,16 +352,23 @@ def lose_penalty(p):
                 p["weapon"] = None
                 if name in p["weapons"]:
                     p["weapons"].remove(name)
+
             elif kind == "armor":
                 p["armor"] = None
                 if name in p["armors"]:
                     p["armors"].remove(name)
+
             else:
                 p["inventory"][name] -= 1
                 if p["inventory"][name] <= 0:
                     del p["inventory"][name]
 
     return lost
+
+
+# =========================
+# 전투 버튼
+# =========================
 
 class BattleView(View):
     def __init__(self, user_id):
@@ -307,6 +410,7 @@ class BattleView(View):
         elif action == "skill":
             skills = JOB_SKILLS.get(p["job"], ["몸통박치기"])
             unlocked = 2
+
             if p["job_level"] >= 10:
                 unlocked += 1
             if p["job_level"] >= 30:
@@ -328,17 +432,20 @@ class BattleView(View):
             else:
                 heal = CONSUMABLES[potion]["value"]
                 battle["player_hp"] = min(stat["hp"], battle["player_hp"] + heal)
+
                 inv[potion] -= 1
                 if inv[potion] <= 0:
                     del inv[potion]
+
                 log.append(f"🧪 {potion} 사용! 체력 **{heal}** 회복!")
 
         if battle["mob_hp"] <= 0:
             exp = mob["exp"]
-            gold = mob["gold"]
+            reward_money = mob["money"]
+            leveled = add_exp(p, exp)
+            p["job_level"] += 1
 
-            get_wallet(self.user_id)
-            money_data[self.user_id] += gold
+            add_money(self.user_id, reward_money)
 
             drop_text = ""
 
@@ -361,11 +468,13 @@ class BattleView(View):
                 drop_text += f"\n📘 스킬북 드랍: **{book}**"
 
             active_battles.pop(uid, None)
-            save_rpg(rpg_data)
+            save_rpg()
 
             msg = (
                 "\n".join(log)
-                + f"\n\n🏆 승리!\nEXP +{exp}, 골드 +{gold}"
+                + f"\n\n🏆 승리!"
+                + f"\nEXP +{exp}"
+                + f"\n돈 +{reward_money:,}원"
                 + (f"\n⬆️ 레벨업 {leveled}번!" if leveled else "")
                 + drop_text
             )
@@ -392,7 +501,7 @@ class BattleView(View):
         if battle["player_hp"] <= 0 or battle["turn"] > 150:
             lost = lose_penalty(p)
             active_battles.pop(uid, None)
-            save_rpg(rpg_data)
+            save_rpg()
 
             msg = "☠️ 패배...\n레벨 1 감소."
             if lost:
@@ -401,7 +510,7 @@ class BattleView(View):
             await interaction.response.edit_message(content=msg, view=None)
             return
 
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.edit_message(
             content=(
@@ -429,7 +538,13 @@ class BattleView(View):
     async def item(self, interaction, button):
         await self.do_turn(interaction, "item")
 
+
+# =========================
+# 명령어 등록
+# =========================
+
 def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
+    setup_money_system(money_data, get_wallet, save_data)
 
     @bot.tree.command(name="배틀", description="랜덤 몬스터와 턴제 전투", guild=GUILD)
     async def battle(interaction: discord.Interaction):
@@ -485,7 +600,7 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         p["job"] = 직업
         p["job_level"] = 0
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(f"✅ 직업 선택 완료: **{직업}**")
 
@@ -505,7 +620,7 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         p["job"] = new_job
         p["job_level"] = 0
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(
             f"✨ 전직 완료!\n새 직업: **{new_job}**\n직업 레벨은 0으로 초기화됨."
@@ -543,21 +658,20 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         p["stats"][스탯] += 수치
         p["stat_points"] -= 수치
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(f"✅ {스탯}에 {수치} 투자 완료.")
 
     @bot.tree.command(name="프로필", description="내 RPG 프로필 확인", guild=GUILD)
     async def profile(interaction: discord.Interaction):
         p = get_player(interaction.user.id)
-
-        get_wallet(interaction.user.id)
+        current_money = get_money(interaction.user.id)
 
         await interaction.response.send_message(
             f"🧾 **프로필**\n\n"
             f"레벨: **{p['level']}**\n"
             f"직업: **{p['job']}** Lv.{p['job_level']}\n"
-            f"골드: **{money_data[interaction.user.id]:,}원**\n"
+            f"돈: **{current_money:,}원**\n"
             f"무기: **{p['weapon'] or '없음'}**\n"
             f"갑옷: **{p['armor'] or '없음'}**\n"
             f"보유 무기: {len(p['weapons'])}개\n"
@@ -572,9 +686,10 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         if 무기이름 is None:
             text = "\n".join(
-                f"{name} - {w['price']}G / 공격 +{w['atk']}"
+                f"{name} - {w['price']:,}원 / 공격 +{w['atk']} / 마공 +{w['matk']}"
                 for name, w in SHOP_WEAPONS.items()
             )
+
             await interaction.response.send_message(f"⚔️ **무기상점**\n\n{text}")
             return
 
@@ -583,17 +698,23 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             return
 
         item = SHOP_WEAPONS[무기이름]
+        price = item["price"]
 
-        if p["gold"] < item["price"]:
-            await interaction.response.send_message("❌ 골드 부족.")
+        if not use_money(interaction.user.id, price):
+            await interaction.response.send_message(
+                f"❌ 돈 부족.\n필요 돈: **{price:,}원**\n보유 돈: **{get_money(interaction.user.id):,}원**"
+            )
             return
 
-        p["gold"] -= item["price"]
         p["weapons"].append(무기이름)
         p["weapon"] = 무기이름
-        save_rpg(rpg_data)
+        save_rpg()
 
-        await interaction.response.send_message(f"✅ 구매 후 장착 완료: **{무기이름}**")
+        await interaction.response.send_message(
+            f"✅ 구매 후 장착 완료: **{무기이름}**\n"
+            f"사용 돈: **{price:,}원**\n"
+            f"남은 돈: **{get_money(interaction.user.id):,}원**"
+        )
 
     @bot.tree.command(name="갑옷상점", description="갑옷상점 보기 또는 구매", guild=GUILD)
     @app_commands.describe(갑옷이름="구매할 갑옷 이름")
@@ -602,9 +723,10 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         if 갑옷이름 is None:
             text = "\n".join(
-                f"{name} - {a['price']}G / 방어 +{a['def']} / 체력 +{a['hp']}"
+                f"{name} - {a['price']:,}원 / 방어 +{a['def']} / 체력 +{a['hp']}"
                 for name, a in SHOP_ARMORS.items()
             )
+
             await interaction.response.send_message(f"🛡️ **갑옷상점**\n\n{text}")
             return
 
@@ -613,39 +735,42 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             return
 
         item = SHOP_ARMORS[갑옷이름]
+        price = item["price"]
 
-        if p["gold"] < item["price"]:
-            await interaction.response.send_message("❌ 골드 부족.")
+        if not use_money(interaction.user.id, price):
+            await interaction.response.send_message(
+                f"❌ 돈 부족.\n필요 돈: **{price:,}원**\n보유 돈: **{get_money(interaction.user.id):,}원**"
+            )
             return
 
-        p["gold"] -= item["price"]
         p["armors"].append(갑옷이름)
         p["armor"] = 갑옷이름
-        save_rpg(rpg_data)
+        save_rpg()
 
-        await interaction.response.send_message(f"✅ 구매 후 장착 완료: **{갑옷이름}**")
+        await interaction.response.send_message(
+            f"✅ 구매 후 장착 완료: **{갑옷이름}**\n"
+            f"사용 돈: **{price:,}원**\n"
+            f"남은 돈: **{get_money(interaction.user.id):,}원**"
+        )
 
     @bot.tree.command(name="장착", description="보유한 무기/갑옷을 장착", guild=GUILD)
-    @app_commands.describe(
-        장비이름="장착할 무기 또는 갑옷 이름"
-    )
+    @app_commands.describe(장비이름="장착할 무기 또는 갑옷 이름")
     async def equip_item(interaction: discord.Interaction, 장비이름: str):
         p = get_player(interaction.user.id)
 
         if 장비이름 in p["weapons"]:
             p["weapon"] = 장비이름
-            save_rpg(rpg_data)
+            save_rpg()
             await interaction.response.send_message(f"⚔️ 무기 장착 완료: **{장비이름}**")
             return
 
         if 장비이름 in p["armors"]:
             p["armor"] = 장비이름
-            save_rpg(rpg_data)
+            save_rpg()
             await interaction.response.send_message(f"🛡️ 갑옷 장착 완료: **{장비이름}**")
             return
 
         await interaction.response.send_message("❌ 그런 장비를 보유하고 있지 않음.")
-
 
     @bot.tree.command(name="인벤", description="내 RPG 인벤토리 확인", guild=GUILD)
     async def inventory(interaction: discord.Interaction):
@@ -673,7 +798,6 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             f"🧪 **아이템**\n{items}"
         )
 
-
     @bot.tree.command(name="아이템상점", description="아이템상점 보기 또는 구매", guild=GUILD)
     @app_commands.describe(
         아이템이름="구매할 아이템 이름",
@@ -690,7 +814,7 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             sample_items = list(ITEM_PRICES.items())[:30]
 
             text = "\n".join(
-                f"{name} - {price}G / 회복 {CONSUMABLES[name]['value']}"
+                f"{name} - {price:,}원 / 회복 {CONSUMABLES[name]['value']}"
                 for name, price in sample_items
             )
 
@@ -712,28 +836,24 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
 
         price = ITEM_PRICES[아이템이름] * 갯수
 
-        if p["gold"] < price:
+        if not use_money(interaction.user.id, price):
             await interaction.response.send_message(
-                f"❌ 골드 부족.\n필요 골드: **{price}G**\n보유 골드: **{p['gold']}G**"
+                f"❌ 돈 부족.\n필요 돈: **{price:,}원**\n보유 돈: **{get_money(interaction.user.id):,}원**"
             )
             return
 
-        p["gold"] -= price
         p["inventory"][아이템이름] = p["inventory"].get(아이템이름, 0) + 갯수
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(
             f"✅ 구매 완료!\n"
             f"아이템: **{아이템이름} x{갯수}**\n"
-            f"사용 골드: **{price}G**\n"
-            f"남은 골드: **{p['gold']}G**"
+            f"사용 돈: **{price:,}원**\n"
+            f"남은 돈: **{get_money(interaction.user.id):,}원**"
         )
 
-
     @bot.tree.command(name="스킬북사용", description="스킬북을 사용해서 직업 스킬 습득", guild=GUILD)
-    @app_commands.describe(
-        스킬북이름="사용할 스킬북 이름"
-    )
+    @app_commands.describe(스킬북이름="사용할 스킬북 이름")
     async def use_skillbook(interaction: discord.Interaction, 스킬북이름: str):
         p = get_player(interaction.user.id)
 
@@ -755,9 +875,6 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             )
             return
 
-        if "learned_skills" not in p:
-            p["learned_skills"] = []
-
         skill = book["skill"]
 
         if skill in p["learned_skills"]:
@@ -765,18 +882,17 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             return
 
         p["learned_skills"].append(skill)
-
         p["inventory"][스킬북이름] -= 1
+
         if p["inventory"][스킬북이름] <= 0:
             del p["inventory"][스킬북이름]
 
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(
             f"📘 스킬북 사용 완료!\n"
             f"새 스킬 습득: **{skill}**"
         )
-
 
     @bot.tree.command(name="아이템사용", description="인벤토리 아이템 직접 사용", guild=GUILD)
     @app_commands.describe(아이템이름="사용할 아이템 이름")
@@ -801,7 +917,7 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
         if p["inventory"][아이템이름] <= 0:
             del p["inventory"][아이템이름]
 
-        save_rpg(rpg_data)
+        save_rpg()
 
         await interaction.response.send_message(
             f"🧪 **{아이템이름}** 사용 완료!\n"
@@ -809,13 +925,13 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             f"※ 전투 중 회복은 `/배틀` 버튼의 `아이템`을 누르면 적용됨."
         )
 
-
     @bot.tree.command(name="스킬목록", description="현재 직업 스킬과 배운 스킬 확인", guild=GUILD)
     async def skill_list(interaction: discord.Interaction):
         p = get_player(interaction.user.id)
 
         skills = JOB_SKILLS.get(p["job"], ["몸통박치기"])
         unlocked = 2
+
         if p["job_level"] >= 10:
             unlocked += 1
         if p["job_level"] >= 30:
@@ -835,11 +951,17 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             f"**스킬북으로 배운 스킬**\n{learned}"
         )
 
-
     @bot.tree.command(name="장비목록", description="전체 장비 도감 일부 확인", guild=GUILD)
     async def equipment_list(interaction: discord.Interaction):
-        shop_w = "\n".join(f"⚔️ {name} / 공격 +{v['atk']} / 마공 +{v['matk']}" for name, v in list(SHOP_WEAPONS.items())[:20])
-        shop_a = "\n".join(f"🛡️ {name} / 방어 +{v['def']} / 체력 +{v['hp']}" for name, v in list(SHOP_ARMORS.items())[:20])
+        shop_w = "\n".join(
+            f"⚔️ {name} / 공격 +{v['atk']} / 마공 +{v['matk']}"
+            for name, v in list(SHOP_WEAPONS.items())[:20]
+        )
+
+        shop_a = "\n".join(
+            f"🛡️ {name} / 방어 +{v['def']} / 체력 +{v['hp']}"
+            for name, v in list(SHOP_ARMORS.items())[:20]
+        )
 
         await interaction.response.send_message(
             f"📚 **상점 장비 목록**\n\n"
@@ -847,7 +969,6 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             f"**갑옷 20종**\n{shop_a}\n\n"
             f"드랍 전용 무기 120종 / 갑옷 120종은 몬스터에게서 각각 5% 확률로 드랍됨."
         )
-
 
     @bot.tree.command(name="몹목록", description="등장 몬스터 일부 확인", guild=GUILD)
     async def monster_list(interaction: discord.Interaction):
@@ -860,4 +981,3 @@ def setup_rpg(bot, GUILD, money_data, get_wallet, save_data):
             f"👹 **몬스터 목록 일부**\n\n{text}\n\n"
             f"총 몬스터: **{len(MONSTERS)}종**"
         )
-
