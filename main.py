@@ -242,7 +242,17 @@ def load_data():
 
                 if "harvest_time" in plot:
                     plot["harvest_time"] = restore_datetime(plot["harvest_time"])
+                    
+    for user_id, mine in list(data["mine_data"].items()):
+        if not isinstance(mine, dict):
+            continue
 
+        if "last_collect" in mine:
+            mine["last_collect"] = restore_datetime(mine["last_collect"])
+    
+    for user_id, value in list(data["mining_cooldowns"].items()):
+        data["mining_cooldowns"][user_id] = restore_datetime(value)
+        
     for user_id, value in list(data["mining_cooldowns"].items()):
         data["mining_cooldowns"][user_id] = restore_datetime(value)
 
