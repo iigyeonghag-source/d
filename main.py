@@ -2165,7 +2165,7 @@ FISH_DATA = {
         "max_kg": 120000.0,
         "habitat": "고대 심해",
         "base_price": 800000,
-        "kg_price": 6400,
+        "kg_price": 640,
         "chance": 0.001
     },
 
