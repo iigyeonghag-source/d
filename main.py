@@ -4159,6 +4159,18 @@ class MiningBlockButton(discord.ui.Button):
 
         ore_name = pick_ore(view.pickaxe["luck"])
 
+        amount = 1
+        bonus_text = ""
+
+        roll = random.uniform(0, 100)
+
+        if roll <= view.pickaxe.get("triple_chance", 0):
+            amount += 3
+            bonus_text = " 🔥 트리플 찬스!"
+        elif roll <= view.pickaxe.get("triple_chance", 0) + view.pickaxe.get("double_chance", 0):
+            amount += 2
+            bonus_text = " ✨ 더블 찬스!"
+
         if ore_name == "돈봉투":
             reward = random.randint(1200, 65000)
             money_data[view.user_id] += reward
@@ -4173,19 +4185,8 @@ class MiningBlockButton(discord.ui.Button):
             )
 
             view.results.append(
-                f"⛏️ {ore_name} x{amount}"
+                f"⛏️ {ore_name} x{amount}{bonus_text}"
             )
-        amount = 1
-        bonus_text = ""
-
-        roll = random.uniform(0, 100)
-
-        if roll <= view.pickaxe.get("triple_chance", 0):
-            amount += 3
-            bonus_text = " 🔥 트리플 찬스!"
-        elif roll <= view.pickaxe.get("triple_chance", 0) + view.pickaxe.get("double_chance", 0):
-            amount += 2
-            bonus_text = " ✨ 더블 찬스!"
 
         view.opened.add(self.index)
         view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
