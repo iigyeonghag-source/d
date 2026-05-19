@@ -3853,15 +3853,16 @@ mine_data = {}
 mining_cooldowns = {}
 
 ORE_DATA = {
-    "돌": {"price": 1200, "chance": 45},
-    "석탄": {"price": 3200, "chance": 30},
-    "구리": {"price": 7500, "chance": 22},
-    "철광석": {"price": 12000, "chance": 15},
-    "은광석": {"price": 35000, "chance": 9},
-    "금광석": {"price": 55000, "chance": 5},
-    "다이아몬드": {"price": 200000, "chance": 1.2},
-    "에메랄드": {"price": 550000, "chance": 0.7},
-    "흑요석": {"price": 820000, "chance": 0.25},
+    "돌": {"price": 700, "chance": 45},
+    "석탄": {"price": 1500, "chance": 30},
+    "구리": {"price": 3200, "chance": 22},
+    "철광석": {"price": 5400, "chance": 15},
+    "은광석": {"price": 12300, "chance": 9},
+    "금광석": {"price": 45000, "chance": 5},
+    "돈봉투": {"price": 145000, "chance": 12},
+    "다이아몬드": {"price": 145000, "chance": 1.2},
+    "에메랄드": {"price": 350000, "chance": 0.7},
+    "흑요석": {"price": 920000, "chance": 0.25},
     "신기루": {"price": 6500000, "chance": 0.05}
 }
 
@@ -4158,6 +4159,22 @@ class MiningBlockButton(discord.ui.Button):
 
         ore_name = pick_ore(view.pickaxe["luck"])
 
+        if ore_name == "돈봉투":
+            reward = random.randint(1200, 65000)
+            money_data[view.user_id] += reward
+
+            view.results.append(
+                f"💰 돈봉투 발견! {money(reward)}원 획득"
+            )
+
+        else:
+            ore_bags[view.user_id][ore_name] = (
+                ore_bags[view.user_id].get(ore_name, 0) + amount
+            )
+
+            view.results.append(
+                f"⛏️ {ore_name} x{amount}"
+            )
         amount = 1
         bonus_text = ""
 
@@ -4169,8 +4186,6 @@ class MiningBlockButton(discord.ui.Button):
         elif roll <= view.pickaxe.get("triple_chance", 0) + view.pickaxe.get("double_chance", 0):
             amount += 2
             bonus_text = " ✨ 더블 찬스!"
-
-        ore_bags[view.user_id][ore_name] = ore_bags[view.user_id].get(ore_name, 0) + amount
 
         view.opened.add(self.index)
         view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
