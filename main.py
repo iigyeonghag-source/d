@@ -669,14 +669,16 @@ SLOT_SYMBOLS = [
     "💎",
     "7️⃣"
 ]
-SLOT_SYMBOLS = [
-    "🍒",
-    "🍋",
-    "🍉",
-    "⭐",
-    "💎",
-    "7️⃣"
-]
+
+# 심볼별 등장 확률
+SLOT_WEIGHTS = {
+    "🍒": 35,
+    "🍋": 25,
+    "🍉": 18,
+    "⭐": 12,
+    "💎": 7,
+    "7️⃣": 3
+}
 
 money_data = {}
 daily_claims = {}
@@ -692,6 +694,14 @@ JACKPOT_MULTIPLIER = {
     "💎": 7,
     "7️⃣": 10
 }
+
+# 가중치 랜덤 함수
+def get_weighted_slot():
+    return random.choices(
+        list(SLOT_WEIGHTS.keys()),
+        weights=list(SLOT_WEIGHTS.values()),
+        k=1
+    )[0]
 
 
 def get_wallet(user_id):
@@ -780,8 +790,6 @@ async def roulette_log(interaction: discord.Interaction):
 
     if created:
         save_data()
-
-
 @bot.tree.command(name="룰렛", description="슬롯머신을 돌린다", guild=GUILD)
 @app_commands.describe(베팅="최소 500원 이상 입력")
 async def roulette(interaction: discord.Interaction, 베팅: int):
@@ -807,17 +815,21 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
     money_data[user_id] -= 베팅
     roulette_logs[user_id]["spent"] += 베팅
     roulette_logs[user_id]["plays"] += 1
+
+    current_plays = roulette_logs[user_id]["plays"]
+
     save_data()
 
     await interaction.response.send_message("🎰 슬롯머신 돌리는 중...")
 
     msg = await interaction.original_response()
 
+    # 애니메이션
     for i in range(12):
         temp_slots = [
-            random.choice(SLOT_SYMBOLS),
-            random.choice(SLOT_SYMBOLS),
-            random.choice(SLOT_SYMBOLS)
+            get_weighted_slot(),
+            get_weighted_slot(),
+            get_weighted_slot()
         ]
 
         await msg.edit(
@@ -826,12 +838,28 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
         await asyncio.sleep(0.15 + (i * 0.02))
 
-    slots = [
-        random.choice(SLOT_SYMBOLS),
-        random.choice(SLOT_SYMBOLS),
-        random.choice(SLOT_SYMBOLS)
-    ]
+    # ===== 최종 결과 =====
 
+    # 5회째면 무조건 3개 당첨
+    if current_plays >= 5:
+        jackpot_symbol = get_weighted_slot()
+
+        slots = [
+            jackpot_symbol,
+            jackpot_symbol,
+            jackpot_symbol
+        ]
+
+        roulette_logs[user_id]["plays"] = 0
+
+    else:
+        slots = [
+            get_weighted_slot(),
+            get_weighted_slot(),
+            get_weighted_slot()
+        ]
+
+    # 로그 저장
     for symbol in slots:
         roulette_logs[user_id]["symbols"][symbol] += 1
 
@@ -839,12 +867,14 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
     result_text = f"🎰 슬롯머신 결과 🎰\n\n| {' | '.join(slots)} |\n\n"
 
+    # 3개 일치
     if slots[0] == slots[1] == slots[2]:
         multiplier = JACKPOT_MULTIPLIER[slots[0]]
         reward = 베팅 * multiplier
 
         money_data[user_id] += reward
         roulette_logs[user_id]["earned"] += reward
+
         save_data()
 
         result_text += (
@@ -854,11 +884,17 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
             f"💰 +{reward}원"
         )
 
-    elif slots[0] == slots[1] or slots[1] == slots[2] or slots[0] == slots[2]:
+    # 2개 일치
+    elif (
+        slots[0] == slots[1]
+        or slots[1] == slots[2]
+        or slots[0] == slots[2]
+    ):
         reward = int(베팅 * 0.5)
 
         money_data[user_id] += reward
         roulette_logs[user_id]["earned"] += reward
+
         save_data()
 
         result_text += (
@@ -867,13 +903,16 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
             f"💰 +{reward}원"
         )
 
+    # 실패
     else:
         result_text += (
             f"☠️ 실패...\n"
             f"💸 -{베팅}원"
         )
 
-    result_text += f"\n\n현재 잔액: **{money_data[user_id]}원**"
+    result_text += (
+        f"\n\n현재 잔액: **{money_data[user_id]}원**"
+    )
 
     await msg.edit(content=result_text)
 
