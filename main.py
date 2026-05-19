@@ -3876,7 +3876,7 @@ ORE_DATA = {
     "철광석": {"price": 5400, "chance": 15},
     "은광석": {"price": 12300, "chance": 9},
     "금광석": {"price": 45000, "chance": 5},
-    "돈봉투": {"price": 145000, "chance": 12},
+    "돈봉투": {"price": 145000, "chance": 8},
 
     "티타늄": {"price": 95000, "chance": 3.5},
     "다이아몬드": {"price": 145000, "chance": 1.2},
