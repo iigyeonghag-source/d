@@ -3867,6 +3867,7 @@ owned_pickaxes = {}
 equipped_pickaxes = {}
 mine_data = {}
 mining_cooldowns = {}
+mining2_cooldowns = {}
 
 ORE_DATA = {
     "돌": {"price": 700, "chance": 45},
@@ -4012,6 +4013,10 @@ def get_mining(user_id):
         mining_cooldowns[user_id] = None
         changed = True
 
+    if user_id not in mining2_cooldowns:
+        mining2_cooldowns[user_id] = None
+        changed = True
+
     return changed
 
 
@@ -4034,6 +4039,32 @@ def pick_ore(luck_bonus=0):
             chance *= max(0.2, 1 - (luck_bonus / 250))
 
         weights.append(chance)
+
+def pick_ore_premium(luck_bonus=0):
+    names = list(ORE_DATA.keys())
+    weights = []
+
+    for name in names:
+        ore = ORE_DATA[name]
+        chance = ore["chance"]
+        price = ore["price"]
+
+        if price >= 1000000:
+            chance *= 3.5 + (luck_bonus / 35)
+        elif price >= 100000:
+            chance *= 2.5 + (luck_bonus / 45)
+        elif price >= 20000:
+            chance *= 1.8 + (luck_bonus / 60)
+        elif price >= 5000:
+            chance *= 1.2 + (luck_bonus / 90)
+        else:
+            chance *= 0.55
+
+        weights.append(chance)
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+    return random.choices(names, weights=weights, k=1)[0]
 
     return random.choices(names, weights=weights, k=1)[0]
 
@@ -4102,7 +4133,7 @@ class MiningReadyButton(discord.ui.Button):
             return
 
         block_count = random.randint(1, 5)
-        mine_view = MiningBlockView(view.user_id, block_count, view.pickaxe)
+        mine_view = MiningBlockView(view.user_id, block_count, view.pickaxe, view.premium)
 
         await interaction.response.edit_message(
             content=(
@@ -4118,7 +4149,8 @@ class MiningReadyButton(discord.ui.Button):
 
 
 class MiningReadyView(discord.ui.View):
-    def __init__(self, user_id):
+    def __init__(self, user_id, premium=False):
+        self.premium = premium
         super().__init__(timeout=20)
         self.user_id = user_id
         self.can_click = False
@@ -4229,7 +4261,10 @@ class MiningBlockButton(discord.ui.Button):
             view.stop()
             return
 
-        ore_name = pick_ore(view.pickaxe["luck"])
+        if view.premium:
+            ore_name = pick_ore_premium(view.pickaxe["luck"])
+        else:
+            ore_name = pick_ore(view.pickaxe["luck"])
 
         amount = 1
         bonus_text = ""
@@ -4293,7 +4328,8 @@ class MiningBlockButton(discord.ui.Button):
 
 
 class MiningBlockView(discord.ui.View):
-    def __init__(self, user_id, need_count, pickaxe):
+    def __init__(self, user_id, need_count, pickaxe, premium=False):
+        self.premium = premium
         super().__init__(timeout=60)
         self.user_id = user_id
         self.need_count = need_count
@@ -4638,5 +4674,56 @@ async def collect_mine(interaction: discord.Interaction):
         f"회수 금액: **{gained:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
+
+@bot.tree.command(name="광질2", description="10만원을 내고 5분마다 고급 광질을 한다", guild=GUILD)
+async def mining_premium(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    cost = 100000
+    cooldown = mining2_cooldowns.get(user_id)
+
+    if cooldown and now < cooldown:
+        remain = int((cooldown - now).total_seconds())
+        minute = remain // 60
+        second = remain % 60
+
+        await interaction.response.send_message(
+            f"⛏️ 아직 고급 광질 준비중임.\n"
+            f"남은 시간: **{minute}분 {second}초**",
+            ephemeral=True
+        )
+        return
+
+    if money_data[user_id] < cost:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n"
+            f"필요 금액: **{cost:,}원**\n"
+            f"현재 잔액: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= cost
+    mining2_cooldowns[user_id] = now + timedelta(minutes=5)
+    save_data()
+
+    view = MiningReadyView(user_id, premium=True)
+
+    await interaction.response.send_message(
+        f"💎 **고급 광질 시작!**\n"
+        f"사용 비용: **{cost:,}원**\n"
+        f"사용 곡괭이: **{view.pickaxe_name}**\n\n"
+        f"일반 광질보다 희귀 광물 확률이 높음.\n"
+        f"1초~15초 안에 초록 칸이 뜨면 눌러!",
+        view=view
+    )
+
+    view.message = await interaction.original_response()
+    asyncio.create_task(view.start_waiting())
+    
 load_data()
 bot.run(TOKEN)
