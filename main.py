@@ -291,28 +291,6 @@ def save_data():
         print("저장 실패:", e)
 
 
-# =========================
-# 자동 메시지 루프
-# =========================
-
-async def random_message_loop(channel_data):
-    await bot.wait_until_ready()
-
-    while not bot.is_closed():
-        channel = bot.get_channel(channel_data["id"])
-
-        if channel:
-            await channel.send(random.choice(channel_data["messages"]))
-
-        wait_minutes = random.randint(
-            channel_data["min_time"],
-            channel_data["max_time"]
-        )
-
-        print(f"{channel_data['id']} 채널 → {wait_minutes}분 후 다음 메시지")
-
-        await asyncio.sleep(wait_minutes * 60)
-
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -722,7 +700,7 @@ def get_log(user_id):
     return False
 
 
-@bot.tree.command(name="돈받기", description="24시간마다 1000원을 받는다", guild=GUILD)
+@bot.tree.command(name="돈받기", description="24시간마다 50000원을 받는다", guild=GUILD)
 async def claim_money(interaction: discord.Interaction):
     user_id = interaction.user.id
     now = datetime.now()
@@ -742,12 +720,12 @@ async def claim_money(interaction: discord.Interaction):
         )
         return
 
-    money_data[user_id] += 1000
+    money_data[user_id] += 50000
     daily_claims[user_id] = now
     save_data()
 
     await interaction.response.send_message(
-        f"💰 1000원 받음!\n현재 잔액: **{money_data[user_id]}원**"
+        f"💰 50000원 받음!\n현재 잔액: **{money_data[user_id]}원**"
     )
 
 
