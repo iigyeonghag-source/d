@@ -4064,9 +4064,6 @@ def pick_ore_premium(luck_bonus=0):
 
     return random.choices(names, weights=weights, k=1)[0]
 
-    return random.choices(names, weights=weights, k=1)[0]
-
-    return random.choices(names, weights=weights, k=1)[0]
 
 
 def calc_mine_income(level):
