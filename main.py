@@ -4413,25 +4413,25 @@ async def ore_bag(interaction: discord.Interaction):
 
    cleaned = False
 
-for ore in list(bag.keys()):
-    if ore is None or ore not in ORE_DATA or bag[ore] <= 0:
-        del bag[ore]
-        cleaned = True
+    for ore in list(bag.keys()):
+        if ore is None or ore not in ORE_DATA or bag[ore] <= 0:
+            del bag[ore]
+            cleaned = True
 
-if cleaned:
-    save_data()
+    if cleaned:
+        save_data()
 
-if not bag:
-    await interaction.response.send_message("🎒 가방이 비어있다.")
-    return
+    if not bag:
+        await interaction.response.send_message("🎒 가방이 비어있다.")
+        return
 
-text = "\n".join(
-    f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
-    for ore, count in bag.items()
-)
+    text = "\n".join(
+        f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
+        for ore, count in bag.items()
+    )
 
-    await interaction.response.send_message(
-        f"🎒 **내 광석 가방**\n\n{text}"
+        await interaction.response.send_message(
+            f"🎒 **내 광석 가방**\n\n{text}"
     )
 
 
