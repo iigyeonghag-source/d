@@ -3858,7 +3858,6 @@ async def remove_money_error(
             "❌ 관리자 전용 명령어임.",
             ephemeral=True
         )
-
 # =========================
 # 광산 시스템
 # =========================
@@ -3877,10 +3876,19 @@ ORE_DATA = {
     "은광석": {"price": 12300, "chance": 9},
     "금광석": {"price": 45000, "chance": 5},
     "돈봉투": {"price": 145000, "chance": 12},
+
+    "티타늄": {"price": 95000, "chance": 3.5},
     "다이아몬드": {"price": 145000, "chance": 1.2},
+    "루비": {"price": 180000, "chance": 1.5},
+    "사파이어": {"price": 220000, "chance": 1.2},
     "에메랄드": {"price": 350000, "chance": 0.7},
     "흑요석": {"price": 920000, "chance": 0.25},
-    "신기루": {"price": 6500000, "chance": 0.05}
+
+    "네더라이트": {"price": 2500000, "chance": 0.12},
+    "레드 다이아몬드": {"price": 4800000, "chance": 0.07},
+    "신기루": {"price": 6500000, "chance": 0.05},
+    "우라늄": {"price": 8500000, "chance": 0.04},
+    "레인보우 다이아몬드": {"price": 18000000, "chance": 0.015}
 }
 
 PICKAXE_DATA = {
@@ -3955,6 +3963,22 @@ PICKAXE_DATA = {
         "time_reduce": 70,
         "double_chance": 65,
         "triple_chance": 35
+    },
+    "네더라이트 곡괭이": {
+        "price": 300000000,
+        "ores": {"네더라이트": 15, "레드 다이아몬드": 5, "우라늄": 3},
+        "luck": 320,
+        "time_reduce": 78,
+        "double_chance": 75,
+        "triple_chance": 45
+    },
+    "레인보우 곡괭이": {
+        "price": 1000000000,
+        "ores": {"레인보우 다이아몬드": 3, "우라늄": 10, "신기루": 15},
+        "luck": 500,
+        "time_reduce": 85,
+        "double_chance": 90,
+        "triple_chance": 60
     }
 }
 
@@ -4041,6 +4065,7 @@ def update_mine_money(user_id):
     save_data()
     return income
 
+
 class MiningReadyButton(discord.ui.Button):
     def __init__(self, index):
         super().__init__(
@@ -4083,7 +4108,7 @@ class MiningReadyButton(discord.ui.Button):
             content=(
                 f"⛏️ **광맥 발견!**\n\n"
                 f"클릭 가능한 블록: **{block_count}칸**\n"
-                f"초록 칸들을 하나씩 땅땅땅 캐라!"
+                f"초록 칸들을 하나씩 캐라!"
             ),
             view=mine_view
         )
@@ -4173,6 +4198,36 @@ class MiningBlockButton(discord.ui.Button):
             return
 
         await interaction.response.defer()
+
+        # 1% 확률 TNT
+        if random.uniform(0, 100) <= 1:
+            stolen = int(money_data[view.user_id] * 0.07)
+            money_data[view.user_id] -= stolen
+
+            self.label = "💥"
+            self.style = discord.ButtonStyle.red
+            self.disabled = True
+
+            view.results.append(
+                f"💥 TNT 폭발!\n전체 돈의 7%인 **{stolen:,}원**을 잃음..."
+            )
+
+            for item in view.children:
+                item.disabled = True
+
+            save_data()
+
+            await interaction.message.edit(
+                content=(
+                    "💥 **광산 붕괴!**\n\n"
+                    + "\n".join(view.results)
+                    + "\n\n광질이 강제 종료됨."
+                ),
+                view=view
+            )
+
+            view.stop()
+            return
 
         ore_name = pick_ore(view.pickaxe["luck"])
 
@@ -4308,6 +4363,7 @@ async def mining(interaction: discord.Interaction):
     view.message = await interaction.original_response()
     asyncio.create_task(view.start_waiting())
 
+
 @bot.tree.command(name="가방", description="내 광석 가방을 확인한다", guild=GUILD)
 async def ore_bag(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -4422,6 +4478,7 @@ async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None)
 
         for name, pickaxe in PICKAXE_DATA.items():
             owned = "✅" if name in owned_pickaxes[user_id] else "❌"
+
             ore_cost = ", ".join(
                 f"{ore} x{count}"
                 for ore, count in pickaxe["ores"].items()
@@ -4553,6 +4610,7 @@ async def mine_upgrade(interaction: discord.Interaction):
         f"사용 금액: **{cost:,}원**"
     )
 
+
 @bot.tree.command(name="회수", description="광산에 쌓인 돈을 회수한다", guild=GUILD)
 async def collect_mine(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -4565,9 +4623,7 @@ async def collect_mine(interaction: discord.Interaction):
     mine = mine_data[user_id]
 
     if mine["money"] <= 0:
-        await interaction.response.send_message(
-            "❌ 회수할 돈이 없음."
-        )
+        await interaction.response.send_message("❌ 회수할 돈이 없음.")
         return
 
     gained = mine["money"]
@@ -4582,6 +4638,5 @@ async def collect_mine(interaction: discord.Interaction):
         f"회수 금액: **{gained:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
-
 load_data()
 bot.run(TOKEN)
