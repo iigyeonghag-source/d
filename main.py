@@ -4189,7 +4189,6 @@ class MiningBlockButton(discord.ui.Button):
             )
 
         view.opened.add(self.index)
-        view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
 
         self.label = "🟫"
         self.style = discord.ButtonStyle.gray
