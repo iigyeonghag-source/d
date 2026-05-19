@@ -4023,124 +4023,227 @@ def update_mine_money(user_id):
     save_data()
     return income
 
-class MiningBlockButton(discord.ui.Button):
+class MiningReadyButton(discord.ui.Button):
     def __init__(self, index):
         super().__init__(
             label="⬛",
             style=discord.ButtonStyle.gray,
             row=index // 3
         )
-
         self.index = index
 
     async def callback(self, interaction: discord.Interaction):
-        view = self.view
+        view: MiningReadyView = self.view
 
         if interaction.user.id != view.user_id:
             await interaction.response.send_message(
-                "❌ 남의 광산 블록은 못 깐다.",
+                "❌ 남의 광질은 못 누름.",
+                ephemeral=True
+            )
+            return
+
+        if not view.can_click:
+            await interaction.response.edit_message(
+                content="💥 너무 빨랐다... 광맥이 무너짐.",
+                view=None
+            )
+            view.stop()
+            return
+
+        if self.index != view.target_index:
+            await interaction.response.edit_message(
+                content="💥 잘못된 칸 눌러서 광맥 놓침.",
+                view=None
+            )
+            view.stop()
+            return
+
+        block_count = random.randint(1, 5)
+        mine_view = MiningBlockView(view.user_id, block_count, view.pickaxe)
+
+        await interaction.response.edit_message(
+            content=(
+                f"⛏️ **광맥 발견!**\n\n"
+                f"클릭 가능한 블록: **{block_count}칸**\n"
+                f"초록 칸들을 하나씩 땅땅땅 캐라!"
+            ),
+            view=mine_view
+        )
+
+        mine_view.message = await interaction.original_response()
+        view.stop()
+
+
+class MiningReadyView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=20)
+        self.user_id = user_id
+        self.can_click = False
+        self.target_index = random.randint(0, 8)
+        self.message = None
+
+        pickaxe_name = equipped_pickaxes.get(user_id, "나무 곡괭이")
+        self.pickaxe_name = pickaxe_name
+        self.pickaxe = PICKAXE_DATA[pickaxe_name]
+
+        for i in range(9):
+            self.add_item(MiningReadyButton(i))
+
+    async def start_waiting(self):
+        wait_time = random.randint(1, 15)
+        await asyncio.sleep(wait_time)
+
+        self.can_click = True
+
+        for item in self.children:
+            item.label = "⬛"
+            item.style = discord.ButtonStyle.gray
+            item.disabled = False
+
+        target = self.children[self.target_index]
+        target.label = "🟩"
+        target.style = discord.ButtonStyle.green
+
+        if self.message:
+            await self.message.edit(
+                content=(
+                    f"⛏️ 광맥 반응!\n\n"
+                    f"**초록 칸을 눌러!**\n"
+                    f"사용 곡괭이: **{self.pickaxe_name}**"
+                ),
+                view=self
+            )
+
+    async def on_timeout(self):
+        if not self.can_click:
+            return
+
+        for item in self.children:
+            item.disabled = True
+
+        if self.message:
+            await self.message.edit(
+                content="⛏️ 시간이 지나서 광맥이 사라짐...",
+                view=self
+            )
+
+
+class MiningBlockButton(discord.ui.Button):
+    def __init__(self, index):
+        super().__init__(
+            label="🟩",
+            style=discord.ButtonStyle.green,
+            row=index // 3
+        )
+        self.index = index
+
+    async def callback(self, interaction: discord.Interaction):
+        view: MiningBlockView = self.view
+
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message(
+                "❌ 남의 광물은 못 캔다.",
                 ephemeral=True
             )
             return
 
         if self.index in view.opened:
             await interaction.response.send_message(
-                "❌ 이미 캔 블록임.",
+                "❌ 이미 캔 칸임.",
                 ephemeral=True
             )
             return
 
         await interaction.response.defer()
 
-        try:
-            ore_name = pick_ore(view.pickaxe["luck"])
+        ore_name = pick_ore(view.pickaxe["luck"])
 
-            amount = 1
-            bonus_text = ""
+        amount = 1
+        bonus_text = ""
 
-            roll = random.uniform(0, 100)
+        roll = random.uniform(0, 100)
 
-            if roll <= view.pickaxe.get("triple_chance", 0):
-                amount += 3
-                bonus_text = " 🔥 트리플 찬스!"
-            elif roll <= (
-                view.pickaxe.get("triple_chance", 0)
-                + view.pickaxe.get("double_chance", 0)
-            ):
-                amount += 2
-                bonus_text = " ✨ 더블 찬스!"
+        if roll <= view.pickaxe.get("triple_chance", 0):
+            amount += 3
+            bonus_text = " 🔥 트리플 찬스!"
+        elif roll <= view.pickaxe.get("triple_chance", 0) + view.pickaxe.get("double_chance", 0):
+            amount += 2
+            bonus_text = " ✨ 더블 찬스!"
 
-            ore_bags[view.user_id][ore_name] = (
-                ore_bags[view.user_id].get(ore_name, 0)
-                + amount
-            )
+        ore_bags[view.user_id][ore_name] = ore_bags[view.user_id].get(ore_name, 0) + amount
 
-            view.opened.add(self.index)
+        view.opened.add(self.index)
+        view.results.append(f"⛏️ {ore_name} x{amount}{bonus_text}")
 
-            self.label = "🟫"
-            self.style = discord.ButtonStyle.green
-            self.disabled = True
+        self.label = "🟫"
+        self.style = discord.ButtonStyle.gray
+        self.disabled = True
 
-            view.results.append(
-                f"⛏️ {ore_name} x{amount}{bonus_text}"
-            )
+        save_data()
 
-            save_data()
-
-            # 전부 캤으면 종료
-            if len(view.opened) >= 9:
-
-                for item in view.children:
-                    item.disabled = True
-
-                await interaction.message.edit(
-                    content=(
-                        "⛏️ **광질 완료!**\n\n"
-                        + "\n".join(view.results)
-                    ),
-                    view=view
-                )
-
-                view.stop()
-                return
+        if len(view.opened) >= view.need_count:
+            for item in view.children:
+                item.disabled = True
 
             await interaction.message.edit(
                 content=(
-                    f"⛏️ 블록 캐는 중...\n"
-                    f"남은 블록: **{9 - len(view.opened)}칸**\n\n"
-                    + "\n".join(view.results[-5:])
+                    "⛏️ **광질 완료!**\n\n"
+                    + "\n".join(view.results)
                 ),
                 view=view
             )
+            view.stop()
+            return
 
-        except Exception as e:
-            print("광질 버튼 오류:", e)
-
-            await interaction.followup.send(
-                f"❌ 오류 발생\n```{e}```",
-                ephemeral=True
-            )
+        await interaction.message.edit(
+            content=(
+                f"⛏️ 광질 중...\n"
+                f"남은 칸: **{view.need_count - len(view.opened)}칸**\n\n"
+                + "\n".join(view.results[-5:])
+            ),
+            view=view
+        )
 
 
 class MiningBlockView(discord.ui.View):
-    def __init__(self, user_id):
-        super().__init__(timeout=120)
+    def __init__(self, user_id, need_count, pickaxe):
+        super().__init__(timeout=60)
         self.user_id = user_id
+        self.need_count = need_count
+        self.pickaxe = pickaxe
         self.opened = set()
         self.results = []
+        self.message = None
 
-        pickaxe_name = equipped_pickaxes.get(user_id, "나무 곡괭이")
-        self.pickaxe = PICKAXE_DATA[pickaxe_name]
+        indexes = random.sample(range(9), need_count)
 
         for i in range(9):
-            self.add_item(MiningBlockButton(i))
+            if i in indexes:
+                self.add_item(MiningBlockButton(i))
+            else:
+                btn = discord.ui.Button(
+                    label="⬛",
+                    style=discord.ButtonStyle.gray,
+                    disabled=True,
+                    row=i // 3
+                )
+                self.add_item(btn)
 
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
 
+        if self.message:
+            await self.message.edit(
+                content=(
+                    "⛏️ 광질 시간이 끝남.\n\n"
+                    + ("\n".join(self.results) if self.results else "캔 광물 없음.")
+                ),
+                view=self
+            )
 
-@bot.tree.command(name="광질", description="1분~15분 동안 광질 후 9칸 블록을 깐다", guild=GUILD)
+
+@bot.tree.command(name="광질", description="랜덤 타이밍에 광맥을 찾아 광물을 캔다", guild=GUILD)
 async def mining(interaction: discord.Interaction):
     user_id = interaction.user.id
     now = datetime.now()
@@ -4153,59 +4256,25 @@ async def mining(interaction: discord.Interaction):
     if cooldown and now < cooldown:
         remain = int((cooldown - now).total_seconds())
         await interaction.response.send_message(
-            f"⛏️ 이미 광질 중임.\n남은 시간: **{remain}초**",
+            f"⛏️ 아직 광질 준비중임. **{remain}초** 남음.",
             ephemeral=True
         )
         return
 
-    pickaxe_name = equipped_pickaxes[user_id]
-    pickaxe = PICKAXE_DATA[pickaxe_name]
-
-    base_wait = random.randint(60, 900)
-    wait_time = max(30, int(base_wait * (1 - pickaxe["time_reduce"] / 100)))
-
-    mining_cooldowns[user_id] = now + timedelta(seconds=wait_time)
+    mining_cooldowns[user_id] = now + timedelta(seconds=20)
     save_data()
+
+    view = MiningReadyView(user_id)
 
     await interaction.response.send_message(
         f"⛏️ 광질 시작!\n"
-        f"사용 곡괭이: **{pickaxe_name}**\n"
-        f"남은 시간: **{wait_time}초**"
-    )
-
-    msg = await interaction.original_response()
-
-    remain = wait_time
-
-    while remain > 0:
-        await asyncio.sleep(min(10, remain))
-        remain = int((mining_cooldowns[user_id] - datetime.now()).total_seconds())
-
-        if remain > 0:
-            try:
-                await msg.edit(
-                    content=(
-                        f"⛏️ 광질 중...\n"
-                        f"사용 곡괭이: **{pickaxe_name}**\n"
-                        f"남은 시간: **{remain}초**"
-                    )
-                )
-            except:
-                pass
-
-    mining_cooldowns[user_id] = None
-    save_data()
-
-    view = MiningBlockView(user_id)
-
-    await msg.edit(
-        content=(
-            "💎 광질 완료!\n\n"
-            "아래 9칸 블록을 하나씩 눌러서 광물을 캐라!"
-        ),
+        f"사용 곡괭이: **{view.pickaxe_name}**\n\n"
+        f"1초~15초 안에 초록 칸이 뜨면 눌러!",
         view=view
     )
 
+    view.message = await interaction.original_response()
+    asyncio.create_task(view.start_waiting())
 
 @bot.tree.command(name="가방", description="내 광석 가방을 확인한다", guild=GUILD)
 async def ore_bag(interaction: discord.Interaction):
