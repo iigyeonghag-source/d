@@ -4399,19 +4399,15 @@ async def mining(interaction: discord.Interaction):
     view.message = await interaction.original_response()
     asyncio.create_task(view.start_waiting())
 
-
 @bot.tree.command(name="가방", description="내 광석 가방을 확인한다", guild=GUILD)
 async def ore_bag(interaction: discord.Interaction):
     user_id = interaction.user.id
+
     get_mining(user_id)
 
     bag = ore_bags[user_id]
 
-    if not bag:
-        await interaction.response.send_message("🎒 가방이 비어있다.")
-        return
-
-   cleaned = False
+    cleaned = False
 
     for ore in list(bag.keys()):
         if ore is None or ore not in ORE_DATA or bag[ore] <= 0:
@@ -4430,53 +4426,9 @@ async def ore_bag(interaction: discord.Interaction):
         for ore, count in bag.items()
     )
 
-        await interaction.response.send_message(
-            f"🎒 **내 광석 가방**\n\n{text}"
-    )
-
-
-@bot.tree.command(name="팔기2", description="광석을 판매한다", guild=GUILD)
-@app_commands.describe(
-    광석="판매할 광석 이름",
-    갯수="판매할 갯수"
-)
-async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
-    user_id = interaction.user.id
-
-    get_wallet(user_id)
-    get_mining(user_id)
-
-    if 광석 not in ORE_DATA:
-        await interaction.response.send_message("❌ 없는 광석임.", ephemeral=True)
-        return
-
-    if 갯수 <= 0:
-        await interaction.response.send_message("❌ 1개 이상 팔아야 함.", ephemeral=True)
-        return
-
-    if ore_bags[user_id].get(광석, 0) < 갯수:
-        await interaction.response.send_message(
-            f"❌ 광석 부족.\n현재 {광석}: {ore_bags[user_id].get(광석, 0)}개",
-            ephemeral=True
-        )
-        return
-
-    total = ORE_DATA[광석]["price"] * 갯수
-
-    ore_bags[user_id][광석] -= 갯수
-    if ore_bags[user_id][광석] <= 0:
-        del ore_bags[user_id][광석]
-
-    money_data[user_id] += total
-    save_data()
-
     await interaction.response.send_message(
-        f"💰 판매 완료!\n"
-        f"{광석} x{갯수}\n"
-        f"+{total:,}원\n\n"
-        f"현재 잔액: **{money_data[user_id]:,}원**"
+        f"🎒 **내 광석 가방**\n\n{text}"
     )
-
 
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
