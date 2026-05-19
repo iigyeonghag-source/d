@@ -4683,7 +4683,7 @@ async def mining_premium(interaction: discord.Interaction):
     get_wallet(user_id)
     get_mining(user_id)
 
-    cost = 100000
+    cost = 50000
     cooldown = mining2_cooldowns.get(user_id)
 
     if cooldown and now < cooldown:
