@@ -4411,11 +4411,24 @@ async def ore_bag(interaction: discord.Interaction):
         await interaction.response.send_message("🎒 가방이 비어있다.")
         return
 
-    text = "\n".join(
-        f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
-        for ore, count in bag.items()
-        if count > 0
-    )
+   cleaned = False
+
+for ore in list(bag.keys()):
+    if ore is None or ore not in ORE_DATA or bag[ore] <= 0:
+        del bag[ore]
+        cleaned = True
+
+if cleaned:
+    save_data()
+
+if not bag:
+    await interaction.response.send_message("🎒 가방이 비어있다.")
+    return
+
+text = "\n".join(
+    f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
+    for ore, count in bag.items()
+)
 
     await interaction.response.send_message(
         f"🎒 **내 광석 가방**\n\n{text}"
@@ -4485,7 +4498,50 @@ async def sell_all_ores(interaction: discord.Interaction):
         if count <= 0:
             continue
 
+        @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
+async def sell_all_ores(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    bag = ore_bags[user_id]
+
+    if not bag:
+        await interaction.response.send_message("🎒 팔 광석이 없다.")
+        return
+
+    total = 0
+    sold_text = []
+
+    for ore, count in list(bag.items()):
+        if ore is None or ore not in ORE_DATA:
+            del bag[ore]
+            continue
+
+        if count <= 0:
+            del bag[ore]
+            continue
+
         price = ORE_DATA[ore]["price"] * count
+        total += price
+        sold_text.append(f"{ore} x{count} = {price:,}원")
+
+    if total <= 0:
+        save_data()
+        await interaction.response.send_message("🎒 팔 수 있는 광석이 없다.")
+        return
+
+    ore_bags[user_id] = {}
+    money_data[user_id] += total
+    save_data()
+
+    await interaction.response.send_message(
+        f"💰 **전체 판매 완료!**\n\n"
+        + "\n".join(sold_text)
+        + f"\n\n총 수익: **{total:,}원**\n"
+        f"현재 잔액: **{money_data[user_id]:,}원**"
+    )
         total += price
         sold_text.append(f"{ore} x{count} = {price:,}원")
 
