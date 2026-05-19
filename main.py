@@ -4429,7 +4429,7 @@ async def ore_bag(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"🎒 **내 광석 가방**\n\n{text}"
     )
-
+    
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
     user_id = interaction.user.id
