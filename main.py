@@ -4429,28 +4429,9 @@ async def ore_bag(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"🎒 **내 광석 가방**\n\n{text}"
     )
-    
+
+
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
-async def sell_all_ores(interaction: discord.Interaction):
-    user_id = interaction.user.id
-
-    get_wallet(user_id)
-    get_mining(user_id)
-
-    bag = ore_bags[user_id]
-
-    if not bag:
-        await interaction.response.send_message("🎒 팔 광석이 없다.")
-        return
-
-    total = 0
-    sold_text = []
-
-    for ore, count in list(bag.items()):
-        if count <= 0:
-            continue
-
-        @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
     user_id = interaction.user.id
 
@@ -4486,6 +4467,7 @@ async def sell_all_ores(interaction: discord.Interaction):
 
     ore_bags[user_id] = {}
     money_data[user_id] += total
+
     save_data()
 
     await interaction.response.send_message(
@@ -4494,20 +4476,6 @@ async def sell_all_ores(interaction: discord.Interaction):
         + f"\n\n총 수익: **{total:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
-        total += price
-        sold_text.append(f"{ore} x{count} = {price:,}원")
-
-    ore_bags[user_id] = {}
-    money_data[user_id] += total
-    save_data()
-
-    await interaction.response.send_message(
-        f"💰 **전체 판매 완료!**\n\n"
-        + "\n".join(sold_text)
-        + f"\n\n총 수익: **{total:,}원**\n"
-        f"현재 잔액: **{money_data[user_id]:,}원**"
-    )
-
 
 @bot.tree.command(name="제작", description="곡괭이를 제작하거나 장착한다", guild=GUILD)
 @app_commands.describe(곡괭이="제작/장착할 곡괭이 이름")
