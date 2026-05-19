@@ -4040,6 +4040,29 @@ def pick_ore(luck_bonus=0):
 
         weights.append(chance)
 
+def pick_ore(luck_bonus=0):
+    names = list(ORE_DATA.keys())
+    weights = []
+
+    for name in names:
+        ore = ORE_DATA[name]
+        chance = ore["chance"]
+        price = ore["price"]
+
+        if price >= 80000:
+            chance *= 1 + (luck_bonus / 45)
+        elif price >= 20000:
+            chance *= 1 + (luck_bonus / 70)
+        elif price >= 5000:
+            chance *= 1 + (luck_bonus / 100)
+        else:
+            chance *= max(0.2, 1 - (luck_bonus / 250))
+
+        weights.append(chance)
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+
 def pick_ore_premium(luck_bonus=0):
     names = list(ORE_DATA.keys())
     weights = []
