@@ -3895,7 +3895,7 @@ ORE_DATA = {
 PICKAXE_DATA = {
     "나무 곡괭이": {
         "price": 0,
-        "ores": {},
+        "ores": {"석탄": 1},
         "luck": 0,
         "time_reduce": 0,
         "double_chance": 2,
@@ -3903,15 +3903,23 @@ PICKAXE_DATA = {
     },
     "돌 곡괭이": {
         "price": 50000,
-        "ores": {},
+        "ores": {"돌": 10, "석탄": 3},
         "luck": 5,
         "time_reduce": 5,
         "double_chance": 4,
         "triple_chance": 0.5
     },
+    "구리 곡괭이": {
+        "price": 30000000,
+        "ores": {"구리": 5, "석탄": 3},
+        "luck": 120,
+        "time_reduce": 60,
+        "double_chance": 50,
+        "triple_chance": 25
+    },
     "철 곡괭이": {
         "price": 150000,
-        "ores": {"철광석": 10, "석탄": 3},
+        "ores": {"철광석": 10, "석탄": 4},
         "luck": 12,
         "time_reduce": 10,
         "double_chance": 7,
@@ -3919,15 +3927,23 @@ PICKAXE_DATA = {
     },
     "금 곡괭이": {
         "price": 500000,
-        "ores": {"금광석": 12, "은광석": 6},
+        "ores": {"금광석": 12, "은광석": 6, "석탄": 3},
         "luck": 22,
         "time_reduce": 18,
         "double_chance": 12,
         "triple_chance": 3
     },
+    "티타늄 곡괭이": {
+        "price": 30000000,
+        "ores": {"티타늄": 20, "철광석": 5, "석탄": 10},
+        "luck": 5,
+        "time_reduce": 10,
+        "double_chance": 40,
+        "triple_chance": 30
+    },
     "다이아몬드 곡괭이": {
         "price": 1500000,
-        "ores": {"다이아몬드": 10, "철광석": 5},
+        "ores": {"다이아몬드": 10, "철광석": 5, "석탄": 12},
         "luck": 38,
         "time_reduce": 28,
         "double_chance": 20,
@@ -3935,15 +3951,23 @@ PICKAXE_DATA = {
     },
     "에메랄드 곡괭이": {
         "price": 4000000,
-        "ores": {"에메랄드": 8, "다이아몬드": 3},
+        "ores": {"에메랄드": 8, "다이아몬드": 3, "석탄": 15},
         "luck": 55,
         "time_reduce": 40,
         "double_chance": 28,
         "triple_chance": 10
     },
+    "보석 곡괭이": {
+        "price": 30000000,
+        "ores": {"사파이어": 5, "루비": 5, "에메랄드": 5, "다이아몬드": 1, "석탄": 5},
+        "luck": 120,
+        "time_reduce": 60,
+        "double_chance": 50,
+        "triple_chance": 25
+    },
     "흑요석 곡괭이": {
         "price": 12000000,
-        "ores": {"흑요석": 5, "에메랄드": 2},
+        "ores": {"흑요석": 5, "에메랄드": 2, "석탄": 17},
         "luck": 80,
         "time_reduce": 50,
         "double_chance": 38,
@@ -3951,7 +3975,7 @@ PICKAXE_DATA = {
     },
     "네더라이트 곡괭이": {
         "price": 30000000,
-        "ores": {"네더라이트": 3, "흑요석": 3},
+        "ores": {"네더라이트": 3, "흑요석": 3, "석탄": 25},
         "luck": 120,
         "time_reduce": 60,
         "double_chance": 50,
@@ -3959,7 +3983,7 @@ PICKAXE_DATA = {
     },
     "드워프 장인의 곡괭이": {
         "price": 100000000,
-        "ores": {"레드 다이아몬드": 1, "흑요석": 10, "네더라이트": 5},
+        "ores": {"레드 다이아몬드": 1, "흑요석": 10, "네더라이트": 5, "석탄": 50},
         "luck": 200,
         "time_reduce": 70,
         "double_chance": 65,
@@ -3967,7 +3991,7 @@ PICKAXE_DATA = {
     },
     "레인보우 곡괭이": {
         "price": 300000000,
-        "ores": {"레드 다이아몬드": 1, "우라늄": 1, "레인보우 다이아몬드": 4},
+        "ores": {"레드 다이아몬드": 1, "우라늄": 1, "레인보우 다이아몬드": 4, "석탄": 70},
         "luck": 320,
         "time_reduce": 78,
         "double_chance": 75,
@@ -3975,7 +3999,7 @@ PICKAXE_DATA = {
     },
     "신의 곡괭이": {
         "price": 1000000000,
-        "ores": {"레인보우 다이아몬드": 3, "우라늄": 10, "신기루": 5},
+        "ores": {"레인보우 다이아몬드": 3, "우라늄": 10, "신기루": 5, "석탄": 25},
         "luck": 500,
         "time_reduce": 85,
         "double_chance": 90,
