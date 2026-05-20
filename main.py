@@ -3912,10 +3912,10 @@ PICKAXE_DATA = {
     "구리 곡괭이": {
         "price": 30000000,
         "ores": {"구리": 5, "석탄": 3},
-        "luck": 120,
-        "time_reduce": 60,
-        "double_chance": 50,
-        "triple_chance": 25
+        "luck": 8,
+        "time_reduce": 7,
+        "double_chance": 7,
+        "triple_chance": 1
     },
     "철 곡괭이": {
         "price": 150000,
@@ -3961,9 +3961,9 @@ PICKAXE_DATA = {
         "price": 30000000,
         "ores": {"사파이어": 5, "루비": 5, "에메랄드": 5, "다이아몬드": 1, "석탄": 5},
         "luck": 120,
-        "time_reduce": 60,
-        "double_chance": 50,
-        "triple_chance": 25
+        "time_reduce": 25,
+        "double_chance": 0,
+        "triple_chance": 0
     },
     "흑요석 곡괭이": {
         "price": 12000000,
