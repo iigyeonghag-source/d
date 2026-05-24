@@ -4057,25 +4057,21 @@ PENDANT_DATA = {
 def get_pendant(user_id):
     changed = False
 
-    if user_id not in owned_pendants or not isinstance(owned_pendants[user_id], list):
+    if user_id not in owned_pendants:
         owned_pendants[user_id] = []
         changed = True
 
-    if user_id not in equipped_pendants or not isinstance(equipped_pendants[user_id], list):
+    if user_id not in equipped_pendants:
         equipped_pendants[user_id] = []
         changed = True
 
-    before = list(equipped_pendants[user_id])
-
     equipped_pendants[user_id] = [
-        pendant for pendant in equipped_pendants[user_id]
-        if pendant in PENDANT_DATA and pendant in owned_pendants[user_id]
+        p for p in equipped_pendants[user_id]
+        if p is not None and p in PENDANT_DATA and p in owned_pendants[user_id]
     ]
 
     if len(equipped_pendants[user_id]) > 2:
         equipped_pendants[user_id] = equipped_pendants[user_id][:2]
-
-    if before != equipped_pendants[user_id]:
         changed = True
 
     if changed:
@@ -5043,6 +5039,122 @@ async def mining_premium(interaction: discord.Interaction):
 
     view.message = await interaction.original_response()
     asyncio.create_task(view.start_waiting())
-    
+
+@bot.tree.command(name="펜던트", description="보유/장착 펜던트를 확인하거나 장착한다", guild=GUILD)
+@app_commands.describe(
+    이름="장착할 펜던트 이름",
+    칸="장착할 칸 번호 1~2"
+)
+async def pendant_info_or_equip(
+    interaction: discord.Interaction,
+    이름: str = None,
+    칸: int = None
+):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+    get_pendant(user_id)
+
+    # 그냥 /펜던트 입력 시 목록 확인
+    if 이름 is None:
+        owned = owned_pendants[user_id]
+        equipped = equipped_pendants[user_id]
+
+        equipped_text = []
+
+        for i in range(2):
+            if i < len(equipped):
+                pendant = equipped[i]
+                luck = PENDANT_DATA[pendant]["luck"]
+                equipped_text.append(f"{i + 1}번 칸: **{pendant}** / 운 +{luck}")
+            else:
+                equipped_text.append(f"{i + 1}번 칸: 비어있음")
+
+        if owned:
+            owned_text = "\n".join(
+                f"✅ **{pendant}** / 운 +{PENDANT_DATA[pendant]['luck']}"
+                for pendant in owned
+            )
+        else:
+            owned_text = "보유한 펜던트 없음"
+
+        total_luck = get_pendant_luck(user_id)
+
+        await interaction.response.send_message(
+            f"💍 **펜던트 정보**\n\n"
+            f"현재 장착:\n"
+            f"{chr(10).join(equipped_text)}\n\n"
+            f"보유 펜던트:\n"
+            f"{owned_text}\n\n"
+            f"총 추가 운: **+{total_luck}**\n\n"
+            f"장착 예시:\n"
+            f"`/펜던트 돌 펜던트 1`\n"
+            f"`/펜던트 금 펜던트 2`"
+        )
+        return
+
+    # 장착 모드
+    if 칸 is None:
+        await interaction.response.send_message(
+            "❌ 장착할 칸도 입력해야 함. 1번 또는 2번.",
+            ephemeral=True
+        )
+        return
+
+    if 칸 not in [1, 2]:
+        await interaction.response.send_message(
+            "❌ 펜던트 칸은 1번 또는 2번만 가능.",
+            ephemeral=True
+        )
+        return
+
+    if 이름 not in PENDANT_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 펜던트 없음.",
+            ephemeral=True
+        )
+        return
+
+    if 이름 not in owned_pendants[user_id]:
+        await interaction.response.send_message(
+            "❌ 아직 안 만든 펜던트임. `/제작2`로 먼저 제작해야 함.",
+            ephemeral=True
+        )
+        return
+
+    # 같은 펜던트 중복 장착 방지
+    if 이름 in equipped_pendants[user_id]:
+        await interaction.response.send_message(
+            "❌ 이미 장착 중인 펜던트임.",
+            ephemeral=True
+        )
+        return
+
+    index = 칸 - 1
+
+    while len(equipped_pendants[user_id]) < 2:
+        equipped_pendants[user_id].append(None)
+
+    old_pendant = equipped_pendants[user_id][index]
+    equipped_pendants[user_id][index] = 이름
+
+    equipped_pendants[user_id] = [
+        p for p in equipped_pendants[user_id]
+        if p is not None
+    ]
+
+    save_data()
+
+    old_text = old_pendant if old_pendant else "없음"
+
+    await interaction.response.send_message(
+        f"💍 **펜던트 장착 완료!**\n\n"
+        f"장착 칸: **{칸}번**\n"
+        f"이전 펜던트: **{old_text}**\n"
+        f"새 펜던트: **{이름}**\n"
+        f"추가 운: **+{PENDANT_DATA[이름]['luck']}**\n\n"
+        f"현재 총 펜던트 운: **+{get_pendant_luck(user_id)}**"
+    )
 load_data()
 bot.run(TOKEN)
