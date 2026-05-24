@@ -55,7 +55,9 @@ DATA_KEYS = [
     "owned_pickaxes",
     "equipped_pickaxes",
     "mine_data",
-    "mining_cooldowns"
+    "mining_cooldowns",
+    "owned_pendants",
+    "equipped_pendants"
 ]
 
 data = {key: {} for key in DATA_KEYS}
@@ -106,6 +108,7 @@ def bind_storage_globals():
     global farm_levels, field_sizes
     global ore_bags, owned_pickaxes, equipped_pickaxes
     global mine_data, mining_cooldowns
+    global owned_pendants, equipped_pendants
     
     money_data = data["money_data"]
     daily_claims = data["daily_claims"]
@@ -137,6 +140,8 @@ def bind_storage_globals():
     equipped_pickaxes = data["equipped_pickaxes"]
     mine_data = data["mine_data"]
     mining_cooldowns = data["mining_cooldowns"]
+    owned_pendants = data["owned_pendants"]
+    equipped_pendants = data["equipped_pendants"]
     
 def sync_storage_globals():
     data["money_data"] = money_data
@@ -170,6 +175,8 @@ def sync_storage_globals():
     data["equipped_pickaxes"] = equipped_pickaxes
     data["mine_data"] = mine_data
     data["mining_cooldowns"] = mining_cooldowns
+    data["owned_pendants"] = owned_pendants
+    data["equipped_pendants"] = equipped_pendants
 
 
 def load_data():
@@ -206,7 +213,9 @@ def load_data():
         "owned_pickaxes",
         "equipped_pickaxes",
         "mine_data",
-        "mining_cooldowns"
+        "mining_cooldowns",
+        "owned_pendants",
+        "equipped_pendants"
     ]:
         data[key] = to_int_key_dict(data[key])
 
@@ -674,12 +683,24 @@ JACKPOT_MULTIPLIER = {
 }
 
 # 가중치 랜덤 함수
-def get_weighted_slot():
-    return random.choices(
-        list(SLOT_WEIGHTS.keys()),
-        weights=list(SLOT_WEIGHTS.values()),
-        k=1
-    )[0]
+def get_weighted_slot(luck_bonus=0):
+    symbols = list(SLOT_WEIGHTS.keys())
+    weights = []
+
+    for symbol in symbols:
+        weight = SLOT_WEIGHTS[symbol]
+
+        # 펜던트 운빨: 비싼 심볼은 더 잘 뜨고, 낮은 심볼은 살짝 줄어듦
+        if symbol in ["💎", "7️⃣"]:
+            weight *= 1 + (luck_bonus / 120)
+        elif symbol == "⭐":
+            weight *= 1 + (luck_bonus / 180)
+        elif symbol in ["🍒", "🍋"]:
+            weight *= max(0.35, 1 - (luck_bonus / 350))
+
+        weights.append(weight)
+
+    return random.choices(symbols, weights=weights, k=1)[0]
 
 
 def get_wallet(user_id):
@@ -775,6 +796,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
     get_wallet(user_id)
     get_log(user_id)
+    get_pendant(user_id)
 
     if 베팅 < 500:
         await interaction.response.send_message(
@@ -805,8 +827,8 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
     # 애니메이션
     for i in range(12):
         temp_slots = [
-            get_weighted_slot(),
-            get_weighted_slot(),
+            get_weighted_slot(get_pendant_luck(user_id)),
+            get_weighted_slot(get_pendant_luck(user_id)),
             get_weighted_slot()
         ]
 
@@ -820,7 +842,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
     # 5회째면 무조건 3개 당첨
     if current_plays >= 5:
-        jackpot_symbol = get_weighted_slot()
+        jackpot_symbol = get_weighted_slot(get_pendant_luck(user_id))
 
         slots = [
             jackpot_symbol,
@@ -832,8 +854,8 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
     else:
         slots = [
-            get_weighted_slot(),
-            get_weighted_slot(),
+            get_weighted_slot(get_pendant_luck(user_id)),
+            get_weighted_slot(get_pendant_luck(user_id)),
             get_weighted_slot()
         ]
 
@@ -1016,6 +1038,7 @@ async def horse_race(
     user_id = interaction.user.id
 
     get_wallet(user_id)
+    get_pendant(user_id)
 
     if 말번호 not in HORSES:
         await interaction.response.send_message(
@@ -1062,7 +1085,10 @@ async def horse_race(
 
         await asyncio.sleep(0.7)
 
-    winner = random.randint(1, 4)
+    luck_bonus = get_pendant_luck(user_id)
+    horse_weights = [100, 100, 100, 100]
+    horse_weights[말번호 - 1] += luck_bonus
+    winner = random.choices([1, 2, 3, 4], weights=horse_weights, k=1)[0]
 
     result = (
         f"🏁 우승 말: {HORSES[winner]}\n\n"
@@ -2086,7 +2112,7 @@ async def fishing_success(interaction: discord.Interaction):
     rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
     bait = BAIT_DATA.get(bait_name, BAIT_DATA["미끼 없음"])
 
-    luck_bonus = rod["luck"] + bait["luck"]
+    luck_bonus = rod["luck"] + bait["luck"] + get_pendant_luck(user_id)
 
     def use_bait():
         if bait_name != "미끼 없음":
@@ -4007,11 +4033,73 @@ PICKAXE_DATA = {
     }
 }
 
+# =========================
+# 펜던트 시스템
+# =========================
+
+owned_pendants = {}
+equipped_pendants = {}
+
+PENDANT_DATA = {
+    "돌 펜던트": {"price": 120000, "ores": {"돌": 2}, "luck": 3},
+    "금 펜던트": {"price": 700000, "ores": {"금광석": 3}, "luck": 8},
+    "다이아 펜던트": {"price": 2500000, "ores": {"다이아몬드": 3}, "luck": 15},
+    "루비 펜던트": {"price": 3500000, "ores": {"루비": 3}, "luck": 18},
+    "사파이어 펜던트": {"price": 4500000, "ores": {"사파이어": 3}, "luck": 22},
+    "에메랄드 펜던트": {"price": 7000000, "ores": {"에메랄드": 3}, "luck": 30},
+    "흑요석 펜던트": {"price": 15000000, "ores": {"흑요석": 2}, "luck": 45},
+    "레드 다이아몬드 펜던트": {"price": 50000000, "ores": {"레드 다이아몬드": 2}, "luck": 70},
+    "레인보우 다이아몬드 펜던트": {"price": 120000000, "ores": {"레인보우 다이아몬드": 2}, "luck": 100},
+    "신기루 펜던트": {"price": 300000000, "ores": {"신기루": 1}, "luck": 150}
+}
+
+
+def get_pendant(user_id):
+    changed = False
+
+    if user_id not in owned_pendants or not isinstance(owned_pendants[user_id], list):
+        owned_pendants[user_id] = []
+        changed = True
+
+    if user_id not in equipped_pendants or not isinstance(equipped_pendants[user_id], list):
+        equipped_pendants[user_id] = []
+        changed = True
+
+    before = list(equipped_pendants[user_id])
+
+    equipped_pendants[user_id] = [
+        pendant for pendant in equipped_pendants[user_id]
+        if pendant in PENDANT_DATA and pendant in owned_pendants[user_id]
+    ]
+
+    if len(equipped_pendants[user_id]) > 2:
+        equipped_pendants[user_id] = equipped_pendants[user_id][:2]
+
+    if before != equipped_pendants[user_id]:
+        changed = True
+
+    if changed:
+        save_data()
+
+    return changed
+
+
+def get_pendant_luck(user_id):
+    get_pendant(user_id)
+
+    return sum(
+        PENDANT_DATA[pendant]["luck"]
+        for pendant in equipped_pendants[user_id]
+        if pendant in PENDANT_DATA
+    )
+
 MAX_MINE_LEVEL = 12
 
 
 def get_mining(user_id):
     changed = False
+
+    get_pendant(user_id)
 
     if user_id not in ore_bags:
         ore_bags[user_id] = {}
@@ -4305,10 +4393,12 @@ class MiningBlockButton(discord.ui.Button):
             view.stop()
             return
 
+        luck_bonus = view.pickaxe["luck"] + get_pendant_luck(view.user_id)
+
         if view.premium:
-            ore_name = pick_ore_premium(view.pickaxe["luck"])
+            ore_name = pick_ore_premium(luck_bonus)
         else:
-            ore_name = pick_ore(view.pickaxe["luck"])
+            ore_name = pick_ore(luck_bonus)
 
         amount = 1
         bonus_text = ""
@@ -4569,6 +4659,166 @@ async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
         f"총 판매가: **{total:,}원**\n\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
+
+@bot.tree.command(name="제작2", description="펜던트를 제작한다", guild=GUILD)
+@app_commands.describe(펜던트="제작할 펜던트 이름")
+async def craft_pendant(interaction: discord.Interaction, 펜던트: str = None):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+    get_pendant(user_id)
+
+    if 펜던트 is None:
+        lines = []
+
+        for name, pendant in PENDANT_DATA.items():
+            owned = "✅" if name in owned_pendants[user_id] else "❌"
+            equipped = "장착중" if name in equipped_pendants[user_id] else "미장착"
+
+            ore_cost = ", ".join(
+                f"{ore} x{count}"
+                for ore, count in pendant["ores"].items()
+            )
+
+            lines.append(
+                f"{owned} **{name}** ({equipped})\n"
+                f"가격: **{pendant['price']:,}원**\n"
+                f"광석 재료: {ore_cost}\n"
+                f"운빨 증가: **{pendant['luck']}%**"
+            )
+
+        await interaction.response.send_message(
+            "💎 **펜던트 제작 목록**\n\n"
+            + "\n\n".join(lines)
+            + "\n\n`/제작2 펜던트이름` 으로 제작"
+        )
+        return
+
+    if 펜던트 not in PENDANT_DATA:
+        await interaction.response.send_message("❌ 없는 펜던트임.", ephemeral=True)
+        return
+
+    if 펜던트 in owned_pendants[user_id]:
+        await interaction.response.send_message(
+            f"❌ 이미 **{펜던트}** 보유중임.\n"
+            f"장착은 `/장착 {펜던트}` 로 하면 됨.",
+            ephemeral=True
+        )
+        return
+
+    pendant = PENDANT_DATA[펜던트]
+
+    if money_data[user_id] < pendant["price"]:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n"
+            f"필요 돈: **{pendant['price']:,}원**\n"
+            f"현재 돈: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    for ore, need_count in pendant["ores"].items():
+        if ore_bags[user_id].get(ore, 0) < need_count:
+            await interaction.response.send_message(
+                f"❌ 재료 부족.\n"
+                f"필요: **{ore} x{need_count}**\n"
+                f"보유: **{ore_bags[user_id].get(ore, 0)}개**",
+                ephemeral=True
+            )
+            return
+
+    money_data[user_id] -= pendant["price"]
+
+    for ore, need_count in pendant["ores"].items():
+        ore_bags[user_id][ore] -= need_count
+        if ore_bags[user_id][ore] <= 0:
+            del ore_bags[user_id][ore]
+
+    owned_pendants[user_id].append(펜던트)
+    save_data()
+
+    await interaction.response.send_message(
+        f"💎 **펜던트 제작 완료!**\n\n"
+        f"제작한 펜던트: **{펜던트}**\n"
+        f"운빨 증가: **{pendant['luck']}%**\n\n"
+        f"장착하려면 `/장착 {펜던트}` 사용"
+    )
+
+
+@bot.tree.command(name="장착", description="펜던트를 장착하거나 해제한다", guild=GUILD)
+@app_commands.describe(펜던트="장착/해제할 펜던트 이름")
+async def equip_pendant(interaction: discord.Interaction, 펜던트: str = None):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+    get_pendant(user_id)
+
+    if 펜던트 is None:
+        equipped_text = (
+            "\n".join(
+                f"- **{name}** (+{PENDANT_DATA[name]['luck']}%)"
+                for name in equipped_pendants[user_id]
+            )
+            if equipped_pendants[user_id]
+            else "장착한 펜던트 없음"
+        )
+
+        owned_text = (
+            "\n".join(
+                f"- **{name}** (+{PENDANT_DATA[name]['luck']}%)"
+                for name in owned_pendants[user_id]
+            )
+            if owned_pendants[user_id]
+            else "보유 펜던트 없음"
+        )
+
+        await interaction.response.send_message(
+            f"💎 **펜던트 장착 상태**\n\n"
+            f"장착 슬롯: **{len(equipped_pendants[user_id])}/2**\n"
+            f"총 운빨 증가: **{get_pendant_luck(user_id)}%**\n\n"
+            f"장착중:\n{equipped_text}\n\n"
+            f"보유중:\n{owned_text}\n\n"
+            f"`/장착 펜던트이름` 으로 장착/해제"
+        )
+        return
+
+    if 펜던트 not in PENDANT_DATA:
+        await interaction.response.send_message("❌ 없는 펜던트임.", ephemeral=True)
+        return
+
+    if 펜던트 not in owned_pendants[user_id]:
+        await interaction.response.send_message("❌ 그 펜던트 보유중 아님.", ephemeral=True)
+        return
+
+    if 펜던트 in equipped_pendants[user_id]:
+        equipped_pendants[user_id].remove(펜던트)
+        save_data()
+
+        await interaction.response.send_message(
+            f"💎 **{펜던트}** 해제 완료!\n"
+            f"현재 총 운빨 증가: **{get_pendant_luck(user_id)}%**"
+        )
+        return
+
+    if len(equipped_pendants[user_id]) >= 2:
+        await interaction.response.send_message(
+            "❌ 펜던트는 최대 **2개**까지만 장착 가능함.\n"
+            "기존 펜던트를 `/장착 펜던트이름` 으로 해제하고 다시 장착하셈.",
+            ephemeral=True
+        )
+        return
+
+    equipped_pendants[user_id].append(펜던트)
+    save_data()
+
+    await interaction.response.send_message(
+        f"💎 **{펜던트}** 장착 완료!\n"
+        f"현재 장착 수: **{len(equipped_pendants[user_id])}/2**\n"
+        f"현재 총 운빨 증가: **{get_pendant_luck(user_id)}%**"
+    )
+
 
 @bot.tree.command(name="제작", description="곡괭이를 제작하거나 장착한다", guild=GUILD)
 @app_commands.describe(곡괭이="제작/장착할 곡괭이 이름")
