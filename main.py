@@ -2781,8 +2781,8 @@ def update_crop_prices():
         else:
             current = int(current * (1 - change_rate))
 
-        min_price = int(base * 0.3)
-        max_price = int(base * 1.5)
+        min_price = int(base * 0.7)
+        max_price = int(base * 1.7)
 
         crop_prices[crop_name] = max(min_price, min(max_price, current))
 
