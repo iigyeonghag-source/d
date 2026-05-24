@@ -3870,26 +3870,26 @@ mining_cooldowns = {}
 mining2_cooldowns = {}
 
 ORE_DATA = {
-    "돌": {"price": 700, "chance": 45},
-    "석탄": {"price": 1500, "chance": 30},
-    "구리": {"price": 3200, "chance": 22},
-    "철광석": {"price": 5400, "chance": 15},
-    "은광석": {"price": 12300, "chance": 9},
-    "금광석": {"price": 45000, "chance": 5},
+    "돌": {"price": 500, "chance": 45},
+    "석탄": {"price": 1200, "chance": 30},
+    "구리": {"price": 2200, "chance": 22},
+    "철광석": {"price": 3400, "chance": 15},
+    "은광석": {"price": 7300, "chance": 9},
+    "금광석": {"price": 15000, "chance": 5},
     "돈봉투": {"price": 145000, "chance": 8},
 
-    "티타늄": {"price": 95000, "chance": 3.5},
-    "다이아몬드": {"price": 145000, "chance": 1.2},
-    "루비": {"price": 180000, "chance": 1.5},
-    "사파이어": {"price": 220000, "chance": 1.2},
-    "에메랄드": {"price": 350000, "chance": 0.7},
-    "흑요석": {"price": 920000, "chance": 0.25},
+    "티타늄": {"price": 55000, "chance": 3.5},
+    "다이아몬드": {"price": 100000, "chance": 1.2},
+    "루비": {"price": 130000, "chance": 1.5},
+    "사파이어": {"price": 170000, "chance": 1.2},
+    "에메랄드": {"price": 250000, "chance": 0.7},
+    "흑요석": {"price": 520000, "chance": 0.25},
 
-    "네더라이트": {"price": 2500000, "chance": 0.12},
-    "레드 다이아몬드": {"price": 4800000, "chance": 0.07},
-    "우라늄": {"price": 6500000, "chance": 0.05},
-    "레인보우 다이아몬드": {"price": 8500000, "chance": 0.04},
-    "신기루": {"price": 18000000, "chance": 0.015}
+    "네더라이트": {"price": 1500000, "chance": 0.12},
+    "레드 다이아몬드": {"price": 2800000, "chance": 0.07},
+    "우라늄": {"price": 4500000, "chance": 0.05},
+    "레인보우 다이아몬드": {"price": 6500000, "chance": 0.04},
+    "신기루": {"price": 10000000, "chance": 0.015}
 }
 
 PICKAXE_DATA = {
