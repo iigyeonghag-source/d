@@ -1203,7 +1203,7 @@ FISH_DATA = {
         "min_kg": 0.05,
         "max_kg": 0.3,
         "habitat": "수족관",
-        "base_price": 100,
+        "base_price": 200,
         "kg_price": 50,
         "chance": 47
     },
@@ -1212,7 +1212,7 @@ FISH_DATA = {
         "min_kg": 0.1,
         "max_kg": 0.7,
         "habitat": "시냇물",
-        "base_price": 120,
+        "base_price": 220,
         "kg_price": 90,
         "chance": 40
     },
@@ -1230,7 +1230,7 @@ FISH_DATA = {
         "min_kg": 0.3,
         "max_kg": 2.0,
         "habitat": "연못",
-        "base_price": 300,
+        "base_price": 400,
         "kg_price": 120,
         "chance": 35
     },
@@ -1239,7 +1239,7 @@ FISH_DATA = {
         "min_kg": 0.2,
         "max_kg": 1.0,
         "habitat": "연못",
-        "base_price": 500,
+        "base_price": 600,
         "kg_price": 150,
         "chance": 20
     },
@@ -1248,7 +1248,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 8.0,
         "habitat": "강",
-        "base_price": 700,
+        "base_price": 1000,
         "kg_price": 180,
         "chance": 25
     },
@@ -1257,7 +1257,7 @@ FISH_DATA = {
         "min_kg": 0.5,
         "max_kg": 5.0,
         "habitat": "바다",
-        "base_price": 900,
+        "base_price": 1500,
         "kg_price": 180,
         "chance": 25
     },
@@ -1275,7 +1275,7 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 15.0,
         "habitat": "늪 / 강바닥",
-        "base_price": 1200,
+        "base_price": 2200,
         "kg_price": 250,
         "chance": 15
     },
@@ -1284,7 +1284,7 @@ FISH_DATA = {
         "min_kg": 0.5,
         "max_kg": 3.0,
         "habitat": "바다",
-        "base_price": 1300,
+        "base_price": 2300,
         "kg_price": 170,
         "chance": 21
     },
@@ -1293,7 +1293,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 6.0,
         "habitat": "계곡",
-        "base_price": 1400,
+        "base_price": 3400,
         "kg_price": 300,
         "chance": 18
     },
@@ -1302,7 +1302,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 10.0,
         "habitat": "강",
-        "base_price": 1500,
+        "base_price": 4500,
         "kg_price": 260,
         "chance": 16
     },
@@ -1311,7 +1311,7 @@ FISH_DATA = {
         "min_kg": 0.5,
         "max_kg": 4.0,
         "habitat": "바다",
-        "base_price": 1700,
+        "base_price": 4700,
         "kg_price": 220,
         "chance": 20
     },
@@ -1320,7 +1320,7 @@ FISH_DATA = {
     "min_kg": 0.3,
     "max_kg": 2.0,
     "habitat": "맑은 강",
-    "base_price": 1100,
+    "base_price": 5100,
     "kg_price": 170,
     "chance": 24
     },
@@ -1329,7 +1329,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 9.0,
         "habitat": "연안 바다",
-        "base_price": 1800,
+        "base_price": 2800,
         "kg_price": 260,
         "chance": 18
     },
@@ -1338,7 +1338,7 @@ FISH_DATA = {
         "min_kg": 0.8,
         "max_kg": 6.0,
         "habitat": "강 하구",
-        "base_price": 1400,
+        "base_price": 2400,
         "kg_price": 200,
         "chance": 22
     },
@@ -1347,7 +1347,7 @@ FISH_DATA = {
         "min_kg": 0.2,
         "max_kg": 1.2,
         "habitat": "바다",
-        "base_price": 1000,
+        "base_price": 2000,
         "kg_price": 150,
         "chance": 28
     },
@@ -1356,7 +1356,7 @@ FISH_DATA = {
         "min_kg": 0.4,
         "max_kg": 2.5,
         "habitat": "차가운 바다",
-        "base_price": 1600,
+        "base_price": 2600,
         "kg_price": 230,
         "chance": 20
     },
@@ -1365,7 +1365,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 8.0,
         "habitat": "강 상류",
-        "base_price": 3200,
+        "base_price": 5200,
         "kg_price": 420,
         "chance": 9
     },
@@ -1374,7 +1374,7 @@ FISH_DATA = {
         "min_kg": 0.5,
         "max_kg": 3.0,
         "habitat": "암초 지대",
-        "base_price": 1700,
+        "base_price": 2700,
         "kg_price": 240,
         "chance": 19
     },
@@ -1383,7 +1383,7 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 15.0,
         "habitat": "깊은 바다",
-        "base_price": 3800,
+        "base_price": 5800,
         "kg_price": 500,
         "chance": 7
     },
@@ -1392,7 +1392,7 @@ FISH_DATA = {
         "min_kg": 0.1,
         "max_kg": 0.8,
         "habitat": "산호초",
-        "base_price": 2100,
+        "base_price": 3100,
         "kg_price": 280,
         "chance": 12
     },
@@ -1401,8 +1401,8 @@ FISH_DATA = {
         "min_kg": 0.3,
         "max_kg": 2.0,
         "habitat": "민물 바닥",
-        "base_price": 1500,
-        "kg_price": 220,
+        "base_price": 2500,
+        "kg_price": 250,
         "chance": 23
     },
 
@@ -1410,7 +1410,7 @@ FISH_DATA = {
         "min_kg": 0.5,
         "max_kg": 4.0,
         "habitat": "차가운 바다",
-        "base_price": 1300,
+        "base_price": 2300,
         "kg_price": 190,
         "chance": 25
     },
@@ -1419,7 +1419,7 @@ FISH_DATA = {
         "min_kg": 0.8,
         "max_kg": 5.0,
         "habitat": "붉은 해역",
-        "base_price": 2600,
+        "base_price": 4600,
         "kg_price": 330,
         "chance": 11
     },
@@ -1428,8 +1428,8 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 12.0,
         "habitat": "폭풍 해안",
-        "base_price": 3900,
-        "kg_price": 520,
+        "base_price": 6900,
+        "kg_price": 550,
         "chance": 6
     },
 
@@ -1437,7 +1437,7 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 12.0,
         "habitat": "깊은 바다",
-        "base_price": 2100,
+        "base_price": 4100,
         "kg_price": 310,
         "chance": 14
     },
@@ -1446,8 +1446,8 @@ FISH_DATA = {
         "min_kg": 40.0,
         "max_kg": 300.0,
         "habitat": "원양",
-        "base_price": 9000,
-        "kg_price": 750,
+        "base_price": 12000,
+        "kg_price": 850,
         "chance": 4
     },
 
@@ -1455,8 +1455,8 @@ FISH_DATA = {
         "min_kg": 5.0,
         "max_kg": 25.0,
         "habitat": "전설의 연못",
-        "base_price": 18000,
-        "kg_price": 1100,
+        "base_price": 48000,
+        "kg_price": 1400,
         "chance": 2
     },
 
@@ -1466,8 +1466,8 @@ FISH_DATA = {
         "min_kg": 3.0,
         "max_kg": 20.0,
         "habitat": "늪",
-        "base_price": 2400,
-        "kg_price": 350,
+        "base_price": 4400,
+        "kg_price": 370,
         "chance": 10
     },
 
@@ -1475,8 +1475,8 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 8.0,
         "habitat": "바다",
-        "base_price": 2400,
-        "kg_price": 280,
+        "base_price": 3400,
+        "kg_price": 300,
         "chance": 16
     },
 
@@ -1484,8 +1484,8 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 10.0,
         "habitat": "바다",
-        "base_price": 2600,
-        "kg_price": 300,
+        "base_price": 4600,
+        "kg_price": 340,
         "chance": 13
     },
 
@@ -1493,8 +1493,8 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 18.0,
         "habitat": "강 / 바다",
-        "base_price": 3000,
-        "kg_price": 420,
+        "base_price": 4500,
+        "kg_price": 520,
         "chance": 13
     },
 
@@ -1502,7 +1502,7 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 12.0,
         "habitat": "심해",
-        "base_price": 3200,
+        "base_price": 4200,
         "kg_price": 400,
         "chance": 12
     },
@@ -1511,7 +1511,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 12.0,
         "habitat": "강 / 바다",
-        "base_price": 3500,
+        "base_price": 6500,
         "kg_price": 450,
         "chance": 9
     },
@@ -1520,7 +1520,7 @@ FISH_DATA = {
         "min_kg": 3.0,
         "max_kg": 25.0,
         "habitat": "심해",
-        "base_price": 3800,
+        "base_price": 4800,
         "kg_price": 420,
         "chance": 10
     },
@@ -1529,7 +1529,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 6.0,
         "habitat": "바다",
-        "base_price": 4200,
+        "base_price": 47200,
         "kg_price": 500,
         "chance": 7
     },
@@ -1538,7 +1538,7 @@ FISH_DATA = {
         "min_kg": 3.0,
         "max_kg": 20.0,
         "habitat": "바다",
-        "base_price": 4500,
+        "base_price": 5500,
         "kg_price": 480,
         "chance": 8
     },
@@ -1547,8 +1547,8 @@ FISH_DATA = {
         "min_kg": 20.0,
         "max_kg": 250.0,
         "habitat": "먼바다",
-        "base_price": 5000,
-        "kg_price": 80,
+        "base_price": 5500,
+        "kg_price": 100,
         "chance": 7
     },
 
@@ -1556,8 +1556,8 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 7.0,
         "habitat": "차가운 계곡",
-        "base_price": 6000,
-        "kg_price": 500,
+        "base_price": 10000,
+        "kg_price": 800,
         "chance": 8
     },
 
@@ -1565,7 +1565,7 @@ FISH_DATA = {
         "min_kg": 5.0,
         "max_kg": 40.0,
         "habitat": "심해",
-        "base_price": 6000,
+        "base_price": 7000,
         "kg_price": 550,
         "chance": 5
     },
@@ -1574,7 +1574,7 @@ FISH_DATA = {
         "min_kg": 2.0,
         "max_kg": 15.0,
         "habitat": "고급 연못",
-        "base_price": 8000,
+        "base_price": 15000,
         "kg_price": 600,
         "chance": 5
     },
@@ -1583,8 +1583,8 @@ FISH_DATA = {
         "min_kg": 20.0,
         "max_kg": 200.0,
         "habitat": "심해 강",
-        "base_price": 12000,
-        "kg_price": 800,
+        "base_price": 15000,
+        "kg_price": 1000,
         "chance": 2
     },
 
@@ -1592,8 +1592,8 @@ FISH_DATA = {
         "min_kg": 10.0,
         "max_kg": 80.0,
         "habitat": "심해 암초",
-        "base_price": 15000,
-        "kg_price": 900,
+        "base_price": 35000,
+        "kg_price": 1200,
         "chance": 3
     },
 
@@ -1601,7 +1601,7 @@ FISH_DATA = {
         "min_kg": 3.0,
         "max_kg": 15.0,
         "habitat": "빙하 호수",
-        "base_price": 22000,
+        "base_price": 42000,
         "kg_price": 1200,
         "chance": 2
     },
@@ -1610,17 +1610,17 @@ FISH_DATA = {
         "min_kg": 5.0,
         "max_kg": 30.0,
         "habitat": "어둠의 늪",
-        "base_price": 26000,
-        "kg_price": 1400,
+        "base_price": 56000,
+        "kg_price": 1500,
         "chance": 1
     },
 
     "전기 뱀장어": {
         "min_kg": 4.0,
         "max_kg": 25.0,
-        "habitat": "폭풍 강",
-        "base_price": 28000,
-        "kg_price": 1500,
+        "habitat": "폭풍의 강",
+        "base_price": 38000,
+        "kg_price": 1800,
         "chance": 0.9
     },
 
@@ -1628,7 +1628,7 @@ FISH_DATA = {
         "min_kg": 1.0,
         "max_kg": 8.0,
         "habitat": "밤바다",
-        "base_price": 75000,
+        "base_price": 85000,
         "kg_price": 2200,
         "chance": 0.4
     },
@@ -1637,8 +1637,8 @@ FISH_DATA = {
         "min_kg": 100.0,
         "max_kg": 800.0,
         "habitat": "환상의 바다",
-        "base_price": 100000,
-        "kg_price": 2500,
+        "base_price": 1000000,
+        "kg_price": 3500,
         "chance": 0.1
     },
 
@@ -1646,8 +1646,8 @@ FISH_DATA = {
         "min_kg": 150.0,
         "max_kg": 900.0,
         "habitat": "심연",
-        "base_price": 250000,
-        "kg_price": 5000,
+        "base_price": 3500000,
+        "kg_price": 7000,
         "chance": 0.08
     },
 
@@ -1655,8 +1655,8 @@ FISH_DATA = {
         "min_kg": 200.0,
         "max_kg": 1200.0,
         "habitat": "아카브 심해",
-        "base_price": 500000,
-        "kg_price": 8000,
+        "base_price": 4500000,
+        "kg_price": 9500,
         "chance": 0.005
     },
 
@@ -1666,8 +1666,8 @@ FISH_DATA = {
         "min_kg": 500.0,
         "max_kg": 3000.0,
         "habitat": "용의 해구",
-        "base_price": 1200000,
-        "kg_price": 15000,
+        "base_price": 12000000,
+        "kg_price": 18000,
         "chance": 0.003
     },
 
@@ -1675,8 +1675,8 @@ FISH_DATA = {
         "min_kg": 800.0,
         "max_kg": 5000.0,
         "habitat": "왕의 심연",
-        "base_price": 2500000,
-        "kg_price": 22000,
+        "base_price": 25000000,
+        "kg_price": 25000,
         "chance": 0.0015
     },
 
@@ -1684,7 +1684,7 @@ FISH_DATA = {
         "min_kg": 3000.0,
         "max_kg": 20000.0,
         "habitat": "공허 해역",
-        "base_price": 7000000,
+        "base_price": 70000000,
         "kg_price": 50000,
         "chance": 0.0005
     },
@@ -1692,9 +1692,9 @@ FISH_DATA = {
     "메갈로돈": {
         "min_kg": 3000.0,
         "max_kg": 120000.0,
-        "habitat": "고대 심해",
-        "base_price": 800000,
-        "kg_price": 640,
+        "habitat": "고대의 심연",
+        "base_price": 8000000,
+        "kg_price": 670,
         "chance": 0.001
     },
 
@@ -1702,8 +1702,8 @@ FISH_DATA = {
         "min_kg": 300.0,
         "max_kg": 1000.0,
         "habitat": "심연의 균열",
-        "base_price": 3000000,
-        "kg_price": 30000,
+        "base_price": 30000000,
+        "kg_price": 31000,
         "chance": 0.001
     }
 }
