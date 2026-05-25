@@ -1122,14 +1122,12 @@ async def horse_list(interaction: discord.Interaction):
         f"🏇 현재 참가중인 말 목록\n\n{horse_text}\n\n"
         f"/경마 [말번호] [베팅금액]"
     )
-
 # =========================
 # 낚시 시스템
 # =========================
 
 FISH_TRAIT_CHANCE = 30
-fish_tanks = {}
-fish_dex = {}
+
 FISH_DATA = {
 
     # ===== 쓰레기 =====
@@ -1705,6 +1703,7 @@ FISH_DATA = {
         "chance": 0.001
     }
 }
+
 FISH_TRAITS = {
     # 안 좋은 특성
     "상처난": {"price_mult": 0.75, "kg_mult": 0.9, "type": "bad"},
@@ -1729,58 +1728,6 @@ FISH_TRAITS = {
     "신의": {"price_mult": 4.0, "kg_mult": 1.0, "type": "good"},
     "혼돈의": {"price_mult": 5.0, "kg_mult": 1.5, "type": "good"},
 }
-
-BOSS_FISH = ["메갈로돈", "크라켄"]
-
-for fish in FISH_DATA.values():
-    fish["chance"] /= 2
-
-def get_tank(user_id):
-    changed = False
-
-    if user_id not in fish_tanks:
-        fish_tanks[user_id] = []
-        changed = True
-
-    if user_id not in fish_dex:
-        fish_dex[user_id] = set()
-        changed = True
-
-    return changed
-
-
-def fish_price(fish_name, kg):
-    fish = FISH_DATA[fish_name]
-    return int(fish["base_price"] + kg * fish["kg_price"])
-
-
-def pick_fish(luck_bonus=0):
-    names = list(FISH_DATA.keys())
-    weights = []
-
-    for name in names:
-        fish = FISH_DATA[name]
-        chance = fish["chance"]
-        price_score = fish["base_price"] + fish["max_kg"] * fish["kg_price"]
-
-        if price_score >= 100000:
-            chance *= 1 + (luck_bonus / 45)
-        elif price_score >= 30000:
-            chance *= 1 + (luck_bonus / 70)
-        elif price_score >= 10000:
-            chance *= 1 + (luck_bonus / 100)
-        else:
-            chance *= max(0.2, 1 - (luck_bonus / 250))
-
-        weights.append(chance)
-
-    return random.choices(names, weights=weights, k=1)[0]
-
-
-owned_rods = {}
-equipped_rods = {}
-owned_baits = {}
-equipped_baits = {}
 
 ROD_DATA = {
     "기본 낚싯대": {
@@ -1856,6 +1803,225 @@ BAIT_DATA = {
     }
 }
 
+BOSS_FISH = ["메갈로돈", "크라켄"]
+
+# FISH_DATA chance는 한 번만 절반으로 줄어들게 처리
+if not globals().get("_FISH_CHANCE_HALVED", False):
+    for fish in FISH_DATA.values():
+        fish["chance"] /= 2
+    _FISH_CHANCE_HALVED = True
+
+
+# =========================
+# 낚시 전투 메시지
+# =========================
+
+FISH_BATTLE_PATTERNS = {
+    "강하게 당기기": [
+        "🐟 물고기가 지쳐 보인다...",
+        "🎣 줄이 느슨해졌다!",
+        "🐟 물고기의 움직임이 약해진다...",
+        "🌊 물고기가 수면 위로 떠오른다!",
+        "🐟 놈의 힘이 빠지는 게 느껴진다..."
+    ],
+    "천천히 당기기": [
+        "🐟 물고기가 일정하게 헤엄친다...",
+        "🎣 줄이 안정적으로 유지된다...",
+        "🌊 물살이 잔잔해진다...",
+        "🐟 놈이 경계하며 움직인다...",
+        "🎣 릴이 부드럽게 돌아간다..."
+    ],
+    "줄을 풀기": [
+        "🐟 물고기가 미친 듯이 날뛴다!",
+        "🎣 줄이 팽팽해진다!",
+        "💥 강한 충격이 전해진다!",
+        "🌊 거센 힘이 낚싯대를 흔든다!",
+        "🐟 놈이 도망치려 발버둥친다!"
+    ]
+}
+
+
+# =========================
+# 저장용 데이터
+# =========================
+
+fish_tanks = globals().get("fish_tanks", {})
+fish_dex = globals().get("fish_dex", {})
+
+owned_rods = globals().get("owned_rods", {})
+equipped_rods = globals().get("equipped_rods", {})
+owned_baits = globals().get("owned_baits", {})
+equipped_baits = globals().get("equipped_baits", {})
+
+fishing_cooldowns = {}
+FISHING_COOLDOWN = timedelta(seconds=10)
+
+fish_market = globals().get("fish_market", {})
+last_market_update = globals().get("last_market_update", None)
+
+MARKET_MIN = 0.70
+MARKET_MAX = 2.00
+
+
+# =========================
+# 시세 시스템
+# =========================
+
+def init_fish_market():
+    for fish_name in FISH_DATA.keys():
+        if fish_name not in fish_market:
+            fish_market[fish_name] = 1.0
+
+
+def update_fish_market():
+    global last_market_update
+
+    init_fish_market()
+    now = datetime.now()
+
+    if last_market_update is not None:
+        if (now - last_market_update).total_seconds() < 3600:
+            return False
+
+    for fish_name in FISH_DATA.keys():
+        change = random.uniform(0.01, 0.07)
+
+        if random.choice([True, False]):
+            fish_market[fish_name] += change
+        else:
+            fish_market[fish_name] -= change
+
+        fish_market[fish_name] = max(
+            MARKET_MIN,
+            min(MARKET_MAX, fish_market[fish_name])
+        )
+
+    last_market_update = now
+    save_data()
+    return True
+
+
+def get_market_price(fish_name, price):
+    init_fish_market()
+    return int(price * fish_market.get(fish_name, 1.0))
+
+
+def get_market_text(fish_name):
+    init_fish_market()
+    rate = fish_market.get(fish_name, 1.0)
+    percent = int(rate * 100)
+
+    if rate > 1:
+        return f"📈 현재 시세: **{percent}%**"
+    elif rate < 1:
+        return f"📉 현재 시세: **{percent}%**"
+
+    return "➖ 현재 시세: **100%**"
+
+
+# =========================
+# 기본 함수
+# =========================
+
+def get_tank(user_id):
+    changed = False
+
+    if user_id not in fish_tanks:
+        fish_tanks[user_id] = []
+        changed = True
+
+    if user_id not in fish_dex:
+        fish_dex[user_id] = set()
+        changed = True
+
+    return changed
+
+
+def fish_price(fish_name, kg):
+    fish = FISH_DATA[fish_name]
+    return int(fish["base_price"] + kg * fish["kg_price"])
+
+
+def pick_fish(luck_bonus=0):
+    names = list(FISH_DATA.keys())
+    weights = []
+
+    for name in names:
+        fish = FISH_DATA[name]
+        chance = fish["chance"]
+        price_score = fish["base_price"] + fish["max_kg"] * fish["kg_price"]
+
+        if price_score >= 100000:
+            chance *= 1 + (luck_bonus / 45)
+        elif price_score >= 30000:
+            chance *= 1 + (luck_bonus / 70)
+        elif price_score >= 10000:
+            chance *= 1 + (luck_bonus / 100)
+        else:
+            chance *= max(0.2, 1 - (luck_bonus / 250))
+
+        weights.append(chance)
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+
+def roll_fish_trait():
+    if random.randint(1, 100) > FISH_TRAIT_CHANCE:
+        return None
+
+    bad_traits = [
+        name for name, data in FISH_TRAITS.items()
+        if data["type"] == "bad"
+    ]
+
+    good_traits = [
+        name for name, data in FISH_TRAITS.items()
+        if data["type"] == "good"
+    ]
+
+    if random.randint(1, 100) <= 80:
+        return random.choice(good_traits)
+
+    return random.choice(bad_traits)
+
+
+def make_fish(user_id, fish_name):
+    fish_data = FISH_DATA[fish_name]
+
+    trait_name = roll_fish_trait()
+
+    kg = random.uniform(
+        fish_data["min_kg"],
+        fish_data["max_kg"]
+    )
+
+    display_name = fish_name
+
+    if trait_name:
+        trait = FISH_TRAITS[trait_name]
+        kg *= trait["kg_mult"]
+        display_name = f"{trait_name} {fish_name}"
+
+    kg = round(kg, 2)
+
+    price = fish_price(fish_name, kg)
+
+    if trait_name:
+        price = int(price * FISH_TRAITS[trait_name]["price_mult"])
+
+    fish = {
+        "name": fish_name,
+        "display_name": display_name,
+        "trait": trait_name,
+        "kg": kg,
+        "price": price
+    }
+
+    fish_tanks[user_id].append(fish)
+    fish_dex[user_id].add(fish_name)
+
+    return fish
+
 
 def get_fishing_gear(user_id):
     changed = False
@@ -1878,8 +2044,10 @@ def get_fishing_gear(user_id):
 
     return changed
 
-fishing_cooldowns = {}
-FISHING_COOLDOWN = timedelta(seconds=10)
+
+# =========================
+# 기본 낚시 타이밍 버튼
+# =========================
 
 class FishingButtonView(discord.ui.View):
     def __init__(self, user_id):
@@ -1889,20 +2057,10 @@ class FishingButtonView(discord.ui.View):
         self.clicked = False
         self.message = None
 
-    @discord.ui.button(
-        label="기다리는 중...",
-        style=discord.ButtonStyle.gray
-    )
-    async def catch_button(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button
-    ):
+    @discord.ui.button(label="기다리는 중...", style=discord.ButtonStyle.gray)
+    async def catch_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(
-                "❌ 낚싯대가 다르다.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("❌ 낚싯대가 다르다.", ephemeral=True)
             return
 
         if not self.can_catch:
@@ -1960,7 +2118,154 @@ class FishingButtonView(discord.ui.View):
                 content="🐟 시간이 지나서 물고기가 도망갔다...",
                 view=self
             )
-            
+
+
+# =========================
+# 일반 물고기 힘겨루기
+# =========================
+
+class FishBattleView(discord.ui.View):
+    def __init__(self, user_id, fish_list, rod_name, bait_name):
+        super().__init__(timeout=35)
+
+        self.user_id = user_id
+        self.fish_list = fish_list
+        self.rod_name = rod_name
+        self.bait_name = bait_name
+
+        self.required_rounds = random.randint(2, 5)
+        self.current_round = 0
+        self.fail_count = 0
+
+        self.correct_action = None
+        self.message = None
+
+        buttons = ["강하게 당기기", "천천히 당기기", "줄을 풀기"]
+        random.shuffle(buttons)
+
+        for label in buttons:
+            self.add_item(FishBattleButton(label))
+
+    async def next_round(self):
+        if self.current_round >= self.required_rounds:
+            await self.success()
+            return
+
+        self.correct_action = random.choice(list(FISH_BATTLE_PATTERNS.keys()))
+        battle_message = random.choice(FISH_BATTLE_PATTERNS[self.correct_action])
+
+        for item in self.children:
+            item.disabled = False
+
+        await self.message.edit(
+            content=(
+                f"🎣 **물고기와 힘겨루기 중...**\n\n"
+                f"{battle_message}\n\n"
+                f"알맞은 행동을 골라!"
+            ),
+            view=self
+        )
+
+    async def success(self):
+        caught_text = []
+
+        for fish_name in self.fish_list:
+            fish = make_fish(self.user_id, fish_name)
+
+            trait_text = ""
+            if fish["trait"]:
+                trait_text = f"\n특성: **{fish['trait']}**"
+
+            caught_text.append(
+                f"잡은 물고기: **{fish['display_name']}**\n"
+                f"무게: **{fish['kg']}kg**\n"
+                f"기본 판매가: **{money(fish['price'])}원**\n"
+                f"{get_market_text(fish['name'])}\n"
+                f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
+                f"{trait_text}"
+            )
+
+        save_data()
+
+        await self.message.edit(
+            content=(
+                f"🎣 **낚시 성공!**\n\n"
+                f"사용 낚싯대: **{self.rod_name}**\n"
+                f"사용 미끼: **{self.bait_name}**\n\n"
+                + "\n\n".join(caught_text)
+            ),
+            view=None
+        )
+
+        self.stop()
+
+    async def fail(self):
+        await self.message.edit(
+            content="🐟 물고기가 도망쳤다...",
+            view=None
+        )
+
+        self.stop()
+
+    async def on_timeout(self):
+        await self.fail()
+
+
+class FishBattleButton(discord.ui.Button):
+    def __init__(self, label):
+        super().__init__(
+            label=label,
+            style=discord.ButtonStyle.blurple
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        view: FishBattleView = self.view
+
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ 니 물고기 아님.", ephemeral=True)
+            return
+
+        for item in view.children:
+            item.disabled = True
+
+        if self.label == view.correct_action:
+            view.current_round += 1
+
+            await interaction.response.edit_message(
+                content="✅ 제대로 대응했다!",
+                view=view
+            )
+
+            await asyncio.sleep(1)
+            await view.next_round()
+            return
+
+        view.fail_count += 1
+
+        if view.fail_count >= 3:
+            await interaction.response.defer()
+            await view.fail()
+            return
+
+        fail_messages = [
+            "⚠️ 물고기가 크게 날뛰기 시작한다...",
+            "💥 낚싯줄이 위험하게 흔들린다...",
+            "🌊 물고기가 더 깊은 곳으로 파고든다..."
+        ]
+
+        await interaction.response.edit_message(
+            content=random.choice(fail_messages),
+            view=view
+        )
+
+        await asyncio.sleep(1)
+        await view.next_round()
+
+
+# =========================
+# 보스 낚시
+# =========================
+
 class BossFishingView(discord.ui.View):
     def __init__(self, user_id, boss_name, rod_name, bait_name):
         super().__init__(timeout=40)
@@ -2027,37 +2332,26 @@ class BossFishingView(discord.ui.View):
         self.stop()
 
     async def success_boss(self):
-        fish_data = FISH_DATA[self.boss_name]
-
-        kg = round(
-            random.uniform(
-                fish_data["min_kg"],
-                fish_data["max_kg"]
-            ),
-            2
-        )
-
-        price = fish_price(self.boss_name, kg)
-
-        fish_tanks[self.user_id].append({
-            "name": self.boss_name,
-            "kg": kg,
-            "price": price
-        })
-
-        fish_dex[self.user_id].add(self.boss_name)
+        fish = make_fish(self.user_id, self.boss_name)
 
         save_data()
 
         for item in self.children:
             item.disabled = True
 
+        trait_text = ""
+        if fish["trait"]:
+            trait_text = f"\n특성: **{fish['trait']}**"
+
         await self.message.edit(
             content=(
                 f"🔥🐲 **보스 낚시 성공!**\n\n"
-                f"잡은 보스: **{self.boss_name}**\n"
-                f"무게: **{kg}kg**\n"
-                f"예상 판매가: **{money(price)}원**\n\n"
+                f"잡은 보스: **{fish['display_name']}**\n"
+                f"무게: **{fish['kg']}kg**\n"
+                f"기본 판매가: **{money(fish['price'])}원**\n"
+                f"{get_market_text(fish['name'])}\n"
+                f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
+                f"{trait_text}\n\n"
                 f"사용 낚싯대: **{self.rod_name}**\n"
                 f"사용 미끼: **{self.bait_name}**"
             ),
@@ -2080,10 +2374,7 @@ class BossFishingButton(discord.ui.Button):
         view: BossFishingView = self.view
 
         if interaction.user.id != view.user_id:
-            await interaction.response.send_message(
-                "❌ 니 보스 아님.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("❌ 니 보스 아님.", ephemeral=True)
             return
 
         if self.index != view.target_index:
@@ -2105,13 +2396,19 @@ class BossFishingButton(discord.ui.Button):
             view=view
         )
 
+
+# =========================
+# 낚시 성공 처리
+# =========================
+
 async def fishing_success(interaction: discord.Interaction):
     user_id = interaction.user.id
 
     get_wallet(user_id)
     get_tank(user_id)
     get_fishing_gear(user_id)
-    
+    update_fish_market()
+
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
@@ -2145,31 +2442,11 @@ async def fishing_success(interaction: discord.Interaction):
                 equipped_baits[user_id] = "미끼 없음"
 
     first_fish = pick_fish(luck_bonus)
-    
-    def roll_fish_trait():
-    if random.randint(1, 100) > 30:
-        return None
 
-    bad_traits = [
-        name for name, data in FISH_TRAITS.items()
-        if data["type"] == "bad"
-    ]
+    use_bait()
+    save_data()
 
-    good_traits = [
-        name for name, data in FISH_TRAITS.items()
-        if data["type"] == "good"
-    ]
-
-    # 좋은 특성이 더 많으니까 대충 80%는 좋은 특성
-    if random.randint(1, 100) <= 80:
-        return random.choice(good_traits)
-
-    return random.choice(bad_traits)
-    # 보스 뜨면 더블/트리플 무시하고 보스전만 시작
     if first_fish in BOSS_FISH:
-        use_bait()
-        save_data()
-
         view = BossFishingView(user_id, first_fish, rod_name, bait_name)
 
         await interaction.response.edit_message(
@@ -2193,88 +2470,40 @@ async def fishing_success(interaction: discord.Interaction):
     elif roll <= rod.get("triple_chance", 0) + rod["double_chance"]:
         catch_count = 2
 
-    caught_text = []
-
     fish_list = [first_fish]
 
     for _ in range(catch_count - 1):
         fish_name = pick_fish(luck_bonus)
 
-        # 추가 물고기에서 보스가 떠도 보스는 무시하고 일반 물고기 다시 뽑음
         while fish_name in BOSS_FISH:
             fish_name = pick_fish(luck_bonus)
 
         fish_list.append(fish_name)
 
-    for fish_name in fish_list:
-    fish_data = FISH_DATA[fish_name]
-
-    trait_name = roll_fish_trait()
-
-    kg = random.uniform(
-        fish_data["min_kg"],
-        fish_data["max_kg"]
-    )
-
-    display_name = fish_name
-    trait_text = ""
-
-    if trait_name:
-        trait = FISH_TRAITS[trait_name]
-
-        kg *= trait["kg_mult"]
-        display_name = f"{trait_name} {fish_name}"
-
-    kg = round(kg, 2)
-
-    price = fish_price(fish_name, kg)
-
-    if trait_name:
-        price = int(
-            price * FISH_TRAITS[trait_name]["price_mult"]
-        )
-
-        trait_text = (
-            f"\n특성: **{trait_name}**"
-        )
-
-    fish_tanks[user_id].append({
-        "name": fish_name,
-        "display_name": display_name,
-        "trait": trait_name,
-        "kg": kg,
-        "price": price
-    })
-
-    fish_dex[user_id].add(fish_name)
-
-    caught_text.append(
-        f"잡은 물고기: **{display_name}**\n"
-        f"무게: **{kg}kg**\n"
-        f"예상 판매가: **{money(price)}원**"
-        f"{trait_text}"
-    )
-
-    use_bait()
-    save_data()
-
     bonus_text = ""
 
     if catch_count == 3:
-        bonus_text = "\n\n🌊🔥 **트리플 낚시 발동!**\n"
+        bonus_text = "\n🌊🔥 **트리플 낚시 발동!**"
     elif catch_count == 2:
-        bonus_text = "\n\n🔥 **더블 낚시 발동!**\n"
+        bonus_text = "\n🔥 **더블 낚시 발동!**"
+
+    view = FishBattleView(user_id, fish_list, rod_name, bait_name)
 
     await interaction.response.edit_message(
         content=(
-            f"🎣 낚시 성공!"
-            f"{bonus_text}\n"
-            f"사용 낚싯대: **{rod_name}**\n"
-            f"사용 미끼: **{bait_name}**\n\n"
-            + "\n\n".join(caught_text)
+            f"🌊 물고기가 걸렸다...{bonus_text}\n"
+            f"상황에 맞게 대응해야 한다!"
         ),
-        view=None
+        view=view
     )
+
+    view.message = await interaction.original_response()
+    await view.next_round()
+
+
+# =========================
+# 명령어
+# =========================
 
 @bot.tree.command(name="낚시", description="버튼 타이밍에 맞춰 물고기를 낚는다", guild=GUILD)
 async def fishing(interaction: discord.Interaction):
@@ -2307,10 +2536,13 @@ async def fishing(interaction: discord.Interaction):
 
     view.message = await interaction.original_response()
     asyncio.create_task(view.start_waiting())
+
+
 @bot.tree.command(name="어항", description="내가 잡은 물고기 목록 확인", guild=GUILD)
 async def fish_tank(interaction: discord.Interaction):
     user_id = interaction.user.id
     get_tank(user_id)
+    update_fish_market()
 
     tank = fish_tanks[user_id]
 
@@ -2321,10 +2553,7 @@ async def fish_tank(interaction: discord.Interaction):
     count_data = {}
 
     for fish in tank:
-        name = fish.get(
-            "display_name",
-            fish["name"]
-        )
+        name = fish.get("display_name", fish["name"])
 
         if name not in count_data:
             count_data[name] = {
@@ -2335,10 +2564,13 @@ async def fish_tank(interaction: discord.Interaction):
 
         count_data[name]["count"] += 1
         count_data[name]["total_kg"] += fish["kg"]
-        count_data[name]["total_price"] += fish["price"]
+        count_data[name]["total_price"] += get_market_price(
+            fish["name"],
+            fish["price"]
+        )
 
     text = "\n".join(
-        f"{name}: {data['count']}마리 / 총 {round(data['total_kg'], 2)}kg / 총 {data['total_price']}원"
+        f"{name}: {data['count']}마리 / 총 {round(data['total_kg'], 2)}kg / 현재 총 판매가 {money(data['total_price'])}원"
         for name, data in count_data.items()
     )
 
@@ -2357,29 +2589,41 @@ async def sell_fish(interaction: discord.Interaction, 물고기: str, 갯수: in
 
     get_wallet(user_id)
     get_tank(user_id)
+    update_fish_market()
 
     if 갯수 <= 0:
         await interaction.response.send_message("❌ 1마리 이상 팔아야 한다.", ephemeral=True)
         return
 
-    owned = [fish for fish in fish_tanks[user_id] if fish["name"] == 물고기]
+    owned = [
+        fish for fish in fish_tanks[user_id]
+        if fish.get("display_name", fish["name"]) == 물고기
+        or fish["name"] == 물고기
+    ]
 
     if len(owned) < 갯수:
         await interaction.response.send_message(
-            f"❌ {물고기} 부족함.\n"
-            f"보유: {len(owned)}마리",
+            f"❌ {물고기} 부족함.\n보유: {len(owned)}마리",
             ephemeral=True
         )
         return
 
     sell_list = owned[:갯수]
-    total_price = sum(fish["price"] for fish in sell_list)
+    total_price = sum(
+        get_market_price(fish["name"], fish["price"])
+        for fish in sell_list
+    )
 
     removed = 0
     new_tank = []
 
     for fish in fish_tanks[user_id]:
-        if fish["name"] == 물고기 and removed < 갯수:
+        same_fish = (
+            fish.get("display_name", fish["name"]) == 물고기
+            or fish["name"] == 물고기
+        )
+
+        if same_fish and removed < 갯수:
             removed += 1
             continue
 
@@ -2393,8 +2637,53 @@ async def sell_fish(interaction: discord.Interaction, 물고기: str, 갯수: in
         f"💰 판매 완료!\n\n"
         f"판매 물고기: **{물고기}**\n"
         f"판매 수량: **{갯수}마리**\n"
-        f"획득 금액: **{total_price}원**\n\n"
-        f"현재 잔액: **{money_data[user_id]}원**"
+        f"획득 금액: **{money(total_price)}원**\n\n"
+        f"현재 잔액: **{money(money_data[user_id])}원**"
+    )
+
+
+@bot.tree.command(name="전체팔기", description="어항에 있는 모든 물고기를 판매한다.", guild=GUILD)
+async def sell_all_fish(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_tank(user_id)
+    update_fish_market()
+
+    tank = fish_tanks[user_id]
+
+    if not tank:
+        await interaction.response.send_message("🐠 어항이 비어있다.", ephemeral=True)
+        return
+
+    total_price = sum(
+        get_market_price(fish["name"], fish["price"])
+        for fish in tank
+    )
+
+    total_count = len(tank)
+
+    count_data = {}
+
+    for fish in tank:
+        name = fish.get("display_name", fish["name"])
+        count_data[name] = count_data.get(name, 0) + 1
+
+    fish_tanks[user_id] = []
+    money_data[user_id] += total_price
+    save_data()
+
+    sold_text = "\n".join(
+        f"{name}: {count}마리"
+        for name, count in count_data.items()
+    )
+
+    await interaction.response.send_message(
+        f"💰 **전체 판매 완료!**\n\n"
+        f"{sold_text}\n\n"
+        f"판매 수량: **{total_count}마리**\n"
+        f"획득 금액: **{money(total_price)}원**\n\n"
+        f"현재 잔액: **{money(money_data[user_id])}원**"
     )
 
 
@@ -2420,11 +2709,10 @@ async def fish_book(interaction: discord.Interaction):
 @bot.tree.command(name="물고기정보", description="물고기 정보를 확인한다", guild=GUILD)
 @app_commands.describe(물고기="정보를 볼 물고기 이름")
 async def fish_info(interaction: discord.Interaction, 물고기: str):
+    update_fish_market()
+
     if 물고기 not in FISH_DATA:
-        await interaction.response.send_message(
-            "❌ 그런 물고기는 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 그런 물고기는 없음.", ephemeral=True)
         return
 
     data = FISH_DATA[물고기]
@@ -2433,50 +2721,46 @@ async def fish_info(interaction: discord.Interaction, 물고기: str):
         f"🐟 **{물고기} 정보**\n\n"
         f"무게 범위: **{data['min_kg']}kg ~ {data['max_kg']}kg**\n"
         f"서식지: **{data['habitat']}**\n"
-        f"기본 판매가격: **{data['base_price']}원**\n"
-        f"kg당 추가 가격: **{data['kg_price']}원**\n\n"
+        f"기본 판매가격: **{money(data['base_price'])}원**\n"
+        f"kg당 추가 가격: **{money(data['kg_price'])}원**\n"
+        f"{get_market_text(물고기)}\n\n"
         f"판매가 계산식:\n"
-        f"`기본 가격 + kg × kg당 가격`"
+        f"`기본 가격 + kg × kg당 가격 × 현재 시세`"
     )
 
-@bot.tree.command(name="전체팔기", description="어항에 있는 모든 물고기를 판매한다.", guild=GUILD)
-async def sell_all_fish(interaction: discord.Interaction):
-    user_id = interaction.user.id
 
-    get_wallet(user_id)
-    get_tank(user_id)
+@bot.tree.command(name="어시장", description="현재 물고기 시세를 확인한다", guild=GUILD)
+async def fish_market_command(interaction: discord.Interaction):
+    update_fish_market()
+    init_fish_market()
 
-    tank = fish_tanks[user_id]
+    sorted_market = sorted(
+        fish_market.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
 
-    if not tank:
-        await interaction.response.send_message("🐠 어항이 비어있다.", ephemeral=True)
-        return
+    top = sorted_market[:5]
+    bottom = sorted_market[-5:]
 
-    total_price = sum(fish["price"] for fish in tank)
-    total_count = len(tank)
+    top_text = "\n".join(
+        f"📈 **{name}**: {int(rate * 100)}%"
+        for name, rate in top
+    )
 
-    count_data = {}
-
-    for fish in tank:
-        name = fish["name"]
-        count_data[name] = count_data.get(name, 0) + 1
-
-    fish_tanks[user_id] = []
-    money_data[user_id] += total_price
-    save_data()
-
-    sold_text = "\n".join(
-        f"{name}: {count}마리"
-        for name, count in count_data.items()
+    bottom_text = "\n".join(
+        f"📉 **{name}**: {int(rate * 100)}%"
+        for name, rate in bottom
     )
 
     await interaction.response.send_message(
-        f"💰 **전체 판매 완료!**\n\n"
-        f"{sold_text}\n\n"
-        f"판매 수량: **{total_count}마리**\n"
-        f"획득 금액: **{total_price}원**\n\n"
-        f"현재 잔액: **{money_data[user_id]}원**"
+        f"🏪 **현재 어시장 시세**\n\n"
+        f"## 떡상 어종\n{top_text}\n\n"
+        f"## 떡락 어종\n{bottom_text}\n\n"
+        f"시세는 1시간마다 1~7% 변동됨.\n"
+        f"최소 70%, 최대 200%."
     )
+
 
 @bot.tree.command(name="낚시상점", description="낚싯대와 미끼를 구매한다", guild=GUILD)
 @app_commands.describe(
@@ -2518,7 +2802,7 @@ async def fishing_shop(
 
         if money_data[user_id] < price:
             await interaction.response.send_message(
-                f"❌ 돈 부족.\n필요 금액: {price:,}원\n현재 잔액: {money_data[user_id]:,}원",
+                f"❌ 돈 부족.\n필요 금액: {money(price)}원\n현재 잔액: {money(money_data[user_id])}원",
                 ephemeral=True
             )
             return
@@ -2558,12 +2842,13 @@ async def fishing_shop(
         await interaction.response.send_message(
             f"🎣 낚싯대 구매 완료!\n\n"
             f"구매: **{이름}**\n"
-            f"가격: **{price:,}원**\n"
+            f"가격: **{money(price)}원**\n"
             f"사용 광석: **{ore_text}**\n"
             f"자동 장착됨.\n\n"
-            f"현재 잔액: **{money_data[user_id]:,}원**"
+            f"현재 잔액: **{money(money_data[user_id])}원**"
         )
         return
+
     if 종류 == "미끼":
         if 이름 not in BAIT_DATA or 이름 == "미끼 없음":
             await interaction.response.send_message("❌ 그런 미끼는 없음.", ephemeral=True)
@@ -2577,7 +2862,7 @@ async def fishing_shop(
 
         if money_data[user_id] < price:
             await interaction.response.send_message(
-                f"❌ 돈 부족.\n필요 금액: {price}원\n현재 잔액: {money_data[user_id]}원",
+                f"❌ 돈 부족.\n필요 금액: {money(price)}원\n현재 잔액: {money(money_data[user_id])}원",
                 ephemeral=True
             )
             return
@@ -2590,9 +2875,9 @@ async def fishing_shop(
         await interaction.response.send_message(
             f"🪱 미끼 구매 완료!\n\n"
             f"구매: **{이름} x{갯수}개**\n"
-            f"가격: **{price}원**\n"
+            f"가격: **{money(price)}원**\n"
             f"자동 장착됨.\n\n"
-            f"현재 잔액: **{money_data[user_id]}원**"
+            f"현재 잔액: **{money(money_data[user_id])}원**"
         )
 
 
@@ -2614,7 +2899,7 @@ async def fishing_shop_list(interaction: discord.Interaction):
 
         rod_lines.append(
             f"**{name}**\n"
-            f"가격: **{data['price']:,}원**\n"
+            f"가격: **{money(data['price'])}원**\n"
             f"재료: **{ore_text}**\n"
             f"운빨: **+{data['luck']}%**\n"
             f"시간 감소: **{data['time_reduce']}%**\n"
@@ -2625,7 +2910,7 @@ async def fishing_shop_list(interaction: discord.Interaction):
     rod_text = "\n\n".join(rod_lines)
 
     bait_text = "\n".join(
-        f"**{name}** - {data['price']:,}원 / 희귀 확률 +{data['luck']}%"
+        f"**{name}** - {money(data['price'])}원 / 희귀 확률 +{data['luck']}%"
         for name, data in BAIT_DATA.items()
         if name != "미끼 없음"
     )
@@ -2638,6 +2923,7 @@ async def fishing_shop_list(interaction: discord.Interaction):
         f"예시: `/낚시상점 낚싯대 강태공의 낚싯대`\n"
         f"예시: `/낚시상점 미끼 지렁이 5`"
     )
+
 
 @bot.tree.command(name="보유낚싯대", description="내가 가진 낚싯대를 확인한다", guild=GUILD)
 async def my_rods(interaction: discord.Interaction):
@@ -2729,6 +3015,7 @@ async def equip_bait(interaction: discord.Interaction, 이름: str = None):
     await interaction.response.send_message(
         f"🪱 미끼 장착 완료!\n현재 미끼: **{이름}**"
     )
+
 # =========================
 # 농사 시스템
 # =========================
