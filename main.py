@@ -5910,7 +5910,7 @@ class BossRaidView(discord.ui.View):
         await self.update_msg(
             interaction,
             f"🛡️ 방어 자세를 취했다.\n"
-            f"❤️ +{heal} HP 회복"."
+            f"❤️ +{heal} HP 회복"
         )
 
     @discord.ui.button(label="회피", style=discord.ButtonStyle.success)
