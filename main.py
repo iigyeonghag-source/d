@@ -4317,8 +4317,8 @@ PICKAXE_DATA = {
         "triple_chance": 0
     },
     "돌 곡괭이": {
-        "price": 50000,
-        "ores": {"돌": 10, "석탄": 3},
+        "price": 25000,
+        "ores": {"돌": 3, "석탄": 1},
         "luck": 5,
         "time_reduce": 5,
         "double_chance": 4,
@@ -4778,7 +4778,11 @@ class MiningBlockButton(discord.ui.Button):
             view.stop()
             return
 
-        luck_bonus = view.pickaxe["luck"] + get_pendant_luck(view.user_id)
+        luck_bonus = (
+            view.pickaxe["luck"]
+            + get_pendant_luck(view.user_id)
+            + (40 if view.premium else 0)
+        )
 
         if view.premium:
             ore_name = pick_ore_premium(luck_bonus)
@@ -5379,12 +5383,13 @@ async def collect_mine(interaction: discord.Interaction):
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
 
-@bot.tree.command(name="광질2", description="10만원을 내고 5분마다 고급 광질을 한다", guild=GUILD)
+@bot.tree.command(name="광질2", description="5만원을 내고 5분마다 고급 광질을 한다", guild=GUILD)
 async def mining_premium(interaction: discord.Interaction):
     user_id = interaction.user.id
     now = datetime.now()
 
     get_wallet(user_id)
+    get_pendant(user_id)
     get_mining(user_id)
 
     cost = 50000
