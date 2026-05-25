@@ -650,6 +650,7 @@ async def recommend_menu(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"오늘의 추천 메뉴는 **{menu}**"
     )
+
 # =========================
 # 룰렛 시스템
 # =========================
@@ -679,6 +680,7 @@ JACKPOT_MULTIPLIER = {
     "💎": 7,
     "7️⃣": 10
 }
+
 
 def get_weighted_slot(luck_bonus=0):
     symbols = list(SLOT_WEIGHTS.keys())
@@ -740,8 +742,7 @@ async def roulette_log(interaction: discord.Interaction):
         f"📊 **룰렛 로그**\n\n"
         f"🎰 룰렛 횟수: **{log['plays']}회**\n"
         f"💸 쓴 금액: **{log['spent']}원**\n"
-        f"💰 딴 금액: **{log['earned']}원**\n"
-        f"🔥 천장 게이지: **{log['gauge']} / 100**\n\n"
+        f"💰 딴 금액: **{log['earned']}원**\n\n"
         f"나온 심볼 개수:\n{symbol_text}"
     )
 
@@ -830,20 +831,12 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
         money_data[user_id] += reward
         roulette_logs[user_id]["earned"] += reward
 
-        if pity_activated:
-            result_text += (
-                f"🔥 천장 발동! 🔥\n"
-                f"{slots[0]} 3개 확정!\n"
-                f"{multiplier}배 지급!\n\n"
-                f"💰 +{reward}원"
-            )
-        else:
-            result_text += (
-                f"🔥 JACKPOT 🔥\n"
-                f"{slots[0]} 3개 일치!\n"
-                f"{multiplier}배 지급!\n\n"
-                f"💰 +{reward}원"
-            )
+        result_text += (
+            f"🔥 JACKPOT 🔥\n"
+            f"{slots[0]} 3개 일치!\n"
+            f"{multiplier}배 지급!\n\n"
+            f"💰 +{reward}원"
+        )
 
     elif slots[0] == slots[1] or slots[1] == slots[2] or slots[0] == slots[2]:
         reward = int(베팅 * 0.5)
@@ -866,13 +859,11 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
 
         result_text += (
             f"☠️ 실패...\n"
-            f"💸 -{베팅}원\n\n"
-            f"🔥 천장 게이지 +{gauge_add}"
+            f"💸 -{베팅}원"
         )
 
     result_text += (
-        f"\n\n🔥 천장 게이지: **{roulette_logs[user_id]['gauge']} / 100**"
-        f"\n현재 잔액: **{money_data[user_id]}원**"
+        f"\n\n현재 잔액: **{money_data[user_id]}원**"
     )
 
     save_data()
