@@ -4562,6 +4562,108 @@ async def crop_book(interaction: discord.Interaction):
         f"\n\n✨ **작물 특성**\n{trait_text}"
     )
 
+@bot.tree.command(name="헛간", description="수확해서 보관 중인 농작물을 확인한다", guild=GUILD)
+async def barn(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_farm(user_id)
+
+    items = [
+        (name, count) for name, count in farm_data[user_id]["crops"].items()
+        if count > 0
+    ]
+
+    if not items:
+        await interaction.response.send_message("🏚️ 헛간이 비어있음.", ephemeral=True)
+        return
+
+    lines = []
+    total_value = 0
+
+    for name, count in sorted(items):
+        price = get_crop_price_for_user(user_id, name)
+        if price is None:
+            price_text = "판매불가"
+            total_text = "-"
+        else:
+            total = price * count
+            total_value += total
+            price_text = f"{price:,}원"
+            total_text = f"{total:,}원"
+
+        lines.append(
+            f"- **{name}** x{count} / 단가 {price_text} / 총 {total_text}"
+        )
+
+    await interaction.response.send_message(
+        f"🌾 **내 헛간**\n\n"
+        + "\n".join(lines)
+        + f"\n\n💰 예상 총 판매가: **{total_value:,}원**"
+    )
+
+@bot.tree.command(name="땅", description="4개의 땅 구역 상태를 확인한다", guild=GUILD)
+async def land_status(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    region_status = get_daily_region_status()
+    region_lines = []
+
+    for region in FARM_REGIONS:
+        state = region_status[region]
+        emoji = REGION_EMOJI[state]
+        effect = REGION_EFFECTS[state]
+
+        plots = []
+        empty_count = 0
+        growing_count = 0
+        ready_count = 0
+
+        for i, plot in enumerate(farm_data[user_id]["field"], start=1):
+            plot_region = get_plot_region(i - 1)
+
+            if plot_region != region:
+                continue
+
+            if plot is None:
+                empty_count += 1
+                plots.append(f"{i}번: 비어있음")
+                continue
+
+            harvest_time = fix_datetime(plot.get("harvest_time"))
+
+            if harvest_time is None:
+                plots.append(f"{i}번: ⚠️ 시간 오류")
+                continue
+
+            crop_name = plot["crop"]
+            fertilizer = "🧪" if plot.get("fertilizer") else ""
+
+            if now >= harvest_time:
+                ready_count += 1
+                plots.append(f"{i}번: 🌾 {crop_name} 수확 가능 {fertilizer}")
+            else:
+                growing_count += 1
+                remain = int((harvest_time - now).total_seconds())
+                minutes = remain // 60
+                seconds = remain % 60
+                plots.append(f"{i}번: 🌱 {crop_name} 성장중 ({minutes}분 {seconds}초) {fertilizer}")
+
+        region_lines.append(
+            f"{emoji} **{region} / {state}**\n"
+            f"성장 x{effect['grow_mult']} / 수확량 x{effect['yield_mult']} / 특성 {effect['trait_bonus']:+}%\n"
+            f"빈 땅: {empty_count}칸 / 성장중: {growing_count}칸 / 수확 가능: {ready_count}칸\n"
+            + "\n".join(plots)
+        )
+
+    await interaction.response.send_message(
+        f"🧑‍🌾 **내 땅 상태** ({get_farm_today_key()})\n\n"
+        + "\n\n".join(region_lines)
+    )
+
+
 @bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
     대상="받을 유저",
