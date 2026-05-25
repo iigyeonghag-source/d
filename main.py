@@ -1712,10 +1712,10 @@ FISH_TRAITS = {
     "썩어가는": {"price_mult": 0.5, "kg_mult": 1.0, "type": "bad"},
 
     # 좋은 특성
-    "싱싱한": {"price_mult": 1.15, "kg_mult": 1.0, "type": "good"},
+    "싱싱한": {"price_mult": 1.15, "kg_mult": 1.1, "type": "good"},
     "윤기나는": {"price_mult": 1.2, "kg_mult": 1.0, "type": "good"},
     "튼실한": {"price_mult": 1.1, "kg_mult": 1.15, "type": "good"},
-    "거대한": {"price_mult": 1.25, "kg_mult": 1.35, "type": "good"},
+    "거대한": {"price_mult": 1.25, "kg_mult": 1.55, "type": "good"},
     "황금빛": {"price_mult": 1.8, "kg_mult": 1.0, "type": "good"},
     "무지개빛": {"price_mult": 2.0, "kg_mult": 1.0, "type": "good"},
     "심연의": {"price_mult": 2.3, "kg_mult": 1.2, "type": "good"},
