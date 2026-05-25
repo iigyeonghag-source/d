@@ -722,51 +722,6 @@ def get_log(user_id):
 
     return False
 
-
-@bot.tree.command(name="돈받기", description="24시간마다 50000원을 받는다", guild=GUILD)
-async def claim_money(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    now = datetime.now()
-
-    get_wallet(user_id)
-
-    last_claim = daily_claims.get(user_id)
-
-    if last_claim and now < last_claim + DAILY_COOLDOWN:
-        remain = (last_claim + DAILY_COOLDOWN) - now
-        hours = remain.seconds // 3600
-        minutes = (remain.seconds % 3600) // 60
-
-        await interaction.response.send_message(
-            f"용돈\n남은 시간: **{hours}시간 {minutes}분**",
-            ephemeral=True
-        )
-        return
-
-    money_data[user_id] += 50000
-    daily_claims[user_id] = now
-    save_data()
-
-    await interaction.response.send_message(
-        f"💰 50000원 받음!\n현재 잔액: **{money_data[user_id]}원**"
-    )
-
-
-@bot.tree.command(name="지갑", description="현재 잔액을 확인한다", guild=GUILD)
-async def wallet(interaction: discord.Interaction):
-    await interaction.response.defer()
-
-    user_id = interaction.user.id
-    created = get_wallet(user_id)
-
-    await interaction.followup.send(
-        f"👛 현재 잔액: **{money_data[user_id]}원**"
-    )
-
-    if created:
-        save_data()
-
-
 @bot.tree.command(name="로그", description="룰렛 기록을 확인한다", guild=GUILD)
 async def roulette_log(interaction: discord.Interaction):
     await interaction.response.defer()
