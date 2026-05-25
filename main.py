@@ -1258,6 +1258,33 @@ FISH_DATA = {
         "chance": 5
     },
 
+    "누군가의 지갑": {
+        "min_kg": 0.1,
+        "max_kg": 0.5,
+        "habitat": "호수",
+        "base_price": 50000,
+        "kg_price": 500,
+        "chance": 1
+    },
+
+    "잃어버린 카드": {
+        "min_kg": 0.1,
+        "max_kg": 0.1,
+        "habitat": "호수",
+        "base_price": 20000,
+        "kg_price": 5000,
+        "chance": 0.1
+    },
+
+    "카시오 시계": {
+        "min_kg": 0.02,
+        "max_kg": 0.04,
+        "habitat": "호수",
+        "base_price": 20000,
+        "kg_price": 1000,
+        "chance": 0.1
+    },
+    
     "붕어": {
         "min_kg": 0.3,
         "max_kg": 2.0,
@@ -2308,6 +2335,67 @@ class FishingButtonView(discord.ui.View):
 # =========================
 # 일반 물고기 힘겨루기
 # =========================
+LOST_ITEM_REWARDS = ["누군가의 지갑", "잃어버린 카드", "카시오 시계"]
+
+
+class LostItemReturnView(discord.ui.View):
+    def __init__(self, user_id, fish):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.fish = fish
+
+    @discord.ui.button(label="주인 찾기", style=discord.ButtonStyle.green)
+    async def find_owner(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니가 주운 거 아님.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+
+        wait_time = random.randint(100, 300)
+
+        await interaction.response.edit_message(
+            content=(
+                f"🔎 **{self.fish['display_name']}**의 주인을 찾는 중...\n\n"
+                f"⏳ 예상 시간: **{wait_time}초**"
+            ),
+            view=self
+        )
+
+        await asyncio.sleep(wait_time)
+
+        reward = random.randint(100000, 200000)
+
+        get_wallet(self.user_id)
+        money_data[self.user_id] += reward
+        save_data()
+
+        await interaction.edit_original_response(
+            content=(
+                f"🙇‍♂️ 주인이 찾아왔다!\n\n"
+                f"“정말 감사합니다! 이거라도 받아주세요.”\n\n"
+                f"🎁 보상금: **{money(reward)}원**\n"
+                f"현재 잔액: **{money(money_data[self.user_id])}원**"
+            ),
+            view=None
+        )
+
+        self.stop()
+
+    @discord.ui.button(label="그냥 보관하기", style=discord.ButtonStyle.gray)
+    async def keep_item(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니가 주운 거 아님.", ephemeral=True)
+            return
+
+        await interaction.response.edit_message(
+            content=f"🎒 **{self.fish['display_name']}**을 그냥 어항에 보관했다.",
+            view=None
+        )
+
+        self.stop()
+
 
 class FishBattleView(discord.ui.View):
     def __init__(self, user_id, fish_list, rod_name, bait_name):
@@ -2353,9 +2441,11 @@ class FishBattleView(discord.ui.View):
 
     async def success(self):
         caught_text = []
+        caught_fish = []
 
         for fish_name in self.fish_list:
             fish = make_fish(self.user_id, fish_name)
+            caught_fish.append(fish)
 
             trait_text = ""
             if fish["trait"]:
@@ -2371,6 +2461,30 @@ class FishBattleView(discord.ui.View):
             )
 
         save_data()
+
+        lost_items = [
+            fish for fish in caught_fish
+            if fish["name"] in LOST_ITEM_REWARDS
+        ]
+
+        if len(lost_items) == 1:
+            lost_item = lost_items[0]
+            view = LostItemReturnView(self.user_id, lost_item)
+
+            await self.message.edit(
+                content=(
+                    f"🎣 **낚시 성공!**\n\n"
+                    f"사용 낚싯대: **{self.rod_name}**\n"
+                    f"사용 미끼: **{self.bait_name}**\n\n"
+                    + "\n\n".join(caught_text)
+                    + "\n\n📦 뭔가 귀중품 같다...\n"
+                    f"**{lost_item['display_name']}**의 주인을 찾을까?"
+                ),
+                view=view
+            )
+
+            self.stop()
+            return
 
         await self.message.edit(
             content=(
@@ -2394,7 +2508,6 @@ class FishBattleView(discord.ui.View):
 
     async def on_timeout(self):
         await self.fail()
-
 
 class FishBattleButton(discord.ui.Button):
     def __init__(self, label):
@@ -3201,6 +3314,68 @@ async def equip_bait(interaction: discord.Interaction, 이름: str = None):
         f"🪱 미끼 장착 완료!\n현재 미끼: **{이름}**"
     )
 
+LOST_ITEM_REWARDS = ["누군가의 지갑", "잃어버린 카드", "카시오 시계"]
+
+
+class LostItemReturnView(discord.ui.View):
+    def __init__(self, user_id, fish):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.fish = fish
+        self.message = None
+
+    @discord.ui.button(label="주인 찾기", style=discord.ButtonStyle.green)
+    async def find_owner(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니가 주운 거 아님.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+
+        wait_time = random.randint(100, 300)
+
+        await interaction.response.edit_message(
+            content=(
+                f"🔎 **{self.fish['display_name']}**의 주인을 찾는 중...\n\n"
+                f"⏳ 예상 시간: **{wait_time}초**"
+            ),
+            view=self
+        )
+
+        await asyncio.sleep(wait_time)
+
+        reward = random.randint(100000, 200000)
+
+        get_wallet(self.user_id)
+        money_data[self.user_id] += reward
+        save_data()
+
+        await interaction.edit_original_response(
+            content=(
+                f"🙇‍♂️ 주인이 찾아왔다!\n\n"
+                f"“정말 감사합니다! 이거라도 받아주세요.”\n\n"
+                f"🎁 보상금: **{money(reward)}원**\n"
+                f"현재 잔액: **{money(money_data[self.user_id])}원**"
+            ),
+            view=None
+        )
+
+        self.stop()
+
+    @discord.ui.button(label="그냥 보관하기", style=discord.ButtonStyle.gray)
+    async def keep_item(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니가 주운 거 아님.", ephemeral=True)
+            return
+
+        await interaction.response.edit_message(
+            content=f"🎒 **{self.fish['display_name']}**을 그냥 어항에 보관했다.",
+            view=None
+        )
+
+        self.stop()
+        
 # =========================
 # 농사 시스템
 # =========================
