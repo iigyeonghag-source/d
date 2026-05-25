@@ -4,7 +4,7 @@ import random
 import asyncio
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from discord import app_commands
 import math
 
@@ -3967,8 +3967,22 @@ async def farm_field(interaction: discord.Interaction):
     )
 
 @bot.tree.command(name="심기", description="현재 땅에 씨앗을 심는다", guild=GUILD)
-@app_commands.describe(작물="심을 작물 이름")
-async def plant_crop(interaction: discord.Interaction, 작물: str):
+@app_commands.describe(
+    작물="심을 작물 이름",
+    비료사용="비료를 사용할지 여부"
+)
+async def plant_crop(
+    interaction: discord.Interaction,
+    작물: str,
+    비료사용: bool = False
+):
+    if 비료사용:
+    if farm_data[user_id]["fertilizer"] <= 0:
+        await interaction.response.send_message(
+            "❌ 비료가 없음.",
+            ephemeral=True
+        )
+        return
     user_id = interaction.user.id
     now = datetime.now()
 
@@ -4021,6 +4035,10 @@ async def plant_crop(interaction: discord.Interaction, 작물: str):
 
     grow_time = int(grow_time * effect["grow_mult"])
 
+    if 비료사용:
+        grow_time = int(grow_time * 0.5)
+        farm_data[user_id]["fertilizer"] -= 1
+    
     farm_data[user_id]["seeds"][작물] -= 1
 
     farm_data[user_id]["field"][target_index] = {
@@ -4028,7 +4046,7 @@ async def plant_crop(interaction: discord.Interaction, 작물: str):
         "planted_at": now,
         "harvest_time": now + timedelta(seconds=grow_time),
         "watered": False,
-        "fertilizer": False,
+        "fertilizer": 비료사용,
         "region": region
     }
 
@@ -4040,10 +4058,14 @@ async def plant_crop(interaction: discord.Interaction, 작물: str):
     )
     
 @bot.tree.command(name="전체심기", description="현재 땅 전체에 씨앗을 심는다", guild=GUILD)
-@app_commands.describe(작물="심을 작물 이름")
+@app_commands.describe(
+    작물="심을 작물 이름",
+    비료사용="비료를 사용할지 여부"
+)
 async def mass_plant(
     interaction: discord.Interaction,
-    작물: str
+    작물: str,
+    비료사용: bool = False
 ):
     user_id = interaction.user.id
     now = datetime.now()
@@ -4085,6 +4107,9 @@ async def mass_plant(
 
     plant_count = min(len(empty_plots), owned)
 
+    if 비료사용:
+        plant_count = min(plant_count, fertilizer_count)
+        
     region = FARM_REGIONS[current_land - 1]
 
     status = get_region_status(region)
@@ -4104,17 +4129,23 @@ async def mass_plant(
 
         grow_time = int(grow_time * effect["grow_mult"])
 
+        if 비료사용:
+            grow_time = int(grow_time * 0.5)
+            
         farm_data[user_id]["field"][i] = {
             "crop": 작물,
             "planted_at": now,
             "harvest_time": now + timedelta(seconds=grow_time),
             "watered": False,
-            "fertilizer": False,
+            "fertilizer": 비료사용,
             "region": region
         }
 
         planted += 1
 
+    if 비료사용:
+    farm_data[user_id]["fertilizer"] -= planted
+    
     farm_data[user_id]["seeds"][작물] -= planted
 
     save_data()
@@ -4124,6 +4155,16 @@ async def mass_plant(
         f"현재 땅: **{current_land}번 땅**\n"
         f"심은 개수: **{planted}개**"
     )
+    if 비료사용:
+        fertilizer_count = farm_data[user_id]["fertilizer"]
+
+    if fertilizer_count <= 0:
+        await interaction.response.send_message(
+            "❌ 비료가 없음.",
+            ephemeral=True
+        )
+        return
+        
 WATER_REDUCE_RATE = 0.25 
 
 @bot.tree.command(name="물주기", description="농밭에 물을 줘서 남은 성장 시간을 줄인다", guild=GUILD)
