@@ -64,7 +64,7 @@ DATA_KEYS = [
     "equipped_pendants",
     "boss_data",
     "boss_tickets",
-"    boss_materials"
+    "boss_materials"
 ]
 
 data = {key: {} for key in DATA_KEYS}
