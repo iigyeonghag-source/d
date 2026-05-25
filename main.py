@@ -1162,7 +1162,7 @@ async def horse_list(interaction: discord.Interaction):
 # 낚시 시스템
 # =========================
 
-FISH_TRAIT_CHANCE = 30
+FISH_TRAIT_CHANCE = 50
 
 FISH_DATA = {
 
@@ -1741,28 +1741,147 @@ FISH_DATA = {
 }
 
 FISH_TRAITS = {
-    # 안 좋은 특성
-    "상처난": {"price_mult": 0.75, "kg_mult": 0.9, "type": "bad"},
-    "비린내 나는": {"price_mult": 0.8, "kg_mult": 1.0, "type": "bad"},
-    "마른": {"price_mult": 0.9, "kg_mult": 0.75, "type": "bad"},
-    "썩어가는": {"price_mult": 0.5, "kg_mult": 1.0, "type": "bad"},
 
+    # =========================
+    # 안 좋은 특성
+    # =========================
+
+    "상처난": {
+        "price_mult": 0.75,
+        "kg_mult": 0.9,
+        "type": "bad",
+        "chance": 35
+    },
+
+    "비린내 나는": {
+        "price_mult": 0.8,
+        "kg_mult": 1.0,
+        "type": "bad",
+        "chance": 30
+    },
+
+    "마른": {
+        "price_mult": 0.9,
+        "kg_mult": 0.75,
+        "type": "bad",
+        "chance": 25
+    },
+
+    "썩어가는": {
+        "price_mult": 0.5,
+        "kg_mult": 1.0,
+        "type": "bad",
+        "chance": 10
+    },
+
+    # =========================
     # 좋은 특성
-    "싱싱한": {"price_mult": 1.15, "kg_mult": 1.1, "type": "good"},
-    "윤기나는": {"price_mult": 1.2, "kg_mult": 1.0, "type": "good"},
-    "튼실한": {"price_mult": 1.1, "kg_mult": 1.15, "type": "good"},
-    "거대한": {"price_mult": 1.25, "kg_mult": 1.55, "type": "good"},
-    "황금빛": {"price_mult": 1.8, "kg_mult": 1.0, "type": "good"},
-    "무지개빛": {"price_mult": 2.0, "kg_mult": 1.0, "type": "good"},
-    "심연의": {"price_mult": 2.3, "kg_mult": 1.2, "type": "good"},
-    "고대의": {"price_mult": 2.5, "kg_mult": 1.25, "type": "good"},
-    "축복받은": {"price_mult": 2.8, "kg_mult": 1.0, "type": "good"},
-    "왕관을 쓴": {"price_mult": 3.0, "kg_mult": 1.1, "type": "good"},
-    "폭풍을 머금은": {"price_mult": 2.2, "kg_mult": 1.15, "type": "good"},
-    "별빛을 품은": {"price_mult": 2.6, "kg_mult": 1.0, "type": "good"},
-    "공허에 물든": {"price_mult": 3.5, "kg_mult": 1.3, "type": "good"},
-    "신의": {"price_mult": 4.0, "kg_mult": 1.0, "type": "good"},
-    "혼돈의": {"price_mult": 5.0, "kg_mult": 1.5, "type": "good"},
+    # =========================
+
+    "싱싱한": {
+        "price_mult": 1.15,
+        "kg_mult": 1.1,
+        "type": "good",
+        "chance": 100
+    },
+
+    "윤기나는": {
+        "price_mult": 1.2,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 90
+    },
+
+    "튼실한": {
+        "price_mult": 1.1,
+        "kg_mult": 1.15,
+        "type": "good",
+        "chance": 85
+    },
+
+    "거대한": {
+        "price_mult": 1.25,
+        "kg_mult": 1.55,
+        "type": "good",
+        "chance": 60
+    },
+
+    "황금빛": {
+        "price_mult": 1.8,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 40
+    },
+
+    "무지개빛": {
+        "price_mult": 2.0,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 25
+    },
+
+    "심연의": {
+        "price_mult": 2.3,
+        "kg_mult": 1.2,
+        "type": "good",
+        "chance": 18
+    },
+
+    "고대의": {
+        "price_mult": 2.5,
+        "kg_mult": 1.25,
+        "type": "good",
+        "chance": 14
+    },
+
+    "축복받은": {
+        "price_mult": 2.8,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 10
+    },
+
+    "왕관을 쓴": {
+        "price_mult": 3.0,
+        "kg_mult": 1.1,
+        "type": "good",
+        "chance": 8
+    },
+
+    "폭풍을 머금은": {
+        "price_mult": 2.2,
+        "kg_mult": 1.15,
+        "type": "good",
+        "chance": 12
+    },
+
+    "별빛을 품은": {
+        "price_mult": 2.6,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 7
+    },
+
+    "공허에 물든": {
+        "price_mult": 3.5,
+        "kg_mult": 1.3,
+        "type": "good",
+        "chance": 4
+    },
+
+    "신의": {
+        "price_mult": 4.0,
+        "kg_mult": 1.0,
+        "type": "good",
+        "chance": 2
+    },
+
+    "혼돈의": {
+        "price_mult": 5.0,
+        "kg_mult": 1.5,
+        "type": "good",
+        "chance": 1
+    }
 }
 
 ROD_DATA = {
@@ -2001,6 +2120,17 @@ def pick_fish(luck_bonus=0):
     return random.choices(names, weights=weights, k=1)[0]
 
 
+def weighted_trait_choice(traits):
+    names = []
+    weights = []
+
+    for name in traits:
+        names.append(name)
+        weights.append(FISH_TRAITS[name]["chance"])
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+
 def roll_fish_trait():
     if random.randint(1, 100) > FISH_TRAIT_CHANCE:
         return None
@@ -2016,10 +2146,9 @@ def roll_fish_trait():
     ]
 
     if random.randint(1, 100) <= 80:
-        return random.choice(good_traits)
+        return weighted_trait_choice(good_traits)
 
-    return random.choice(bad_traits)
-
+    return weighted_trait_choice(bad_traits)
 
 def make_fish(user_id, fish_name):
     fish_data = FISH_DATA[fish_name]
