@@ -3547,7 +3547,7 @@ def get_farm_pendant_bonus(user_id):
 
 def get_farm_today_key():
     # 서버 시간이 UTC여도 한국 날짜 기준으로 24시간마다 바뀌게 함.
-    return (datetime.utcnow() + timedelta(hours=9)).strftime("%Y-%m-%d")
+    return (datetime.now() + timedelta(hours=9)).strftime("%Y-%m-%d")
 
 
 def get_daily_region_status():
@@ -3578,30 +3578,17 @@ def get_region_status(region):
 def get_plot_region(index):
     return FARM_REGIONS[index % len(FARM_REGIONS)]
 
-def get_current_land(user_id):
+
+def get_current_region(user_id):
     get_farm(user_id)
 
-    if "current_land" not in farm_data[user_id]:
-        farm_data[user_id]["current_land"] = 1
+    if "current_region" not in farm_data[user_id]:
+        farm_data[user_id]["current_region"] = FARM_REGIONS[0]
         save_data()
 
-    return farm_data[user_id]["current_land"]
+    return farm_data[user_id]["current_region"]
 
 
-def get_land_range(user_id, land_number=None):
-    get_farm(user_id)
-
-    if land_number is None:
-        land_number = get_current_land(user_id)
-
-    field = farm_data[user_id]["field"]
-    total = len(field)
-
-    start = int(total * (land_number - 1) / 4)
-    end = int(total * land_number / 4)
-
-    return start, end
-    
 def fix_datetime(value):
     if isinstance(value, datetime):
         return value
@@ -3661,6 +3648,11 @@ def get_farm(user_id):
 
     if "fertilizer" not in farm:
         farm["fertilizer"] = 0
+        changed = True
+
+    if "current_region" not in farm or farm["current_region"] not in FARM_REGIONS:
+        # 현재 선택한 재배 지역. /이동으로 바뀌고, /심기 때 이 지역 버프가 저장됨.
+        farm["current_region"] = FARM_REGIONS[0]
         changed = True
 
     if "field" not in farm or not isinstance(farm["field"], list):
@@ -3914,59 +3906,57 @@ async def farm_region_info(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command(name="농밭", description="현재 이동한 농밭 상태 확인", guild=GUILD)
+@bot.tree.command(name="농밭", description="내 농밭 상태 확인", guild=GUILD)
 async def farm_field(interaction: discord.Interaction):
     user_id = interaction.user.id
     now = datetime.now()
 
     get_farm(user_id)
 
-    current_land = get_current_land(user_id)
-
-    start, end = get_land_range(user_id, current_land)
-
-    region = FARM_REGIONS[current_land - 1]
-    status = get_region_status(region)
+    current_region = get_current_region(user_id)
+    current_status = get_region_status(current_region)
+    current_emoji = REGION_EMOJI[current_status]
 
     lines = []
 
-    for i in range(start, end):
-        plot = farm_data[user_id]["field"][i]
-
-        display_num = (i - start) + 1
-
+    for i, plot in enumerate(farm_data[user_id]["field"], start=1):
         if plot is None:
-            lines.append(f"{display_num}번 밭: 비어있음")
+            lines.append(f"{i}번 밭: 비어있음")
             continue
 
         harvest_time = fix_datetime(plot.get("harvest_time"))
 
         if harvest_time is None:
-            lines.append(f"{display_num}번 밭: ⚠️ 시간 오류")
+            lines.append(f"{i}번 밭: ⚠️ 작물 시간 데이터 오류")
             continue
 
         crop_name = plot["crop"]
+        region = plot.get("region", FARM_REGIONS[0])
+        status = get_region_status(region)
+        watered = "💧" if plot.get("watered") else ""
+        fertilizer = "🧪" if plot.get("fertilizer") else ""
+        withered = "🥀" if plot.get("withered") else ""
 
         if now >= harvest_time:
-            lines.append(f"{display_num}번 밭: 🌾 {crop_name} 수확 가능")
+            lines.append(
+                f"{i}번 밭 [{region} / {status}]: 🌾 {crop_name} 수확 가능 {watered}{fertilizer}{withered}"
+            )
         else:
             remain = int((harvest_time - now).total_seconds())
-
             minutes = remain // 60
             seconds = remain % 60
-
             lines.append(
-                f"{display_num}번 밭: 🌱 {crop_name} 성장중 "
-                f"({minutes}분 {seconds}초)"
+                f"{i}번 밭 [{region} / {status}]: 🌱 {crop_name} 성장중 "
+                f"({minutes}분 {seconds}초) {watered}{fertilizer}{withered}"
             )
 
     await interaction.response.send_message(
-        f"🚜 현재 땅: **{current_land}번 땅**\n"
-        f"📍 지역: **{region} / {status}**\n\n"
+        f"🚜 **내 농밭** ({len(farm_data[user_id]['field'])}칸)\n"
+        f"현재 이동 지역: {current_emoji} **{current_region} / {current_status}**\n\n"
         + "\n".join(lines)
     )
 
-@bot.tree.command(name="심기", description="현재 땅에 씨앗을 심는다", guild=GUILD)
+@bot.tree.command(name="심기", description="현재 이동한 지역에서 씨앗을 심는다", guild=GUILD)
 @app_commands.describe(
     작물="심을 작물 이름",
     비료사용="비료를 사용할지 여부"
@@ -3976,69 +3966,48 @@ async def plant_crop(
     작물: str,
     비료사용: bool = False
 ):
-    if 비료사용:
-        if farm_data[user_id]["fertilizer"] <= 0:
-            await interaction.response.send_message(
-                "❌ 비료가 없음.",
-                ephemeral=True
-            )
-            return
     user_id = interaction.user.id
     now = datetime.now()
 
     get_farm(user_id)
 
     if 작물 not in SEED_DATA:
-        await interaction.response.send_message(
-            "❌ 그런 작물 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 그런 작물 없음.", ephemeral=True)
         return
 
     if farm_data[user_id]["seeds"].get(작물, 0) <= 0:
-        await interaction.response.send_message(
-            f"❌ {작물} 씨앗 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ {작물} 씨앗 없음.", ephemeral=True)
         return
 
-    current_land = get_current_land(user_id)
-
-    start, end = get_land_range(user_id, current_land)
+    if 비료사용 and farm_data[user_id].get("fertilizer", 0) <= 0:
+        await interaction.response.send_message("❌ 비료가 없음.", ephemeral=True)
+        return
 
     target_index = None
 
-    for i in range(start, end):
-        if farm_data[user_id]["field"][i] is None:
+    for i, plot in enumerate(farm_data[user_id]["field"]):
+        if plot is None:
             target_index = i
             break
 
     if target_index is None:
-        await interaction.response.send_message(
-            "❌ 현재 땅에 빈 칸이 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
         return
 
-    region = FARM_REGIONS[current_land - 1]
+    region = get_current_region(user_id)
+    status = get_region_status(region)
+    effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
 
     seed = SEED_DATA[작물]
-
-    grow_time = random.randint(
-        seed["grow_min"],
-        seed["grow_max"]
-    )
-
-    status = get_region_status(region)
-
-    effect = REGION_EFFECTS[status]
-
+    grow_time = random.randint(seed["grow_min"], seed["grow_max"])
     grow_time = int(grow_time * effect["grow_mult"])
+    grow_time = int(grow_time * (1 - pendant_bonus["grow_reduce"]))
 
     if 비료사용:
         grow_time = int(grow_time * 0.5)
         farm_data[user_id]["fertilizer"] -= 1
-    
+
     farm_data[user_id]["seeds"][작물] -= 1
 
     farm_data[user_id]["field"][target_index] = {
@@ -4047,17 +4016,23 @@ async def plant_crop(
         "harvest_time": now + timedelta(seconds=grow_time),
         "watered": False,
         "fertilizer": 비료사용,
-        "region": region
+        "region": region,
+        "yield": 1,
+        "trait": None,
+        "withered": False
     }
 
     save_data()
 
     await interaction.response.send_message(
-        f"🌱 {작물} 심었음!\n"
-        f"현재 땅: **{current_land}번 땅**"
+        f"🌱 **{작물}** 심었음!\n\n"
+        f"밭 칸: **{target_index + 1}번**\n"
+        f"심은 지역: **{region} / {status}**\n"
+        f"비료 사용: **{'사용함' if 비료사용 else '안 씀'}**\n"
+        f"수확까지: **{grow_time // 60}분 {grow_time % 60}초**"
     )
-    
-@bot.tree.command(name="전체심기", description="현재 땅 전체에 씨앗을 심는다", guild=GUILD)
+
+@bot.tree.command(name="전체심기", description="현재 이동한 지역에서 빈 밭 전체에 씨앗을 심는다", guild=GUILD)
 @app_commands.describe(
     작물="심을 작물 이름",
     비료사용="비료를 사용할지 여부"
@@ -4073,98 +4048,81 @@ async def mass_plant(
     get_farm(user_id)
 
     if 작물 not in SEED_DATA:
-        await interaction.response.send_message(
-            "❌ 그런 작물 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 그런 작물 없음.", ephemeral=True)
         return
 
     owned = farm_data[user_id]["seeds"].get(작물, 0)
 
     if owned <= 0:
-        await interaction.response.send_message(
-            f"❌ {작물} 씨앗 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ {작물} 씨앗 없음.", ephemeral=True)
         return
 
-    current_land = get_current_land(user_id)
+    fertilizer_count = farm_data[user_id].get("fertilizer", 0)
 
-    start, end = get_land_range(user_id, current_land)
+    if 비료사용 and fertilizer_count <= 0:
+        await interaction.response.send_message("❌ 비료가 없음.", ephemeral=True)
+        return
 
-    empty_plots = []
-
-    for i in range(start, end):
-        if farm_data[user_id]["field"][i] is None:
-            empty_plots.append(i)
+    empty_plots = [
+        i for i, plot in enumerate(farm_data[user_id]["field"])
+        if plot is None
+    ]
 
     if not empty_plots:
-        await interaction.response.send_message(
-            "❌ 현재 땅에 빈 칸이 없음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
         return
 
     plant_count = min(len(empty_plots), owned)
 
     if 비료사용:
         plant_count = min(plant_count, fertilizer_count)
-        
-    region = FARM_REGIONS[current_land - 1]
 
+    region = get_current_region(user_id)
     status = get_region_status(region)
-
     effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
 
     planted = 0
 
     for i in empty_plots[:plant_count]:
-
         seed = SEED_DATA[작물]
-
-        grow_time = random.randint(
-            seed["grow_min"],
-            seed["grow_max"]
-        )
-
+        grow_time = random.randint(seed["grow_min"], seed["grow_max"])
         grow_time = int(grow_time * effect["grow_mult"])
+        grow_time = int(grow_time * (1 - pendant_bonus["grow_reduce"]))
 
         if 비료사용:
             grow_time = int(grow_time * 0.5)
-            
+
         farm_data[user_id]["field"][i] = {
             "crop": 작물,
             "planted_at": now,
             "harvest_time": now + timedelta(seconds=grow_time),
             "watered": False,
             "fertilizer": 비료사용,
-            "region": region
+            "region": region,
+            "yield": 1,
+            "trait": None,
+            "withered": False
         }
 
         planted += 1
 
+    farm_data[user_id]["seeds"][작물] -= planted
+
     if 비료사용:
         farm_data[user_id]["fertilizer"] -= planted
-    
-    farm_data[user_id]["seeds"][작물] -= planted
 
     save_data()
 
     await interaction.response.send_message(
-        f"🌱 {작물} 전체 심기 완료!\n\n"
-        f"현재 땅: **{current_land}번 땅**\n"
-        f"심은 개수: **{planted}개**"
+        f"🌱 **{작물} 전체심기 완료!**\n\n"
+        f"심은 지역: **{region} / {status}**\n"
+        f"심은 개수: **{planted}개**\n"
+        f"비료 사용: **{'사용함' if 비료사용 else '안 씀'}**\n"
+        f"남은 씨앗: **{farm_data[user_id]['seeds'][작물]}개**\n"
+        f"남은 비료: **{farm_data[user_id]['fertilizer']}개**"
     )
-    if 비료사용:
-        fertilizer_count = farm_data[user_id]["fertilizer"]
 
-    if fertilizer_count <= 0:
-        await interaction.response.send_message(
-            "❌ 비료가 없음.",
-            ephemeral=True
-        )
-        return
-        
 WATER_REDUCE_RATE = 0.25 
 
 @bot.tree.command(name="물주기", description="농밭에 물을 줘서 남은 성장 시간을 줄인다", guild=GUILD)
@@ -4474,30 +4432,6 @@ async def sell_all_crop(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command(name="작물가방", description="보유한 농작물 목록을 확인한다", guild=GUILD)
-async def crop_inventory(interaction: discord.Interaction):
-    user_id = interaction.user.id
-
-    get_farm(user_id)
-
-    items = [
-        (name, count) for name, count in farm_data[user_id]["crops"].items()
-        if count > 0
-    ]
-
-    if not items:
-        await interaction.response.send_message("🎒 보유한 농작물이 없음.", ephemeral=True)
-        return
-
-    lines = []
-    for name, count in sorted(items):
-        price = get_crop_price_for_user(user_id, name)
-        price_text = f"{price}원" if price is not None else "판매불가"
-        lines.append(f"- **{name}** x{count} / 단가 {price_text}")
-
-    await interaction.response.send_message(
-        "🎒 **작물 가방**\n\n" + "\n".join(lines)
-    )
 
 
 @bot.tree.command(name="변동가", description="현재 농작물 시세 확인", guild=GUILD)
@@ -4663,13 +4597,14 @@ async def barn(interaction: discord.Interaction):
         + f"\n\n💰 예상 총 판매가: **{total_value:,}원**"
     )
 
-@bot.tree.command(name="땅", description="4개의 땅 구역 상태를 확인한다", guild=GUILD)
+@bot.tree.command(name="땅", description="4개의 농장 지역 상태를 확인한다", guild=GUILD)
 async def land_status(interaction: discord.Interaction):
     user_id = interaction.user.id
     now = datetime.now()
 
     get_farm(user_id)
 
+    current_region = get_current_region(user_id)
     region_status = get_daily_region_status()
     region_lines = []
 
@@ -4678,79 +4613,69 @@ async def land_status(interaction: discord.Interaction):
         emoji = REGION_EMOJI[state]
         effect = REGION_EFFECTS[state]
 
-        plots = []
-        empty_count = 0
         growing_count = 0
         ready_count = 0
 
-        for i, plot in enumerate(farm_data[user_id]["field"], start=1):
-            plot_region = get_plot_region(i - 1)
-
-            if plot_region != region:
+        for plot in farm_data[user_id]["field"]:
+            if not isinstance(plot, dict):
                 continue
 
-            if plot is None:
-                empty_count += 1
-                plots.append(f"{i}번: 비어있음")
+            if plot.get("region") != region:
                 continue
 
             harvest_time = fix_datetime(plot.get("harvest_time"))
-
             if harvest_time is None:
-                plots.append(f"{i}번: ⚠️ 시간 오류")
                 continue
-
-            crop_name = plot["crop"]
-            fertilizer = "🧪" if plot.get("fertilizer") else ""
 
             if now >= harvest_time:
                 ready_count += 1
-                plots.append(f"{i}번: 🌾 {crop_name} 수확 가능 {fertilizer}")
             else:
                 growing_count += 1
-                remain = int((harvest_time - now).total_seconds())
-                minutes = remain // 60
-                seconds = remain % 60
-                plots.append(f"{i}번: 🌱 {crop_name} 성장중 ({minutes}분 {seconds}초) {fertilizer}")
+
+        selected = " ✅ 현재 위치" if region == current_region else ""
 
         region_lines.append(
-            f"{emoji} **{region} / {state}**\n"
+            f"{emoji} **{region} / {state}**{selected}\n"
             f"성장 x{effect['grow_mult']} / 수확량 x{effect['yield_mult']} / 특성 {effect['trait_bonus']:+}%\n"
-            f"빈 땅: {empty_count}칸 / 성장중: {growing_count}칸 / 수확 가능: {ready_count}칸\n"
-            + "\n".join(plots)
+            f"성장중: {growing_count}칸 / 수확 가능: {ready_count}칸"
         )
 
     await interaction.response.send_message(
-        f"🧑‍🌾 **내 땅 상태** ({get_farm_today_key()})\n\n"
+        f"🧑‍🌾 **농장 지역 상태** ({get_farm_today_key()})\n\n"
         + "\n\n".join(region_lines)
+        + "\n\n이동 예시: `/이동 남부 농장`"
     )
 
-@bot.tree.command(name="이동", description="사용할 땅으로 이동한다", guild=GUILD)
-@app_commands.describe(땅="이동할 땅 번호 1~4")
-async def move_land(interaction: discord.Interaction, 땅: int):
+@bot.tree.command(name="이동", description="농작물을 심을 농장 지역으로 이동한다", guild=GUILD)
+@app_commands.describe(지역="이동할 지역 이름: 동부 농장 / 서부 농장 / 남부 농장 / 북부 농장")
+async def move_region(interaction: discord.Interaction, 지역: str):
     user_id = interaction.user.id
 
     get_farm(user_id)
 
-    if 땅 < 1 or 땅 > 4:
+    if 지역 not in FARM_REGIONS:
         await interaction.response.send_message(
-            "❌ 땅은 1~4번만 가능.",
+            "❌ 지역은 동부 농장 / 서부 농장 / 남부 농장 / 북부 농장 중 하나여야 함.",
             ephemeral=True
         )
         return
 
-    farm_data[user_id]["current_land"] = 땅
+    farm_data[user_id]["current_region"] = 지역
     save_data()
 
-    region = FARM_REGIONS[땅 - 1]
-    status = get_region_status(region)
+    status = get_region_status(지역)
+    emoji = REGION_EMOJI[status]
 
     await interaction.response.send_message(
-        f"🚶 {땅}번 땅으로 이동함!\n"
-        f"현재 지역: **{region} / {status}**"
+        f"🚶 **{지역}**으로 이동함!\n"
+        f"{emoji} 현재 상태: **{status}**\n"
+        f"이제 `/심기`나 `/전체심기`를 쓰면 이 지역 효과로 심어짐."
     )
 
-
+# =========================
+# 거래 시스템
+# =========================
+        
 @bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
     대상="받을 유저",
