@@ -4113,6 +4113,7 @@ async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료�
         f"남은 씨앗: **{farm_data[user_id]['seeds'][씨앗]}개**"
     )
 
+WATER_REDUCE_RATE = 0.25 
 
 @bot.tree.command(name="물주기", description="농밭에 물을 줘서 남은 성장 시간을 줄인다", guild=GUILD)
 @app_commands.describe(칸="물을 줄 밭 칸")
@@ -4672,91 +4673,6 @@ async def land_status(interaction: discord.Interaction):
         + "\n\n".join(region_lines)
     )
 
-WATER_REDUCE_RATE = 0.25 
-
-watering_cooldowns = globals().get("watering_cooldowns", {})
-WATERING_COOLDOWN = timedelta(hours=1)
-
-@bot.tree.command(name="물주기", description="농밭 전체에 물을 줘서 성장 시간을 줄인다", guild=GUILD)
-async def water_crop(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    now = datetime.now()
-
-    get_farm(user_id)
-
-    last_water = watering_cooldowns.get(user_id)
-
-    if last_water and now < last_water + WATERING_COOLDOWN:
-        remain = (last_water + WATERING_COOLDOWN) - now
-
-        minutes = remain.seconds // 60
-        seconds = remain.seconds % 60
-
-        await interaction.response.send_message(
-            f"💧 물뿌리개 다시 채우는 중...\n"
-            f"남은 시간: **{minutes}분 {seconds}초**",
-            ephemeral=True
-        )
-        return
-
-    watered_count = 0
-    already_watered = 0
-    ready_count = 0
-    empty_count = 0
-    reduced_total = 0
-
-    for plot in farm_data[user_id]["field"]:
-        if plot is None:
-            empty_count += 1
-            continue
-
-        if plot.get("watered"):
-            already_watered += 1
-            continue
-
-        harvest_time = fix_datetime(plot.get("harvest_time"))
-
-        if harvest_time is None:
-            continue
-
-        if now >= harvest_time:
-            ready_count += 1
-            continue
-
-        remaining = harvest_time - now
-        reduced_seconds = int(remaining.total_seconds() * WATER_REDUCE_RATE)
-
-        plot["harvest_time"] = harvest_time - timedelta(seconds=reduced_seconds)
-        plot["watered"] = True
-
-        watered_count += 1
-        reduced_total += reduced_seconds
-
-    if watered_count <= 0:
-        await interaction.response.send_message(
-            f"💧 물 줄 작물이 없음.\n\n"
-            f"빈 밭: **{empty_count}칸**\n"
-            f"이미 물 준 밭: **{already_watered}칸**\n"
-            f"수확 가능: **{ready_count}칸**",
-            ephemeral=True
-        )
-        return
-
-    watering_cooldowns[user_id] = now
-
-    save_data()
-
-    minutes = reduced_total // 60
-    seconds = reduced_total % 60
-
-    await interaction.response.send_message(
-        f"💧 **농밭 전체에 물을 줬음!**\n\n"
-        f"물 준 작물: **{watered_count}개**\n"
-        f"총 단축 시간: **{minutes}분 {seconds}초**\n\n"
-        f"이미 물 준 밭: **{already_watered}칸**\n"
-        f"빈 밭: **{empty_count}칸**\n"
-        f"수확 가능이라 제외된 밭: **{ready_count}칸**"
-    )
 
 @bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
