@@ -4144,7 +4144,7 @@ async def mass_plant(
         planted += 1
 
     if 비료사용:
-    farm_data[user_id]["fertilizer"] -= planted
+        farm_data[user_id]["fertilizer"] -= planted
     
     farm_data[user_id]["seeds"][작물] -= planted
 
