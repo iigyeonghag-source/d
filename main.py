@@ -31,6 +31,10 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = "/data/data.json"
 
 DATA_KEYS = [
+    "owned_weapons",
+    "equipped_weapon",
+    "owned_armors",
+    "equipped_armor",
     "money_data",
     "daily_claims",
     "roulette_logs",
@@ -57,7 +61,10 @@ DATA_KEYS = [
     "mine_data",
     "mining_cooldowns",
     "owned_pendants",
-    "equipped_pendants"
+    "equipped_pendants",
+    "boss_data",
+    "boss_tickets",
+"    boss_materials"
 ]
 
 data = {key: {} for key in DATA_KEYS}
@@ -109,6 +116,19 @@ def bind_storage_globals():
     global ore_bags, owned_pickaxes, equipped_pickaxes
     global mine_data, mining_cooldowns
     global owned_pendants, equipped_pendants
+    global boss_data, boss_tickets, boss_materials
+    global owned_weapons, equipped_weapon
+    global owned_armors, equipped_armor
+
+    owned_weapons = data["owned_weapons"]
+    equipped_weapon = data["equipped_weapon"]
+
+    owned_armors = data["owned_armors"]
+    equipped_armor = data["equipped_armor"]
+    
+    boss_data = data["boss_data"]
+    boss_tickets = data["boss_tickets"]
+    boss_materials = data["boss_materials"]
     
     money_data = data["money_data"]
     daily_claims = data["daily_claims"]
@@ -178,6 +198,15 @@ def sync_storage_globals():
     data["owned_pendants"] = owned_pendants
     data["equipped_pendants"] = equipped_pendants
 
+    data["boss_data"] = boss_data
+    data["boss_tickets"] = boss_tickets
+    data["boss_materials"] = boss_materials
+
+    data["owned_weapons"] = owned_weapons
+    data["equipped_weapon"] = equipped_weapon
+
+    data["owned_armors"] = owned_armors
+    data["equipped_armor"] = equipped_armor
 
 def load_data():
     global data
@@ -190,6 +219,13 @@ def load_data():
             data[key] = loaded.get(key, {})
 
     for key in [
+        "owned_weapons",
+        "equipped_weapon",
+        "owned_armors",
+        "equipped_armor",
+        "boss_data",
+        "boss_tickets",
+        "boss_materials",
         "money_data",
         "bank_data",
         "loan_data",
@@ -5509,5 +5545,814 @@ async def pendant_info_or_equip(
         f"추가 운: **+{PENDANT_DATA[이름]['luck']}**\n\n"
         f"현재 총 펜던트 운: **+{get_pendant_luck(user_id)}**"
     )
+
+# =========================
+# 간단 RPG 보스 시스템
+# =========================
+
+BOSS_TICKET_PRICE = 1_000_000
+
+BOSS_DATA = {
+    "고블린 킹": {
+        "hp": 5000,
+        "price": 1_000_000,
+        "material": "고블린 왕관",
+        "drop_min": 1,
+        "drop_max": 3,
+        "reward": 300_000
+    },
+    "심연의 골렘": {
+        "hp": 88500,
+        "price": 5_000_000,
+        "material": "심연의 핵",
+        "drop_min": 1,
+        "drop_max": 2,
+        "reward": 1_000_000
+    },
+    "레드 드래곤": {
+        "hp": 300000,
+        "price": 15_000_000,
+        "material": "붉은 용비늘",
+        "drop_min": 1,
+        "drop_max": 2,
+        "reward": 3_000_000
+    },
+    "공허의 군주": {
+        "hp": 5000000,
+        "price": 50_000_000,
+        "material": "공허의 파편",
+        "drop_min": 1,
+        "drop_max": 1,
+        "reward": 10_000_000
+    }
+}
+
+BOSS_EQUIP_DATA = {
+    "고블린 의 검": {
+        "material": "고블린 왕관",
+        "need": 10,
+        "price": 2_000_000,
+        "power": 15
+    },
+    "심연의 갑옷": {
+        "material": "심연의 핵",
+        "need": 12,
+        "price": 8_000_000,
+        "power": 35
+    },
+    "레드 드래곤의 창": {
+        "material": "붉은 용비늘",
+        "need": 15,
+        "price": 25_000_000,
+        "power": 70
+    },
+    "공허의 대검": {
+        "material": "공허의 파편",
+        "need": 20,
+        "price": 100_000_000,
+        "power": 150
+    }
+}
+
+# =========================
+# 일반 상점 장비
+# =========================
+
+WEAPON_DATA = {
+    "녹슨 단검": {
+        "price": 50000,
+        "power": 3
+    },
+    "훈련용 검": {
+        "price": 120000,
+        "power": 6
+    },
+    "철검": {
+        "price": 350000,
+        "power": 12
+    },
+    "강철 대검": {
+        "price": 700000,
+        "power": 18
+    },
+    "기사의 장검": {
+        "price": 1500000,
+        "power": 26
+    },
+    "용병의 도끼": {
+        "price": 3000000,
+        "power": 35
+    },
+    "마력의 지팡이": {
+        "price": 5500000,
+        "power": 48
+    },
+    "암살자의 쌍검": {
+        "price": 9000000,
+        "power": 62
+    },
+    "흑요석 검": {
+        "price": 15000000,
+        "power": 80
+    },
+    "용사왕의 검": {
+        "price": 25000000,
+        "power": 105
+    },
+    "천공의 창": {
+        "price": 40000000,
+        "power": 135
+    },
+    "혼돈 파쇄자": {
+        "price": 70000000,
+        "power": 170
+    },
+    "심연 절단자": {
+        "price": 120000000,
+        "power": 220
+    },
+    "별의 집행자": {
+        "price": 250000000,
+        "power": 300
+    },
+    "신멸의 대검": {
+        "price": 500000000,
+        "power": 420
+    }
+}
+
+ARMOR_DATA = {
+    "찢어진 천옷": {
+        "price": 40000,
+        "hp": 15
+    },
+    "가죽 갑옷": {
+        "price": 100000,
+        "hp": 35
+    },
+    "철 갑옷": {
+        "price": 300000,
+        "hp": 60
+    },
+    "강철 갑옷": {
+        "price": 650000,
+        "hp": 90
+    },
+    "기사 갑주": {
+        "price": 1400000,
+        "hp": 130
+    },
+    "중장 전투복": {
+        "price": 2800000,
+        "hp": 180
+    },
+    "마력 로브": {
+        "price": 5000000,
+        "hp": 240
+    },
+    "암흑 갑주": {
+        "price": 8500000,
+        "hp": 320
+    },
+    "흑요석 갑옷": {
+        "price": 14000000,
+        "hp": 420
+    },
+    "용비늘 갑옷": {
+        "price": 23000000,
+        "hp": 540
+    },
+    "천공 수호복": {
+        "price": 38000000,
+        "hp": 700
+    },
+    "심연 판금갑": {
+        "price": 65000000,
+        "hp": 920
+    },
+    "별빛 수호갑": {
+        "price": 110000000,
+        "hp": 1200
+    },
+    "공허의 갑주": {
+        "price": 220000000,
+        "hp": 1650
+    },
+    "신성 파괴자 갑옷": {
+        "price": 450000000,
+        "hp": 2400
+    }
+}
+
+def get_boss_user(user_id):
+    changed = False
+
+    if user_id not in boss_tickets:
+        boss_tickets[user_id] = {}
+        changed = True
+
+    if user_id not in boss_materials:
+        boss_materials[user_id] = {}
+        changed = True
+
+    if user_id not in boss_data:
+        boss_data[user_id] = {
+            "equips": [],
+            "equipped": None
+        }
+        changed = True
+
+    boss_data[user_id].setdefault("equips", [])
+    boss_data[user_id].setdefault("equipped", None)
+
+    return changed
+
+
+def get_boss_power(user_id):
+    get_boss_user(user_id)
+
+    equipped = boss_data[user_id].get("equipped")
+
+    if not equipped:
+        return 10
+
+    return 10 + BOSS_EQUIP_DATA.get(equipped, {}).get("power", 0)
+
+
+class BossRaidView(discord.ui.View):
+    def __init__(self, user_id, boss_name):
+        super().__init__(timeout=40)
+
+        self.user_id = user_id
+        self.boss_name = boss_name
+        self.boss = BOSS_DATA[boss_name]
+
+        self.boss_hp = self.boss["hp"]
+        self.fail_count = 0
+        self.message = None
+
+    async def update_msg(self, interaction=None, text=""):
+        content = (
+            f"👹 **보스전: {self.boss_name}**\n\n"
+            f"❤️ 보스 체력: **{self.boss_hp}/{self.boss['hp']}**\n"
+            f"⚔️ 내 전투력: **{get_total_power(self.user_id)}**\n\n"
+            f"{text}"
+        )
+
+        if interaction:
+            await interaction.response.edit_message(content=content, view=self)
+        else:
+            await self.message.edit(content=content, view=self)
+
+    async def win(self, interaction):
+        get_wallet(self.user_id)
+        get_boss_user(self.user_id)
+
+        material = self.boss["material"]
+        amount = random.randint(self.boss["drop_min"], self.boss["drop_max"])
+        reward = self.boss["reward"]
+
+        boss_materials[self.user_id][material] = boss_materials[self.user_id].get(material, 0) + amount
+        money_data[self.user_id] += reward
+
+        save_data()
+
+        await interaction.response.edit_message(
+            content=(
+                f"🏆 **보스 처치 성공!**\n\n"
+                f"처치한 보스: **{self.boss_name}**\n"
+                f"획득 재료: **{material} x{amount}**\n"
+                f"획득 돈: **{money(reward)}원**\n\n"
+                f"현재 잔액: **{money(money_data[self.user_id])}원**"
+            ),
+            view=None
+        )
+
+        self.stop()
+
+    async def lose(self, interaction):
+        await interaction.response.edit_message(
+            content=(
+                f"💀 **보스전 실패...**\n\n"
+                f"보스 **{self.boss_name}**에게 밀려났다.\n"
+                f"입장권은 사라졌다..."
+            ),
+            view=None
+        )
+
+        self.stop()
+
+    @discord.ui.button(label="공격", style=discord.ButtonStyle.danger)
+    async def attack(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
+            return
+
+        dmg = random.randint(
+            int(get_total_power(self.user_id) * 0.8),
+            int(get_total_power(self.user_id) * 1.3)
+        )
+
+        self.boss_hp -= dmg
+
+        if self.boss_hp <= 0:
+            await self.win(interaction)
+            return
+
+        if random.randint(1, 100) <= 20:
+            self.fail_count += 1
+            if self.fail_count >= 3:
+                await self.lose(interaction)
+                return
+
+            await self.update_msg(
+                interaction,
+                f"🗡️ **{dmg}** 피해!\n💥 보스의 반격을 맞았다..."
+            )
+            return
+
+        await self.update_msg(
+            interaction,
+            f"🗡️ **{dmg}** 피해를 입혔다!"
+        )
+
+    @discord.ui.button(label="방어", style=discord.ButtonStyle.primary)
+    async def defend(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
+            return
+
+        heal = random.randint(5, 20)
+        self.fail_count = max(0, self.fail_count - 1)
+
+        await self.update_msg(
+            interaction,
+            f"🛡️ 자세를 가다듬었다.\n위험도가 조금 낮아졌다."
+        )
+
+    @discord.ui.button(label="회피", style=discord.ButtonStyle.success)
+    async def dodge(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
+            return
+
+        if random.randint(1, 100) <= 60:
+            await self.update_msg(
+                interaction,
+                "💨 보스의 공격을 피했다!"
+            )
+        else:
+            self.fail_count += 1
+
+            if self.fail_count >= 3:
+                await self.lose(interaction)
+                return
+
+            await self.update_msg(
+                interaction,
+                "💥 회피 실패! 보스의 공격을 맞았다..."
+            )
+
+    async def on_timeout(self):
+        if self.message:
+            await self.message.edit(
+                content="⏰ 시간이 지나 보스가 사라졌다...",
+                view=None
+            )
+
+
+@bot.tree.command(name="보스목록", description="도전 가능한 보스 목록", guild=GUILD)
+async def boss_list(interaction: discord.Interaction):
+    text = "\n\n".join(
+        f"**{name}**\n"
+        f"입장권 가격: **{money(data['price'])}원**\n"
+        f"체력: **{data['hp']}**\n"
+        f"드랍: **{data['material']}**"
+        for name, data in BOSS_DATA.items()
+    )
+
+    await interaction.response.send_message(
+        f"👹 **보스 목록**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="보스입장권", description="보스 입장권을 구매한다", guild=GUILD)
+@app_commands.describe(보스="입장권을 구매할 보스 이름", 갯수="구매할 갯수")
+async def buy_boss_ticket(interaction: discord.Interaction, 보스: str, 갯수: int = 1):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_boss_user(user_id)
+
+    if 보스 not in BOSS_DATA:
+        await interaction.response.send_message("❌ 그런 보스는 없음.", ephemeral=True)
+        return
+
+    if 갯수 <= 0:
+        await interaction.response.send_message("❌ 1개 이상 구매해야 함.", ephemeral=True)
+        return
+
+    price = BOSS_DATA[보스]["price"] * 갯수
+
+    if money_data[user_id] < price:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n필요 금액: **{money(price)}원**\n현재 잔액: **{money(money_data[user_id])}원**",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= price
+    boss_tickets[user_id][보스] = boss_tickets[user_id].get(보스, 0) + 갯수
+    save_data()
+
+    await interaction.response.send_message(
+        f"🎟️ 보스 입장권 구매 완료!\n\n"
+        f"보스: **{보스}**\n"
+        f"수량: **{갯수}장**\n"
+        f"사용 금액: **{money(price)}원**\n\n"
+        f"현재 잔액: **{money(money_data[user_id])}원**"
+    )
+
+
+@bot.tree.command(name="보스도전", description="보스에게 도전한다", guild=GUILD)
+@app_commands.describe(보스="도전할 보스 이름")
+async def boss_challenge(interaction: discord.Interaction, 보스: str):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_boss_user(user_id)
+
+    if 보스 not in BOSS_DATA:
+        await interaction.response.send_message("❌ 그런 보스는 없음.", ephemeral=True)
+        return
+
+    if boss_tickets[user_id].get(보스, 0) <= 0:
+        await interaction.response.send_message("❌ 해당 보스 입장권이 없음.", ephemeral=True)
+        return
+
+    boss_tickets[user_id][보스] -= 1
+
+    if boss_tickets[user_id][보스] <= 0:
+        del boss_tickets[user_id][보스]
+
+    save_data()
+
+    view = BossRaidView(user_id, 보스)
+
+    await interaction.response.send_message(
+        f"🌑 **보스전 입장...**\n\n"
+        f"👹 **{보스}**가 나타났다!",
+        view=view
+    )
+
+    view.message = await interaction.original_response()
+    await view.update_msg()
+
+
+@bot.tree.command(name="보스가방", description="보스 재료와 입장권 확인", guild=GUILD)
+async def boss_bag(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_boss_user(user_id)
+
+    ticket_text = "\n".join(
+        f"🎟️ {name}: {count}장"
+        for name, count in boss_tickets[user_id].items()
+    ) or "없음"
+
+    material_text = "\n".join(
+        f"🧩 {name}: {count}개"
+        for name, count in boss_materials[user_id].items()
+    ) or "없음"
+
+    equips = boss_data[user_id].get("equips", [])
+    equipped = boss_data[user_id].get("equipped")
+
+    equip_text = "\n".join(
+        f"{'✅ ' if item == equipped else ''}{item}"
+        for item in equips
+    ) or "없음"
+
+    await interaction.response.send_message(
+        f"🎒 **보스 가방**\n\n"
+        f"## 입장권\n{ticket_text}\n\n"
+        f"## 재료\n{material_text}\n\n"
+        f"## 장비\n{equip_text}"
+    )
+
+
+@bot.tree.command(name="보스장비제작", description="보스 재료로 장비를 제작한다", guild=GUILD)
+@app_commands.describe(장비="제작할 장비 이름")
+async def craft_boss_equip(interaction: discord.Interaction, 장비: str):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_boss_user(user_id)
+
+    if 장비 not in BOSS_EQUIP_DATA:
+        await interaction.response.send_message("❌ 그런 장비는 없음.", ephemeral=True)
+        return
+
+    if 장비 in boss_data[user_id]["equips"]:
+        await interaction.response.send_message("❌ 이미 제작한 장비임.", ephemeral=True)
+        return
+
+    data = BOSS_EQUIP_DATA[장비]
+    material = data["material"]
+    need = data["need"]
+    price = data["price"]
+
+    have = boss_materials[user_id].get(material, 0)
+
+    if have < need:
+        await interaction.response.send_message(
+            f"❌ 재료 부족.\n필요: **{material} x{need}**\n보유: **{have}개**",
+            ephemeral=True
+        )
+        return
+
+    if money_data[user_id] < price:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n필요 금액: **{money(price)}원**\n현재 잔액: **{money(money_data[user_id])}원**",
+            ephemeral=True
+        )
+        return
+
+    boss_materials[user_id][material] -= need
+
+    if boss_materials[user_id][material] <= 0:
+        del boss_materials[user_id][material]
+
+    money_data[user_id] -= price
+    boss_data[user_id]["equips"].append(장비)
+    boss_data[user_id]["equipped"] = 장비
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"⚒️ 보스 장비 제작 완료!\n\n"
+        f"제작 장비: **{장비}**\n"
+        f"전투력: **+{data['power']}**\n"
+        f"사용 재료: **{material} x{need}**\n"
+        f"사용 금액: **{money(price)}원**\n\n"
+        f"자동 장착됨."
+    )
+
+
+@bot.tree.command(name="보스장비목록", description="제작 가능한 보스 장비 목록", guild=GUILD)
+async def boss_equip_list(interaction: discord.Interaction):
+    text = "\n\n".join(
+        f"**{name}**\n"
+        f"전투력: **+{data['power']}**\n"
+        f"필요 재료: **{data['material']} x{data['need']}**\n"
+        f"제작 비용: **{money(data['price'])}원**"
+        for name, data in BOSS_EQUIP_DATA.items()
+    )
+
+    await interaction.response.send_message(
+        f"⚒️ **보스 장비 목록**\n\n{text}"
+    )
+
+
+@bot.tree.command(name="보스장비", description="보스 장비를 장착한다", guild=GUILD)
+@app_commands.describe(장비="장착할 보스 장비 이름")
+async def equip_boss_item(interaction: discord.Interaction, 장비: str):
+    user_id = interaction.user.id
+    get_boss_user(user_id)
+
+    if 장비 not in boss_data[user_id]["equips"]:
+        await interaction.response.send_message("❌ 보유한 보스 장비가 아님.", ephemeral=True)
+        return
+
+    boss_data[user_id]["equipped"] = 장비
+    save_data()
+
+    await interaction.response.send_message(
+        f"✅ 보스 장비 장착 완료!\n현재 장비: **{장비}**\n"
+        f"현재 전투력: **{get_boss_power(user_id)}**"
+    )
+
+def get_rpg_equipment(user_id):
+    changed = False
+
+    if user_id not in owned_weapons:
+        owned_weapons[user_id] = ["녹슨 단검"]
+        changed = True
+
+    if user_id not in equipped_weapon:
+        equipped_weapon[user_id] = "녹슨 단검"
+        changed = True
+
+    if user_id not in owned_armors:
+        owned_armors[user_id] = ["찢어진 천옷"]
+        changed = True
+
+    if user_id not in equipped_armor:
+        equipped_armor[user_id] = "찢어진 천옷"
+        changed = True
+
+    return changed
+
+
+def get_total_power(user_id):
+    get_rpg_equipment(user_id)
+
+    weapon = equipped_weapon[user_id]
+    armor = equipped_armor[user_id]
+
+    weapon_power = WEAPON_DATA.get(weapon, {}).get("power", 0)
+    armor_hp = ARMOR_DATA.get(armor, {}).get("hp", 0)
+
+    return (
+        10 +
+        weapon_power +
+        int(armor_hp / 20) +
+        get_boss_power(user_id)
+    )
+
+@bot.tree.command(name="무기상점", description="무기 상점", guild=GUILD)
+async def weapon_shop(interaction: discord.Interaction):
+
+    text = "\n\n".join(
+        f"⚔️ {name}\n"
+        f"전투력: +{data['power']}\n"
+        f"가격: {money(data['price'])}원"
+        for name, data in WEAPON_DATA.items()
+    )
+
+    await interaction.response.send_message(
+        f"⚔️ 무기 상점\n\n{text}"
+    )
+
+@bot.tree.command(name="갑옷상점", description="갑옷 상점", guild=GUILD)
+async def armor_shop(interaction: discord.Interaction):
+
+    text = "\n\n".join(
+        f"🛡️ {name}\n"
+        f"체력: +{data['hp']}\n"
+        f"가격: {money(data['price'])}원"
+        for name, data in ARMOR_DATA.items()
+    )
+
+    await interaction.response.send_message(
+        f"🛡️ 갑옷 상점\n\n{text}"
+    )
+
+@bot.tree.command(name="무기구매", description="무기 구매", guild=GUILD)
+@app_commands.describe(무기="구매할 무기")
+async def buy_weapon(interaction: discord.Interaction, 무기: str):
+
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_rpg_equipment(user_id)
+
+    if 무기 not in WEAPON_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 무기는 없음.",
+            ephemeral=True
+        )
+        return
+
+    if 무기 in owned_weapons[user_id]:
+        await interaction.response.send_message(
+            "❌ 이미 보유중인 무기임.",
+            ephemeral=True
+        )
+        return
+
+    price = WEAPON_DATA[무기]["price"]
+
+    if money_data[user_id] < price:
+        await interaction.response.send_message(
+            "❌ 돈 부족.",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= price
+
+    owned_weapons[user_id].append(무기)
+    equipped_weapon[user_id] = 무기
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"⚔️ 무기 구매 완료!\n\n"
+        f"구매 무기: **{무기}**\n"
+        f"자동 장착됨.\n\n"
+        f"현재 전투력: **{get_total_power(user_id)}**"
+    )
+
+@bot.tree.command(name="갑옷구매", description="갑옷 구매", guild=GUILD)
+@app_commands.describe(갑옷="구매할 갑옷")
+async def buy_armor(interaction: discord.Interaction, 갑옷: str):
+
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_rpg_equipment(user_id)
+
+    if 갑옷 not in ARMOR_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 갑옷은 없음.",
+            ephemeral=True
+        )
+        return
+
+    if 갑옷 in owned_armors[user_id]:
+        await interaction.response.send_message(
+            "❌ 이미 보유중인 갑옷임.",
+            ephemeral=True
+        )
+        return
+
+    price = ARMOR_DATA[갑옷]["price"]
+
+    if money_data[user_id] < price:
+        await interaction.response.send_message(
+            "❌ 돈 부족.",
+            ephemeral=True
+        )
+        return
+
+    money_data[user_id] -= price
+
+    owned_armors[user_id].append(갑옷)
+    equipped_armor[user_id] = 갑옷
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"🛡️ 갑옷 구매 완료!\n\n"
+        f"구매 갑옷: **{갑옷}**\n"
+        f"자동 장착됨.\n\n"
+        f"현재 전투력: **{get_total_power(user_id)}**"
+    )
+
+@bot.tree.command(name="무기장착", description="무기 장착", guild=GUILD)
+@app_commands.describe(무기="장착할 무기")
+async def equip_weapon(interaction: discord.Interaction, 무기: str):
+
+    user_id = interaction.user.id
+    get_rpg_equipment(user_id)
+
+    if 무기 not in owned_weapons[user_id]:
+        await interaction.response.send_message(
+            "❌ 보유하지 않은 무기임.",
+            ephemeral=True
+        )
+        return
+
+    equipped_weapon[user_id] = 무기
+    save_data()
+
+    await interaction.response.send_message(
+        f"⚔️ 장착 완료!\n현재 무기: **{무기}**"
+    )
+
+
+@bot.tree.command(name="갑옷장착", description="갑옷 장착", guild=GUILD)
+@app_commands.describe(갑옷="장착할 갑옷")
+async def equip_armor(interaction: discord.Interaction, 갑옷: str):
+
+    user_id = interaction.user.id
+    get_rpg_equipment(user_id)
+
+    if 갑옷 not in owned_armors[user_id]:
+        await interaction.response.send_message(
+            "❌ 보유하지 않은 갑옷임.",
+            ephemeral=True
+        )
+        return
+
+    equipped_armor[user_id] = 갑옷
+    save_data()
+
+    await interaction.response.send_message(
+        f"🛡️ 장착 완료!\n현재 갑옷: **{갑옷}**"
+    )
+
+@bot.tree.command(name="내장비", description="현재 장비 확인", guild=GUILD)
+async def my_equipment(interaction: discord.Interaction):
+
+    user_id = interaction.user.id
+
+    get_rpg_equipment(user_id)
+    get_boss_user(user_id)
+
+    weapon = equipped_weapon[user_id]
+    armor = equipped_armor[user_id]
+
+    boss_equip = boss_data[user_id].get("equipped")
+
+    await interaction.response.send_message(
+        f"⚔️ 현재 장비\n\n"
+        f"무기: **{weapon}**\n"
+        f"갑옷: **{armor}**\n"
+        f"보스 장비: **{boss_equip or '없음'}**\n\n"
+        f"총 전투력: **{get_total_power(user_id)}**"
+    )
+
+
 load_data()
 bot.run(TOKEN)
