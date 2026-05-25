@@ -5787,21 +5787,21 @@ class BossRaidView(discord.ui.View):
         self.boss_name = boss_name
         self.boss = BOSS_DATA[boss_name]
 
+        self.boss_hp = self.boss["hp"]
         self.max_hp = self.get_player_hp()
         self.player_hp = self.max_hp
+
         self.fail_count = 0
         self.message = None
-        def get_player_hp(self):
-            get_rpg_equipment(self.user_id)
 
-            armor = equipped_armor[self.user_id]
+    def get_player_hp(self):
+        get_rpg_equipment(self.user_id)
 
-            armor_hp = ARMOR_DATA.get(
-                armor,
-                {}
-            ).get("hp", 0)
+        armor = equipped_armor[self.user_id]
 
-            return 100 + armor_hp
+        armor_hp = ARMOR_DATA.get(armor, {}).get("hp", 0)
+
+        return 100 + armor_hp
             
     async def update_msg(self, interaction=None, text=""):
         content = (
