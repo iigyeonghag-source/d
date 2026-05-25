@@ -3978,11 +3978,11 @@ async def plant_crop(
 ):
     if 비료사용:
         if farm_data[user_id]["fertilizer"] <= 0:
-        await interaction.response.send_message(
-            "❌ 비료가 없음.",
-            ephemeral=True
-        )
-        return
+            await interaction.response.send_message(
+                "❌ 비료가 없음.",
+                ephemeral=True
+            )
+            return
     user_id = interaction.user.id
     now = datetime.now()
 
