@@ -5578,12 +5578,12 @@ BOSS_DATA = {
         "reward": 3_000_000
     },
     "공허의 군주": {
-        "hp": 5000000,
+        "hp": 50000000,
         "price": 50_000_000,
         "material": "공허의 파편",
         "drop_min": 1,
         "drop_max": 1,
-        "reward": 10_000_000
+        "reward": 100_000_000
     }
 }
 
@@ -5592,25 +5592,25 @@ BOSS_EQUIP_DATA = {
         "material": "고블린 왕관",
         "need": 10,
         "price": 2_000_000,
-        "power": 15
+        "power": 500
     },
-    "심연의 갑옷": {
+    "심연의 화살": {
         "material": "심연의 핵",
         "need": 12,
         "price": 8_000_000,
-        "power": 35
+        "power": 1500
     },
     "레드 드래곤의 창": {
         "material": "붉은 용비늘",
         "need": 15,
         "price": 25_000_000,
-        "power": 70
+        "power": 13000
     },
     "공허의 대검": {
         "material": "공허의 파편",
         "need": 20,
         "price": 100_000_000,
-        "power": 150
+        "power": 150000
     }
 }
 
@@ -5621,63 +5621,63 @@ BOSS_EQUIP_DATA = {
 WEAPON_DATA = {
     "녹슨 단검": {
         "price": 50000,
-        "power": 3
+        "power": 60
     },
     "훈련용 검": {
         "price": 120000,
-        "power": 6
+        "power": 120
     },
     "철검": {
         "price": 350000,
-        "power": 12
+        "power": 320
     },
     "강철 대검": {
         "price": 700000,
-        "power": 18
+        "power": 460
     },
     "기사의 장검": {
         "price": 1500000,
-        "power": 26
+        "power": 1100
     },
     "용병의 도끼": {
         "price": 3000000,
-        "power": 35
+        "power": 3500
     },
     "마력의 지팡이": {
         "price": 5500000,
-        "power": 48
+        "power": 8000
     },
     "암살자의 쌍검": {
         "price": 9000000,
-        "power": 62
+        "power": 32000
     },
     "흑요석 검": {
         "price": 15000000,
-        "power": 80
+        "power": 80000
     },
     "용사왕의 검": {
         "price": 25000000,
-        "power": 105
+        "power": 105000
     },
     "천공의 창": {
         "price": 40000000,
-        "power": 135
+        "power": 135000
     },
     "혼돈 파쇄자": {
         "price": 70000000,
-        "power": 170
+        "power": 270000
     },
     "심연 절단자": {
         "price": 120000000,
-        "power": 220
+        "power": 1000000
     },
     "별의 집행자": {
         "price": 250000000,
-        "power": 300
+        "power": 3000000
     },
     "신멸의 대검": {
         "price": 500000000,
-        "power": 420
+        "power": 4200000
     }
 }
 
@@ -5787,15 +5787,28 @@ class BossRaidView(discord.ui.View):
         self.boss_name = boss_name
         self.boss = BOSS_DATA[boss_name]
 
-        self.boss_hp = self.boss["hp"]
+        self.max_hp = self.get_player_hp()
+        self.player_hp = self.max_hp
         self.fail_count = 0
         self.message = None
+        def get_player_hp(self):
+            get_rpg_equipment(self.user_id)
 
+            armor = equipped_armor[self.user_id]
+
+            armor_hp = ARMOR_DATA.get(
+                armor,
+                {}
+            ).get("hp", 0)
+
+            return 100 + armor_hp
+            
     async def update_msg(self, interaction=None, text=""):
         content = (
             f"👹 **보스전: {self.boss_name}**\n\n"
             f"❤️ 보스 체력: **{self.boss_hp}/{self.boss['hp']}**\n"
             f"⚔️ 내 전투력: **{get_total_power(self.user_id)}**\n\n"
+            f"❤️ 내 체력: **{self.player_hp}/{self.max_hp}**\n\n"
             f"{text}"
         )
 
@@ -5860,21 +5873,26 @@ class BossRaidView(discord.ui.View):
             return
 
         if random.randint(1, 100) <= 20:
-            self.fail_count += 1
-            if self.fail_count >= 3:
+
+            enemy_damage = random.randint(
+                int(self.boss["hp"] * 0.03),
+                int(self.boss["hp"] * 0.07)
+            )
+
+            self.player_hp -= enemy_damage
+
+            if self.player_hp <= 0:
                 await self.lose(interaction)
                 return
 
             await self.update_msg(
                 interaction,
-                f"🗡️ **{dmg}** 피해!\n💥 보스의 반격을 맞았다..."
+                f"🗡️ **{dmg}** 피해를 입혔다!\n"
+                f"💥 보스의 반격!\n"
+                f"❤️ -{enemy_damage} HP"
             )
-            return
 
-        await self.update_msg(
-            interaction,
-            f"🗡️ **{dmg}** 피해를 입혔다!"
-        )
+            return
 
     @discord.ui.button(label="방어", style=discord.ButtonStyle.primary)
     async def defend(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -5883,11 +5901,16 @@ class BossRaidView(discord.ui.View):
             return
 
         heal = random.randint(5, 20)
+        self.player_hp += heal
+
+        if self.player_hp > self.max_hp:
+            self.player_hp = self.max_hp
         self.fail_count = max(0, self.fail_count - 1)
 
         await self.update_msg(
             interaction,
-            f"🛡️ 자세를 가다듬었다.\n위험도가 조금 낮아졌다."
+            f"🛡️ 방어 자세를 취했다.\n"
+            f"❤️ +{heal} HP 회복"."
         )
 
     @discord.ui.button(label="회피", style=discord.ButtonStyle.success)
@@ -5903,14 +5926,24 @@ class BossRaidView(discord.ui.View):
             )
         else:
             self.fail_count += 1
+            enemy_damage = random.randint(
+            int(self.boss["hp"] * 0.02),
+            int(self.boss["hp"] * 0.05)
+        )
 
+        self.player_hp -= enemy_damage
+
+        if self.player_hp <= 0:
+            await self.lose(interaction)
+            return
             if self.fail_count >= 3:
                 await self.lose(interaction)
                 return
 
             await self.update_msg(
                 interaction,
-                "💥 회피 실패! 보스의 공격을 맞았다..."
+                "💥 회피 실패! 보스의 공격을 맞았다...\n"
+                f"❤️ -{enemy_damage} HP"
             )
 
     async def on_timeout(self):
