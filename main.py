@@ -31,6 +31,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = "/data/data.json"
 
 DATA_KEYS = [
+    "watering_cooldowns",
     "owned_weapons",
     "equipped_weapon",
     "owned_armors",
@@ -119,6 +120,9 @@ def bind_storage_globals():
     global boss_data, boss_tickets, boss_materials
     global owned_weapons, equipped_weapon
     global owned_armors, equipped_armor
+    global watering_cooldowns
+    
+    watering_cooldowns = data["watering_cooldowns"]
 
     owned_weapons = data["owned_weapons"]
     equipped_weapon = data["equipped_weapon"]
@@ -208,6 +212,8 @@ def sync_storage_globals():
     data["owned_armors"] = owned_armors
     data["equipped_armor"] = equipped_armor
 
+    data["watering_cooldowns"] = watering_cooldowns
+
 def load_data():
     global data
 
@@ -219,6 +225,7 @@ def load_data():
             data[key] = loaded.get(key, {})
 
     for key in [
+        "watering_cooldowns",
         "owned_weapons",
         "equipped_weapon",
         "owned_armors",
@@ -254,7 +261,9 @@ def load_data():
         "equipped_pendants"
     ]:
         data[key] = to_int_key_dict(data[key])
-
+    for user_id, value in list(data["watering_cooldowns"].items()):
+        data["watering_cooldowns"][user_id] = restore_datetime(value)
+    
     for user_id, value in list(data["daily_claims"].items()):
         data["daily_claims"][user_id] = restore_datetime(value)
 
@@ -4663,6 +4672,91 @@ async def land_status(interaction: discord.Interaction):
         + "\n\n".join(region_lines)
     )
 
+WATER_REDUCE_RATE = 0.25 
+
+watering_cooldowns = globals().get("watering_cooldowns", {})
+WATERING_COOLDOWN = timedelta(hours=1)
+
+@bot.tree.command(name="물주기", description="농밭 전체에 물을 줘서 성장 시간을 줄인다", guild=GUILD)
+async def water_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    last_water = watering_cooldowns.get(user_id)
+
+    if last_water and now < last_water + WATERING_COOLDOWN:
+        remain = (last_water + WATERING_COOLDOWN) - now
+
+        minutes = remain.seconds // 60
+        seconds = remain.seconds % 60
+
+        await interaction.response.send_message(
+            f"💧 물뿌리개 다시 채우는 중...\n"
+            f"남은 시간: **{minutes}분 {seconds}초**",
+            ephemeral=True
+        )
+        return
+
+    watered_count = 0
+    already_watered = 0
+    ready_count = 0
+    empty_count = 0
+    reduced_total = 0
+
+    for plot in farm_data[user_id]["field"]:
+        if plot is None:
+            empty_count += 1
+            continue
+
+        if plot.get("watered"):
+            already_watered += 1
+            continue
+
+        harvest_time = fix_datetime(plot.get("harvest_time"))
+
+        if harvest_time is None:
+            continue
+
+        if now >= harvest_time:
+            ready_count += 1
+            continue
+
+        remaining = harvest_time - now
+        reduced_seconds = int(remaining.total_seconds() * WATER_REDUCE_RATE)
+
+        plot["harvest_time"] = harvest_time - timedelta(seconds=reduced_seconds)
+        plot["watered"] = True
+
+        watered_count += 1
+        reduced_total += reduced_seconds
+
+    if watered_count <= 0:
+        await interaction.response.send_message(
+            f"💧 물 줄 작물이 없음.\n\n"
+            f"빈 밭: **{empty_count}칸**\n"
+            f"이미 물 준 밭: **{already_watered}칸**\n"
+            f"수확 가능: **{ready_count}칸**",
+            ephemeral=True
+        )
+        return
+
+    watering_cooldowns[user_id] = now
+
+    save_data()
+
+    minutes = reduced_total // 60
+    seconds = reduced_total % 60
+
+    await interaction.response.send_message(
+        f"💧 **농밭 전체에 물을 줬음!**\n\n"
+        f"물 준 작물: **{watered_count}개**\n"
+        f"총 단축 시간: **{minutes}분 {seconds}초**\n\n"
+        f"이미 물 준 밭: **{already_watered}칸**\n"
+        f"빈 밭: **{empty_count}칸**\n"
+        f"수확 가능이라 제외된 밭: **{ready_count}칸**"
+    )
 
 @bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
