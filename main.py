@@ -3940,177 +3940,182 @@ async def farm_field(interaction: discord.Interaction):
         "\n".join(lines)
     )
 
-
-@bot.tree.command(name="심기", description="농밭에 씨앗을 심는다", guild=GUILD)
+@bot.tree.command(name="심기", description="원하는 땅에 씨앗을 심는다", guild=GUILD)
 @app_commands.describe(
-    칸="심을 밭 칸",
-    씨앗="심을 씨앗 이름",
-    비료사용="비료 사용 여부"
+    작물="심을 작물 이름",
+    땅="심을 땅 번호 1~4"
 )
-async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, 비료사용: bool = False):
+async def plant_crop(interaction: discord.Interaction, 작물: str, 땅: int):
     user_id = interaction.user.id
     now = datetime.now()
 
     get_farm(user_id)
 
-    max_size = len(farm_data[user_id]["field"])
-
-    if 칸 < 1 or 칸 > max_size:
-        await interaction.response.send_message(f"❌ 밭 칸은 1~{max_size}번만 가능.", ephemeral=True)
+    if 작물 not in CROP_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 작물 없음.",
+            ephemeral=True
+        )
         return
 
-    index = 칸 - 1
-
-    if farm_data[user_id]["field"][index] is not None:
-        await interaction.response.send_message("❌ 이미 뭐가 심어져 있음.", ephemeral=True)
+    if 땅 < 1 or 땅 > 4:
+        await interaction.response.send_message(
+            "❌ 땅은 1~4번 중에서 골라야 함.",
+            ephemeral=True
+        )
         return
 
-    if 씨앗 not in SEED_DATA:
-        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
+    seed_name = f"{작물} 씨앗"
+
+    if farm_data[user_id]["crops"].get(seed_name, 0) <= 0:
+        await interaction.response.send_message(
+            f"❌ **{seed_name}** 없음.",
+            ephemeral=True
+        )
         return
 
-    if farm_data[user_id]["seeds"][씨앗] <= 0:
-        await interaction.response.send_message("❌ 씨앗 없음. `/상점`에서 사셈.", ephemeral=True)
+    # 4개 땅에 균등하게 칸 배정
+    field = farm_data[user_id]["field"]
+    total_plots = len(field)
+
+    start_index = int(total_plots * (땅 - 1) / 4)
+    end_index = int(total_plots * 땅 / 4)
+
+    target_index = None
+
+    for i in range(start_index, end_index):
+        if field[i] is None:
+            target_index = i
+            break
+
+    if target_index is None:
+        await interaction.response.send_message(
+            f"❌ {땅}번 땅에 빈 칸이 없음.",
+            ephemeral=True
+        )
         return
 
-    seed = SEED_DATA[씨앗]
-    level = farm_levels.get(user_id, 1)
-    region = get_plot_region(index)
-    status = get_region_status(region)
-    effect = REGION_EFFECTS[status]
-    pendant_bonus = get_farm_pendant_bonus(user_id)
+    region = get_plot_region(target_index)
+    region_status = get_daily_region_status()[region]
+    effect = REGION_EFFECTS[region_status]
 
-    time_reduce = 1 - ((level - 1) * 0.05)
-    time_reduce = max(0.45, time_reduce)
+    grow_time = CROP_DATA[작물]["grow_time"]
+    grow_time = int(grow_time * effect["grow_mult"])
 
-    grow_min = int(seed["grow_min"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
-    grow_max = int(seed["grow_max"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
+    farm_data[user_id]["crops"][seed_name] -= 1
 
-    grow_min = max(5, grow_min)
-    grow_max = max(grow_min, grow_max)
-    grow_time = random.randint(grow_min, grow_max)
-
-    used_fertilizer = False
-
-    if 비료사용:
-        if farm_data[user_id]["fertilizer"] <= 0:
-            await interaction.response.send_message("❌ 비료 없음.", ephemeral=True)
-            return
-
-        farm_data[user_id]["fertilizer"] -= 1
-        grow_time //= 2
-        used_fertilizer = True
-
-    farm_data[user_id]["seeds"][씨앗] -= 1
-
-    farm_data[user_id]["field"][index] = {
-        "crop": 씨앗,
-        "region": region,
+    field[target_index] = {
+        "crop": 작물,
         "planted_at": now,
         "harvest_time": now + timedelta(seconds=grow_time),
-        "fertilizer": used_fertilizer,
         "watered": False,
-        "trait": None,
-        "yield": 1,
-        "withered": False
+        "fertilizer": False,
+        "region": region,
+        "region_status": region_status
     }
 
     save_data()
 
     await interaction.response.send_message(
-        f"🌱 {칸}번 밭에 **{씨앗}** 심음!\n"
-        f"구역: **{region} / {status}**\n"
-        f"예상 성장 시간: **{grow_time}초**\n"
-        f"비료 사용: **{'O' if used_fertilizer else 'X'}**"
+        f"🌱 **{작물}** 심었음!\n\n"
+        f"땅: **{땅}번 땅 ({region})**\n"
+        f"상태: **{region_status}**\n"
+        f"수확까지: **{grow_time // 60}분 {grow_time % 60}초**"
     )
-
-
-@bot.tree.command(name="전체심기", description="빈 밭에 같은 씨앗을 전부 심는다", guild=GUILD)
+    
+@bot.tree.command(name="전체심기", description="선택한 땅 전체에 작물을 심는다", guild=GUILD)
 @app_commands.describe(
-    씨앗="심을 씨앗 이름",
-    비료사용="비료를 가능한 만큼 사용할지 여부"
+    작물="심을 작물 이름",
+    땅="심을 땅 번호 1~4"
 )
-async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료사용: bool = False):
+async def mass_plant(
+    interaction: discord.Interaction,
+    작물: str,
+    땅: int
+):
     user_id = interaction.user.id
     now = datetime.now()
 
     get_farm(user_id)
 
-    if 씨앗 not in SEED_DATA:
-        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
+    if 작물 not in CROP_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 작물 없음.",
+            ephemeral=True
+        )
         return
 
-    empty_indexes = [i for i, plot in enumerate(farm_data[user_id]["field"]) if plot is None]
-
-    if not empty_indexes:
-        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
+    if 땅 < 1 or 땅 > 4:
+        await interaction.response.send_message(
+            "❌ 땅은 1~4번 중에서 골라야 함.",
+            ephemeral=True
+        )
         return
 
-    seed_count = farm_data[user_id]["seeds"][씨앗]
+    seed_name = f"{작물} 씨앗"
 
-    if seed_count <= 0:
-        await interaction.response.send_message(f"❌ {씨앗} 씨앗이 없음.", ephemeral=True)
+    owned = farm_data[user_id]["crops"].get(seed_name, 0)
+
+    if owned <= 0:
+        await interaction.response.send_message(
+            f"❌ {seed_name} 없음.",
+            ephemeral=True
+        )
         return
 
-    plant_count = min(len(empty_indexes), seed_count)
+    field = farm_data[user_id]["field"]
+    total_plots = len(field)
+
+    start_index = int(total_plots * (땅 - 1) / 4)
+    end_index = int(total_plots * 땅 / 4)
+
+    empty_plots = []
+
+    for i in range(start_index, end_index):
+        if field[i] is None:
+            empty_plots.append(i)
+
+    if not empty_plots:
+        await interaction.response.send_message(
+            f"❌ {땅}번 땅에 빈 칸이 없음.",
+            ephemeral=True
+        )
+        return
+
+    plant_count = min(len(empty_plots), owned)
+
     planted = 0
-    used_fertilizer_count = 0
-    region_count = {}
 
-    for index in empty_indexes[:plant_count]:
-        seed = SEED_DATA[씨앗]
-        level = farm_levels.get(user_id, 1)
-        region = get_plot_region(index)
-        status = get_region_status(region)
-        effect = REGION_EFFECTS[status]
-        pendant_bonus = get_farm_pendant_bonus(user_id)
+    for i in empty_plots[:plant_count]:
 
-        time_reduce = 1 - ((level - 1) * 0.05)
-        time_reduce = max(0.45, time_reduce)
+        region = get_plot_region(i)
+        region_status = get_daily_region_status()[region]
+        effect = REGION_EFFECTS[region_status]
 
-        grow_min = int(seed["grow_min"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
-        grow_max = int(seed["grow_max"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
+        grow_time = CROP_DATA[작물]["grow_time"]
+        grow_time = int(grow_time * effect["grow_mult"])
 
-        grow_min = max(5, grow_min)
-        grow_max = max(grow_min, grow_max)
-        grow_time = random.randint(grow_min, grow_max)
-
-        used_fertilizer = False
-
-        if 비료사용 and farm_data[user_id]["fertilizer"] > 0:
-            farm_data[user_id]["fertilizer"] -= 1
-            grow_time //= 2
-            used_fertilizer = True
-            used_fertilizer_count += 1
-
-        farm_data[user_id]["seeds"][씨앗] -= 1
-
-        farm_data[user_id]["field"][index] = {
-            "crop": 씨앗,
-            "region": region,
+        field[i] = {
+            "crop": 작물,
             "planted_at": now,
             "harvest_time": now + timedelta(seconds=grow_time),
-            "fertilizer": used_fertilizer,
             "watered": False,
-            "trait": None,
-            "yield": 1,
-            "withered": False
+            "fertilizer": False,
+            "region": region,
+            "region_status": region_status
         }
 
-        region_count[region] = region_count.get(region, 0) + 1
         planted += 1
+
+    farm_data[user_id]["crops"][seed_name] -= planted
 
     save_data()
 
-    region_text = " / ".join(f"{name} {count}개" for name, count in region_count.items())
-
     await interaction.response.send_message(
-        f"🌱 **전체 심기 완료!**\n\n"
-        f"심은 작물: **{씨앗}**\n"
+        f"🌱 **{작물}** 전체 심기 완료!\n\n"
+        f"대상 땅: **{땅}번 땅**\n"
         f"심은 개수: **{planted}개**\n"
-        f"구역 분포: **{region_text}**\n"
-        f"사용한 비료: **{used_fertilizer_count}개**\n"
-        f"남은 씨앗: **{farm_data[user_id]['seeds'][씨앗]}개**"
+        f"남은 씨앗: **{farm_data[user_id]['crops'][seed_name]}개**"
     )
 
 WATER_REDUCE_RATE = 0.25 
