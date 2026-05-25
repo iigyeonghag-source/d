@@ -3977,7 +3977,7 @@ async def plant_crop(
     비료사용: bool = False
 ):
     if 비료사용:
-    if farm_data[user_id]["fertilizer"] <= 0:
+        if farm_data[user_id]["fertilizer"] <= 0:
         await interaction.response.send_message(
             "❌ 비료가 없음.",
             ephemeral=True
