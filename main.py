@@ -2087,11 +2087,13 @@ def get_fishing_gear(user_id):
 
 class FishingButtonView(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=9)
+        super().__init__(timeout=25)
         self.user_id = user_id
         self.can_catch = False
         self.clicked = False
         self.message = None
+        self.timed_out = False
+        
 
     @discord.ui.button(label="기다리는 중...", style=discord.ButtonStyle.gray)
     async def catch_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2128,7 +2130,7 @@ class FishingButtonView(discord.ui.View):
 
         await asyncio.sleep(wait_time)
 
-        if self.clicked:
+        if self.clicked or self.timed_out:
             return
 
         self.can_catch = True
@@ -2141,10 +2143,12 @@ class FishingButtonView(discord.ui.View):
             content="🎣 찌가 흔들린다! 지금 버튼 누르자!",
             view=self
         )
-
+        
     async def on_timeout(self):
         if self.clicked:
             return
+
+        self.timed_out = True
 
         for item in self.children:
             item.disabled = True
