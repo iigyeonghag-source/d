@@ -3375,17 +3375,102 @@ class LostItemReturnView(discord.ui.View):
         )
 
         self.stop()
-        
-# =========================
-# 농사 시스템
+  # =========================
+# 농사 시스템 개편판
 # =========================
 
-farm_data = {}
-crop_dex = {}
-crop_prices = {}
+farm_data = globals().get("farm_data", {})
+crop_dex = globals().get("crop_dex", {})
+crop_prices = globals().get("crop_prices", {})
 
 FARM_SIZE = 9
 FERTILIZER_PRICE = 1500
+WATER_REDUCE_RATE = 0.20
+
+FARM_REGIONS = [
+    "동부 농장",
+    "서부 농장",
+    "남부 농장",
+    "북부 농장"
+]
+
+REGION_EMOJI = {
+    "풍년": "🌾",
+    "보통": "➖",
+    "흉년": "🥀"
+}
+
+REGION_EFFECTS = {
+    "풍년": {
+        "grow_mult": 0.85,
+        "yield_mult": 1.50,
+        "trait_bonus": 20,
+        "bad_trait_bonus": -15,
+        "wither_chance": 0
+    },
+    "보통": {
+        "grow_mult": 1.00,
+        "yield_mult": 1.00,
+        "trait_bonus": 0,
+        "bad_trait_bonus": 0,
+        "wither_chance": 0
+    },
+    "흉년": {
+        "grow_mult": 1.25,
+        "yield_mult": 0.60,
+        "trait_bonus": -20,
+        "bad_trait_bonus": 25,
+        "wither_chance": 8
+    }
+}
+
+# 펜던트 농사 전용 보너스
+# 기존 PENDANT_DATA의 luck도 같이 적용되고, 아래 이름이 장착되어 있으면 추가 효과가 붙음.
+PENDANT_FARM_BONUS = {
+    "돌 펜던트": {"trait_bonus": 1, "yield_bonus": 0.01, "grow_reduce": 0.00, "wither_reduce": 0},
+    "금 펜던트": {"trait_bonus": 3, "yield_bonus": 0.02, "grow_reduce": 0.01, "wither_reduce": 0},
+    "다이아 펜던트": {"trait_bonus": 5, "yield_bonus": 0.04, "grow_reduce": 0.02, "wither_reduce": 1},
+    "루비 펜던트": {"trait_bonus": 8, "yield_bonus": 0.02, "grow_reduce": 0.01, "wither_reduce": 0},
+    "사파이어 펜던트": {"trait_bonus": 4, "yield_bonus": 0.03, "grow_reduce": 0.04, "wither_reduce": 1},
+    "에메랄드 펜던트": {"trait_bonus": 4, "yield_bonus": 0.10, "grow_reduce": 0.02, "wither_reduce": 1},
+    "흑요석 펜던트": {"trait_bonus": 2, "yield_bonus": 0.03, "grow_reduce": 0.01, "wither_reduce": 6},
+    "레드 다이아몬드 펜던트": {"trait_bonus": 10, "yield_bonus": 0.08, "grow_reduce": 0.04, "wither_reduce": 2},
+    "레인보우 다이아몬드 펜던트": {"trait_bonus": 15, "yield_bonus": 0.15, "grow_reduce": 0.07, "wither_reduce": 4},
+    "신기루 펜던트": {"trait_bonus": 25, "yield_bonus": 0.25, "grow_reduce": 0.12, "wither_reduce": 8}
+}
+
+SEED_DATA = {
+    "감자": {"seed_price": 500, "base_price": 900, "grow_min": 60, "grow_max": 180, "min_yield": 1, "max_yield": 3},
+    "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300, "min_yield": 1, "max_yield": 3},
+    "토마토": {"seed_price": 1200, "base_price": 2200, "grow_min": 300, "grow_max": 600, "min_yield": 1, "max_yield": 4},
+    "딸기": {"seed_price": 2500, "base_price": 5000, "grow_min": 600, "grow_max": 1200, "min_yield": 1, "max_yield": 4},
+    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 900, "grow_max": 2100, "min_yield": 1, "max_yield": 3},
+    "만년초": {"seed_price": 50000, "base_price": 100000, "grow_min": 1800, "grow_max": 3600, "min_yield": 1, "max_yield": 2},
+    "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
+        "seed_price": 1000000,
+        "base_price": 2500000,
+        "grow_min": 129600,
+        "grow_max": 129600,
+        "min_yield": 1,
+        "max_yield": 1
+    }
+}
+
+CROP_TRAITS = {
+    # 좋은 특성
+    "싱싱한": {"price_mult": 1.20, "yield_mult": 1.10, "type": "good", "chance": 100},
+    "튼실한": {"price_mult": 1.15, "yield_mult": 1.30, "type": "good", "chance": 85},
+    "거대한": {"price_mult": 1.50, "yield_mult": 1.50, "type": "good", "chance": 45},
+    "황금빛": {"price_mult": 2.50, "yield_mult": 1.00, "type": "good", "chance": 18},
+    "무지개빛": {"price_mult": 4.00, "yield_mult": 2.00, "type": "good", "chance": 5},
+    "신의 축복을 받은": {"price_mult": 6.00, "yield_mult": 2.50, "type": "good", "chance": 1},
+
+    # 나쁜 특성
+    "시든": {"price_mult": 0.70, "yield_mult": 0.80, "type": "bad", "chance": 45},
+    "벌레먹은": {"price_mult": 0.50, "yield_mult": 0.70, "type": "bad", "chance": 30},
+    "말라비틀어진": {"price_mult": 0.40, "yield_mult": 0.60, "type": "bad", "chance": 15}
+}
+
 
 def get_farm_upgrade(user_id):
     changed = False
@@ -3395,41 +3480,94 @@ def get_farm_upgrade(user_id):
         changed = True
 
     if user_id not in field_sizes:
-        # 기존 기본 밭 9칸이랑 호환
         field_sizes[user_id] = 9
         changed = True
 
     return changed
 
+
 def get_crop_upgrade_bonus(user_id):
     level = farm_levels.get(user_id, 1)
-
-    multiplier = 1 + ((level - 1) * 0.2)
-
-    return multiplier
+    return 1 + ((level - 1) * 0.2)
 
 
-def get_crop_price_for_user(user_id, crop_name):
-    base = crop_prices[crop_name]
+def safe_get_pendant_luck(user_id):
+    try:
+        get_pendant(user_id)
+        return get_pendant_luck(user_id)
+    except Exception:
+        return 0
 
-    multiplier = get_crop_upgrade_bonus(user_id)
 
-    return int(base * multiplier)
+def get_equipped_pendants_safe(user_id):
+    try:
+        get_pendant(user_id)
+        return equipped_pendants.get(user_id, [])
+    except Exception:
+        return []
 
-SEED_DATA = {
-    "감자": {"seed_price": 500, "base_price": 900, "grow_min": 60, "grow_max": 180},
-    "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300},
-    "토마토": {"seed_price": 1200, "base_price": 2200, "grow_min": 300, "grow_max": 600},
-    "딸기": {"seed_price": 2500, "base_price": 5000, "grow_min": 600, "grow_max": 1200},
-    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 900, "grow_max": 2100},
-    "만년초": {"seed_price": 50000, "base_price": 100000, "grow_min": 1800, "grow_max": 3600},
-    "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
-        "seed_price": 1000000,
-        "base_price": 2500000,
-        "grow_min": 129600,
-        "grow_max": 129600
+
+def get_farm_pendant_bonus(user_id):
+    luck = safe_get_pendant_luck(user_id)
+
+    bonus = {
+        "luck": luck,
+        "trait_bonus": min(30, luck // 8),
+        "yield_bonus": min(0.35, luck / 500),
+        "grow_reduce": min(0.20, luck / 700),
+        "wither_reduce": min(5, luck // 25)
     }
-}
+
+    for pendant in get_equipped_pendants_safe(user_id):
+        extra = PENDANT_FARM_BONUS.get(pendant)
+        if not extra:
+            continue
+
+        bonus["trait_bonus"] += extra.get("trait_bonus", 0)
+        bonus["yield_bonus"] += extra.get("yield_bonus", 0)
+        bonus["grow_reduce"] += extra.get("grow_reduce", 0)
+        bonus["wither_reduce"] += extra.get("wither_reduce", 0)
+
+    bonus["trait_bonus"] = min(50, bonus["trait_bonus"])
+    bonus["yield_bonus"] = min(0.75, bonus["yield_bonus"])
+    bonus["grow_reduce"] = min(0.40, bonus["grow_reduce"])
+    bonus["wither_reduce"] = min(20, bonus["wither_reduce"])
+
+    return bonus
+
+
+def get_farm_today_key():
+    # 서버 시간이 UTC여도 한국 날짜 기준으로 24시간마다 바뀌게 함.
+    return (datetime.utcnow() + timedelta(hours=9)).strftime("%Y-%m-%d")
+
+
+def get_daily_region_status():
+    # 저장 데이터 추가 없이도 하루 동안 같은 결과가 유지됨.
+    rng = random.Random(get_farm_today_key())
+    regions = FARM_REGIONS[:]
+    rng.shuffle(regions)
+
+    bad = regions[0]
+    good_regions = regions[1:3]
+
+    status = {}
+    for region in FARM_REGIONS:
+        if region == bad:
+            status[region] = "흉년"
+        elif region in good_regions:
+            status[region] = "풍년"
+        else:
+            status[region] = "보통"
+
+    return status
+
+
+def get_region_status(region):
+    return get_daily_region_status().get(region, "보통")
+
+
+def get_plot_region(index):
+    return FARM_REGIONS[index % len(FARM_REGIONS)]
 
 
 def fix_datetime(value):
@@ -3445,10 +3583,39 @@ def fix_datetime(value):
     return None
 
 
+def weighted_choice_from_dict(data_dict, names):
+    weights = [data_dict[name]["chance"] for name in names]
+    return random.choices(names, weights=weights, k=1)[0]
+
+
+def roll_crop_trait(user_id, region):
+    status = get_region_status(region)
+    effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
+
+    trait_chance = 50 + effect["trait_bonus"] + pendant_bonus["trait_bonus"]
+    trait_chance = max(5, min(95, trait_chance))
+
+    if random.randint(1, 100) > trait_chance:
+        return None
+
+    good_traits = [name for name, data in CROP_TRAITS.items() if data["type"] == "good"]
+    bad_traits = [name for name, data in CROP_TRAITS.items() if data["type"] == "bad"]
+
+    good_chance = 75 + pendant_bonus["trait_bonus"] - effect["bad_trait_bonus"]
+    good_chance = max(25, min(95, good_chance))
+
+    if random.randint(1, 100) <= good_chance:
+        return weighted_choice_from_dict(CROP_TRAITS, good_traits)
+
+    return weighted_choice_from_dict(CROP_TRAITS, bad_traits)
+
+
 def get_farm(user_id):
     changed = False
 
-    get_farm_upgrade(user_id)
+    if get_farm_upgrade(user_id):
+        changed = True
 
     if user_id not in farm_data or not isinstance(farm_data[user_id], dict):
         farm_data[user_id] = {}
@@ -3496,6 +3663,31 @@ def get_farm(user_id):
             farm["crops"][name] = 0
             changed = True
 
+    # 기존 데이터 호환: 예전 작물에는 region/watered/yield 정보가 없을 수 있음.
+    for index, plot in enumerate(farm["field"]):
+        if not isinstance(plot, dict):
+            continue
+
+        if "region" not in plot:
+            plot["region"] = get_plot_region(index)
+            changed = True
+
+        if "watered" not in plot:
+            plot["watered"] = False
+            changed = True
+
+        if "yield" not in plot:
+            plot["yield"] = 1
+            changed = True
+
+        if "trait" not in plot:
+            plot["trait"] = None
+            changed = True
+
+        if "withered" not in plot:
+            plot["withered"] = False
+            changed = True
+
     if user_id not in crop_dex or not isinstance(crop_dex[user_id], set):
         crop_dex[user_id] = set(crop_dex.get(user_id, []))
         changed = True
@@ -3505,13 +3697,14 @@ def get_farm(user_id):
 
     return changed
 
+
 def update_crop_prices():
-    for crop_name, data in SEED_DATA.items():
+    for crop_name, seed in SEED_DATA.items():
         if crop_name not in crop_prices:
-            crop_prices[crop_name] = data["base_price"]
+            crop_prices[crop_name] = seed["base_price"]
 
         current = crop_prices[crop_name]
-        base = data["base_price"]
+        base = seed["base_price"]
 
         change_rate = random.randint(1, 7) / 100
 
@@ -3533,6 +3726,61 @@ async def crop_price_loop():
     update_crop_prices()
 
 
+def parse_crop_item_name(item_name):
+    # "황금빛 감자" 같은 특성 작물도 판매 가능하게 처리.
+    if item_name in SEED_DATA:
+        return item_name, None
+
+    for crop_name in sorted(SEED_DATA.keys(), key=len, reverse=True):
+        suffix = f" {crop_name}"
+        if item_name.endswith(suffix):
+            trait_name = item_name[:-len(suffix)]
+            if trait_name in CROP_TRAITS:
+                return crop_name, trait_name
+
+    return None, None
+
+
+def get_crop_price_for_user(user_id, item_name):
+    crop_name, trait_name = parse_crop_item_name(item_name)
+
+    if crop_name is None:
+        return None
+
+    if not crop_prices:
+        update_crop_prices()
+
+    base = crop_prices.get(crop_name, SEED_DATA[crop_name]["base_price"])
+    price = base * get_crop_upgrade_bonus(user_id)
+
+    if trait_name:
+        price *= CROP_TRAITS[trait_name]["price_mult"]
+
+    return int(price)
+
+
+def get_crop_item_name(crop_name, trait_name):
+    if trait_name:
+        return f"{trait_name} {crop_name}"
+    return crop_name
+
+
+def make_crop_yield(user_id, crop_name, region, trait_name):
+    seed = SEED_DATA[crop_name]
+    base_yield = random.randint(seed.get("min_yield", 1), seed.get("max_yield", 1))
+
+    status = get_region_status(region)
+    effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
+
+    total_yield = base_yield * effect["yield_mult"] * (1 + pendant_bonus["yield_bonus"])
+
+    if trait_name:
+        total_yield *= CROP_TRAITS[trait_name]["yield_mult"]
+
+    return max(1, int(round(total_yield)))
+
+
 @bot.tree.command(name="상점", description="씨앗과 비료를 구매한다", guild=GUILD)
 @app_commands.describe(
     아이템="구매할 씨앗 이름 또는 비료",
@@ -3547,12 +3795,13 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
     if 아이템 is None:
         seed_lines = []
 
-        for name, data in SEED_DATA.items():
+        for name, seed in SEED_DATA.items():
             seed_lines.append(
                 f"🌱 {name}\n"
-                f"씨앗 가격: {data['seed_price']}원\n"
-                f"기준 판매가: {data['base_price']}원\n"
-                f"성장 시간: {data['grow_min']}초 ~ {data['grow_max']}초"
+                f"씨앗 가격: {seed['seed_price']}원\n"
+                f"기준 판매가: {seed['base_price']}원\n"
+                f"성장 시간: {seed['grow_min']}초 ~ {seed['grow_max']}초\n"
+                f"기본 수확량: {seed.get('min_yield', 1)}개 ~ {seed.get('max_yield', 1)}개"
             )
 
         shop_text = "\n\n".join(seed_lines)
@@ -3612,6 +3861,27 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
     )
 
 
+@bot.tree.command(name="농사상황", description="오늘의 농장 구역 상태를 확인한다", guild=GUILD)
+async def farm_region_info(interaction: discord.Interaction):
+    status = get_daily_region_status()
+
+    lines = []
+    for region in FARM_REGIONS:
+        state = status[region]
+        emoji = REGION_EMOJI[state]
+        effect = REGION_EFFECTS[state]
+        lines.append(
+            f"{emoji} **{region}**: {state}\n"
+            f"성장 시간 x{effect['grow_mult']} / 수확량 x{effect['yield_mult']} / 특성 확률 {effect['trait_bonus']:+}%"
+        )
+
+    await interaction.response.send_message(
+        f"🌦️ **오늘의 농사 상황** ({get_farm_today_key()})\n\n" +
+        "\n\n".join(lines) +
+        "\n\n※ 24시간마다 자동으로 바뀜. 4구역 중 1개는 흉년, 2개는 풍년, 1개는 보통."
+    )
+
+
 @bot.tree.command(name="농밭", description="내 농밭 상태 확인", guild=GUILD)
 async def farm_field(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -3619,30 +3889,47 @@ async def farm_field(interaction: discord.Interaction):
 
     get_farm(user_id)
 
+    region_status = get_daily_region_status()
+    header = []
+    for region in FARM_REGIONS:
+        state = region_status[region]
+        header.append(f"{REGION_EMOJI[state]} {region}: {state}")
+
     lines = []
 
     for i, plot in enumerate(farm_data[user_id]["field"], start=1):
+        region = get_plot_region(i - 1)
+        state = region_status[region]
+        region_text = f"[{region} / {state}]"
+
         if plot is None:
-            lines.append(f"{i}번 밭: 비어있음")
+            lines.append(f"{i}번 밭 {region_text}: 비어있음")
             continue
 
         harvest_time = fix_datetime(plot.get("harvest_time"))
 
         if harvest_time is None:
-            lines.append(f"{i}번 밭: ⚠️ 작물 시간 데이터 오류")
+            lines.append(f"{i}번 밭 {region_text}: ⚠️ 작물 시간 데이터 오류")
             continue
 
+        crop_name = plot["crop"]
+        watered = "💧" if plot.get("watered") else ""
+        fertilizer = "🧪" if plot.get("fertilizer") else ""
+        withered = "🥀" if plot.get("withered") else ""
+
         if now >= harvest_time:
-            lines.append(f"{i}번 밭: 🌾 {plot['crop']} 수확 가능")
+            lines.append(f"{i}번 밭 {region_text}: 🌾 {crop_name} 수확 가능 {watered}{fertilizer}{withered}")
         else:
             remain = int((harvest_time - now).total_seconds())
             minutes = remain // 60
             seconds = remain % 60
-            lines.append(f"{i}번 밭: 🌱 {plot['crop']} 성장중 ({minutes}분 {seconds}초)")
+            lines.append(f"{i}번 밭 {region_text}: 🌱 {crop_name} 성장중 ({minutes}분 {seconds}초) {watered}{fertilizer}{withered}")
 
     await interaction.response.send_message(
-    f"🚜 **내 농밭** ({len(farm_data[user_id]['field'])}칸)\n\n" + "\n".join(lines)
-)
+        f"🚜 **내 농밭** ({len(farm_data[user_id]['field'])}칸)\n"
+        f"{' / '.join(header)}\n\n" +
+        "\n".join(lines)
+    )
 
 
 @bot.tree.command(name="심기", description="농밭에 씨앗을 심는다", guild=GUILD)
@@ -3660,10 +3947,7 @@ async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, �
     max_size = len(farm_data[user_id]["field"])
 
     if 칸 < 1 or 칸 > max_size:
-        await interaction.response.send_message(
-            f"❌ 밭 칸은 1~{max_size}번만 가능.",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ 밭 칸은 1~{max_size}번만 가능.", ephemeral=True)
         return
 
     index = 칸 - 1
@@ -3682,13 +3966,19 @@ async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, �
 
     seed = SEED_DATA[씨앗]
     level = farm_levels.get(user_id, 1)
+    region = get_plot_region(index)
+    status = get_region_status(region)
+    effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
 
     time_reduce = 1 - ((level - 1) * 0.05)
     time_reduce = max(0.45, time_reduce)
 
-    grow_min = int(seed["grow_min"] * time_reduce)
-    grow_max = int(seed["grow_max"] * time_reduce)
+    grow_min = int(seed["grow_min"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
+    grow_max = int(seed["grow_max"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
 
+    grow_min = max(5, grow_min)
+    grow_max = max(grow_min, grow_max)
     grow_time = random.randint(grow_min, grow_max)
 
     used_fertilizer = False
@@ -3706,18 +3996,243 @@ async def plant_seed(interaction: discord.Interaction, 칸: int, 씨앗: str, �
 
     farm_data[user_id]["field"][index] = {
         "crop": 씨앗,
+        "region": region,
         "planted_at": now,
         "harvest_time": now + timedelta(seconds=grow_time),
-        "fertilizer": used_fertilizer
+        "fertilizer": used_fertilizer,
+        "watered": False,
+        "trait": None,
+        "yield": 1,
+        "withered": False
     }
 
     save_data()
 
     await interaction.response.send_message(
         f"🌱 {칸}번 밭에 **{씨앗}** 심음!\n"
+        f"구역: **{region} / {status}**\n"
         f"예상 성장 시간: **{grow_time}초**\n"
         f"비료 사용: **{'O' if used_fertilizer else 'X'}**"
     )
+
+
+@bot.tree.command(name="전체심기", description="빈 밭에 같은 씨앗을 전부 심는다", guild=GUILD)
+@app_commands.describe(
+    씨앗="심을 씨앗 이름",
+    비료사용="비료를 가능한 만큼 사용할지 여부"
+)
+async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료사용: bool = False):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    if 씨앗 not in SEED_DATA:
+        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
+        return
+
+    empty_indexes = [i for i, plot in enumerate(farm_data[user_id]["field"]) if plot is None]
+
+    if not empty_indexes:
+        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
+        return
+
+    seed_count = farm_data[user_id]["seeds"][씨앗]
+
+    if seed_count <= 0:
+        await interaction.response.send_message(f"❌ {씨앗} 씨앗이 없음.", ephemeral=True)
+        return
+
+    plant_count = min(len(empty_indexes), seed_count)
+    planted = 0
+    used_fertilizer_count = 0
+    region_count = {}
+
+    for index in empty_indexes[:plant_count]:
+        seed = SEED_DATA[씨앗]
+        level = farm_levels.get(user_id, 1)
+        region = get_plot_region(index)
+        status = get_region_status(region)
+        effect = REGION_EFFECTS[status]
+        pendant_bonus = get_farm_pendant_bonus(user_id)
+
+        time_reduce = 1 - ((level - 1) * 0.05)
+        time_reduce = max(0.45, time_reduce)
+
+        grow_min = int(seed["grow_min"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
+        grow_max = int(seed["grow_max"] * time_reduce * effect["grow_mult"] * (1 - pendant_bonus["grow_reduce"]))
+
+        grow_min = max(5, grow_min)
+        grow_max = max(grow_min, grow_max)
+        grow_time = random.randint(grow_min, grow_max)
+
+        used_fertilizer = False
+
+        if 비료사용 and farm_data[user_id]["fertilizer"] > 0:
+            farm_data[user_id]["fertilizer"] -= 1
+            grow_time //= 2
+            used_fertilizer = True
+            used_fertilizer_count += 1
+
+        farm_data[user_id]["seeds"][씨앗] -= 1
+
+        farm_data[user_id]["field"][index] = {
+            "crop": 씨앗,
+            "region": region,
+            "planted_at": now,
+            "harvest_time": now + timedelta(seconds=grow_time),
+            "fertilizer": used_fertilizer,
+            "watered": False,
+            "trait": None,
+            "yield": 1,
+            "withered": False
+        }
+
+        region_count[region] = region_count.get(region, 0) + 1
+        planted += 1
+
+    save_data()
+
+    region_text = " / ".join(f"{name} {count}개" for name, count in region_count.items())
+
+    await interaction.response.send_message(
+        f"🌱 **전체 심기 완료!**\n\n"
+        f"심은 작물: **{씨앗}**\n"
+        f"심은 개수: **{planted}개**\n"
+        f"구역 분포: **{region_text}**\n"
+        f"사용한 비료: **{used_fertilizer_count}개**\n"
+        f"남은 씨앗: **{farm_data[user_id]['seeds'][씨앗]}개**"
+    )
+
+
+@bot.tree.command(name="물주기", description="농밭에 물을 줘서 남은 성장 시간을 줄인다", guild=GUILD)
+@app_commands.describe(칸="물을 줄 밭 칸")
+async def water_crop(interaction: discord.Interaction, 칸: int):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    max_size = len(farm_data[user_id]["field"])
+
+    if 칸 < 1 or 칸 > max_size:
+        await interaction.response.send_message(f"❌ 밭 칸은 1~{max_size}번만 가능.", ephemeral=True)
+        return
+
+    index = 칸 - 1
+    plot = farm_data[user_id]["field"][index]
+
+    if plot is None:
+        await interaction.response.send_message("❌ 이 칸은 비어있음.", ephemeral=True)
+        return
+
+    if plot.get("watered"):
+        await interaction.response.send_message("❌ 이미 물 준 밭임.", ephemeral=True)
+        return
+
+    harvest_time = fix_datetime(plot.get("harvest_time"))
+
+    if harvest_time is None:
+        await interaction.response.send_message("⚠️ 작물 시간 데이터 오류.", ephemeral=True)
+        return
+
+    if now >= harvest_time:
+        await interaction.response.send_message("🌾 이미 다 자라서 물 줄 필요 없음.", ephemeral=True)
+        return
+
+    remaining = harvest_time - now
+    reduced_seconds = int(remaining.total_seconds() * WATER_REDUCE_RATE)
+    plot["harvest_time"] = harvest_time - timedelta(seconds=reduced_seconds)
+    plot["watered"] = True
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"💧 {칸}번 밭에 물을 줌!\n"
+        f"성장 시간이 **{reduced_seconds}초** 단축됨."
+    )
+
+
+@bot.tree.command(name="전체물주기", description="물을 줄 수 있는 모든 밭에 물을 준다", guild=GUILD)
+async def water_all_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    watered_count = 0
+    total_reduced = 0
+
+    for plot in farm_data[user_id]["field"]:
+        if plot is None or plot.get("watered"):
+            continue
+
+        harvest_time = fix_datetime(plot.get("harvest_time"))
+        if harvest_time is None or now >= harvest_time:
+            continue
+
+        reduced_seconds = int((harvest_time - now).total_seconds() * WATER_REDUCE_RATE)
+        plot["harvest_time"] = harvest_time - timedelta(seconds=reduced_seconds)
+        plot["watered"] = True
+        watered_count += 1
+        total_reduced += reduced_seconds
+
+    if watered_count <= 0:
+        await interaction.response.send_message("💧 물 줄 수 있는 밭이 없음.", ephemeral=True)
+        return
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"💧 **전체 물주기 완료!**\n\n"
+        f"물 준 밭: **{watered_count}칸**\n"
+        f"총 단축 시간: **{total_reduced}초**"
+    )
+
+
+def harvest_one_plot(user_id, index, now):
+    plot = farm_data[user_id]["field"][index]
+
+    if plot is None:
+        return None
+
+    harvest_time = fix_datetime(plot.get("harvest_time"))
+    if harvest_time is None or now < harvest_time:
+        return None
+
+    crop_name = plot["crop"]
+    region = plot.get("region", get_plot_region(index))
+    status = get_region_status(region)
+    effect = REGION_EFFECTS[status]
+    pendant_bonus = get_farm_pendant_bonus(user_id)
+
+    wither_chance = max(0, effect["wither_chance"] - pendant_bonus["wither_reduce"])
+    withered = random.randint(1, 100) <= wither_chance
+
+    trait_name = None if withered else roll_crop_trait(user_id, region)
+    amount = 1 if withered else make_crop_yield(user_id, crop_name, region, trait_name)
+
+    if withered:
+        item_name = f"시든 {crop_name}"
+        if "시든" in CROP_TRAITS:
+            trait_name = "시든"
+    else:
+        item_name = get_crop_item_name(crop_name, trait_name)
+
+    farm_data[user_id]["crops"][item_name] = farm_data[user_id]["crops"].get(item_name, 0) + amount
+    crop_dex[user_id].add(crop_name)
+    farm_data[user_id]["field"][index] = None
+
+    return {
+        "crop": crop_name,
+        "item": item_name,
+        "trait": trait_name,
+        "amount": amount,
+        "region": region,
+        "status": status,
+        "withered": withered
+    }
+
 
 @bot.tree.command(name="수확", description="다 자란 농작물을 수확한다", guild=GUILD)
 @app_commands.describe(칸="수확할 밭 칸")
@@ -3730,10 +4245,7 @@ async def harvest_crop(interaction: discord.Interaction, 칸: int):
     max_size = len(farm_data[user_id]["field"])
 
     if 칸 < 1 or 칸 > max_size:
-        await interaction.response.send_message(
-            f"❌ 밭 칸은 1~{max_size}번만 가능.",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ 밭 칸은 1~{max_size}번만 가능.", ephemeral=True)
         return
 
     index = 칸 - 1
@@ -3751,28 +4263,67 @@ async def harvest_crop(interaction: discord.Interaction, 칸: int):
 
     if now < harvest_time:
         remain = int((harvest_time - now).total_seconds())
-        await interaction.response.send_message(
-            f"❌ 아직 덜 자람. {remain}초 남음.",
-            ephemeral=True
-        )
+        await interaction.response.send_message(f"❌ 아직 덜 자람. {remain}초 남음.", ephemeral=True)
         return
 
-    crop_name = plot["crop"]
-
-    farm_data[user_id]["crops"][crop_name] += 1
-    crop_dex[user_id].add(crop_name)
-    farm_data[user_id]["field"][index] = None
-
+    result = harvest_one_plot(user_id, index, now)
     save_data()
+
+    trait_text = result["trait"] if result["trait"] else "없음"
+    wither_text = "\n🥀 흉년 피해로 작물이 시들었음..." if result["withered"] else ""
 
     await interaction.response.send_message(
         f"🌾 수확 완료!\n"
-        f"획득 농작물: **{crop_name} 1개**"
+        f"구역: **{result['region']} / {result['status']}**\n"
+        f"특성: **{trait_text}**\n"
+        f"획득 농작물: **{result['item']} {result['amount']}개**"
+        f"{wither_text}"
     )
+
+
+@bot.tree.command(name="전체수확", description="다 자란 농작물을 전부 수확한다", guild=GUILD)
+async def harvest_all_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
+
+    get_farm(user_id)
+
+    harvested = {}
+    region_log = {}
+    withered_count = 0
+
+    for i, plot in enumerate(farm_data[user_id]["field"]):
+        result = harvest_one_plot(user_id, i, now)
+        if result is None:
+            continue
+
+        harvested[result["item"]] = harvested.get(result["item"], 0) + result["amount"]
+        region_key = f"{result['region']} / {result['status']}"
+        region_log[region_key] = region_log.get(region_key, 0) + 1
+
+        if result["withered"]:
+            withered_count += 1
+
+    if not harvested:
+        await interaction.response.send_message("🌱 수확 가능한 농작물이 없음.", ephemeral=True)
+        return
+
+    save_data()
+
+    crop_text = "\n".join(f"{name}: {count}개" for name, count in harvested.items())
+    region_text = "\n".join(f"{name}: {count}칸" for name, count in region_log.items())
+
+    await interaction.response.send_message(
+        f"🌾 **전체 수확 완료!**\n\n"
+        f"{crop_text}\n\n"
+        f"📍 **구역별 수확**\n{region_text}\n\n"
+        f"🥀 시든 작물: **{withered_count}개**"
+    )
+
 
 @bot.tree.command(name="판매", description="농작물을 판매한다", guild=GUILD)
 @app_commands.describe(
-    농작물="판매할 농작물 이름",
+    농작물="판매할 농작물 이름. 예: 감자 / 황금빛 감자",
     갯수="판매할 갯수"
 )
 async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: int):
@@ -3781,26 +4332,22 @@ async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: in
     get_wallet(user_id)
     get_farm(user_id)
 
-    if 농작물 not in SEED_DATA:
-        await interaction.response.send_message("❌ 그런 농작물 없음.", ephemeral=True)
-        return
-
     if 갯수 <= 0:
         await interaction.response.send_message("❌ 1개 이상 팔아야 함.", ephemeral=True)
         return
 
-    if farm_data[user_id]["crops"][농작물] < 갯수:
+    price = get_crop_price_for_user(user_id, 농작물)
+    if price is None:
+        await interaction.response.send_message("❌ 그런 농작물 없음.", ephemeral=True)
+        return
+
+    if farm_data[user_id]["crops"].get(농작물, 0) < 갯수:
         await interaction.response.send_message(
-            f"❌ {농작물} 부족함.\n"
-            f"보유: {farm_data[user_id]['crops'][농작물]}개",
+            f"❌ {농작물} 부족함.\n보유: {farm_data[user_id]['crops'].get(농작물, 0)}개",
             ephemeral=True
         )
         return
 
-    if not crop_prices:
-        update_crop_prices()
-
-    price = crop_prices[농작물]
     total = price * 갯수
 
     farm_data[user_id]["crops"][농작물] -= 갯수
@@ -3818,20 +4365,95 @@ async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: in
     )
 
 
+@bot.tree.command(name="전체판매", description="보유한 농작물을 전부 판매한다", guild=GUILD)
+async def sell_all_crop(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_farm(user_id)
+
+    sold = {}
+    total_price = 0
+    total_count = 0
+
+    for item_name, count in list(farm_data[user_id]["crops"].items()):
+        if count <= 0:
+            continue
+
+        price = get_crop_price_for_user(user_id, item_name)
+        if price is None:
+            continue
+
+        total = price * count
+
+        sold[item_name] = {"count": count, "price": price, "total": total}
+        total_price += total
+        total_count += count
+        farm_data[user_id]["crops"][item_name] = 0
+
+    if total_count <= 0:
+        await interaction.response.send_message("❌ 팔 농작물이 없음.", ephemeral=True)
+        return
+
+    money_data[user_id] += total_price
+    save_data()
+
+    text = "\n".join(
+        f"{name}: {data['count']}개 / 단가 {data['price']}원 / {data['total']}원"
+        for name, data in sold.items()
+    )
+
+    await interaction.response.send_message(
+        f"💰 **농작물 전체 판매 완료!**\n\n"
+        f"{text}\n\n"
+        f"판매 수량: **{total_count}개**\n"
+        f"총 판매가: **{total_price}원**\n\n"
+        f"현재 잔액: **{money_data[user_id]}원**"
+    )
+
+
+@bot.tree.command(name="작물가방", description="보유한 농작물 목록을 확인한다", guild=GUILD)
+async def crop_inventory(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    get_farm(user_id)
+
+    items = [
+        (name, count) for name, count in farm_data[user_id]["crops"].items()
+        if count > 0
+    ]
+
+    if not items:
+        await interaction.response.send_message("🎒 보유한 농작물이 없음.", ephemeral=True)
+        return
+
+    lines = []
+    for name, count in sorted(items):
+        price = get_crop_price_for_user(user_id, name)
+        price_text = f"{price}원" if price is not None else "판매불가"
+        lines.append(f"- **{name}** x{count} / 단가 {price_text}")
+
+    await interaction.response.send_message(
+        "🎒 **작물 가방**\n\n" + "\n".join(lines)
+    )
+
+
 @bot.tree.command(name="변동가", description="현재 농작물 시세 확인", guild=GUILD)
 async def crop_price_info(interaction: discord.Interaction):
     if not crop_prices:
         update_crop_prices()
 
     text = "\n".join(
-        f"{name}: {crop_prices[name]}원 (기준가 {data['base_price']}원)"
-        for name, data in SEED_DATA.items()
+        f"{name}: {crop_prices[name]}원 (기준가 {seed['base_price']}원)"
+        for name, seed in SEED_DATA.items()
     )
 
     await interaction.response.send_message(
         f"📈 **현재 농작물 변동가**\n\n{text}\n\n"
-        f"시세는 1시간마다 1%~7% 변동됨."
+        f"시세는 1시간마다 1%~7% 변동됨. 특성 작물은 여기에 특성 배율이 추가로 붙음."
     )
+
+
 @bot.tree.command(name="농작물업글", description="농작물 성장/판매가를 업그레이드한다", guild=GUILD)
 async def crop_upgrade(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -3879,7 +4501,6 @@ async def field_upgrade(interaction: discord.Interaction):
 
     current_size = field_sizes[user_id]
 
-    # 기존 9칸 유저 호환
     if current_size < 9:
         current_size = 9
         field_sizes[user_id] = 9
@@ -3893,15 +4514,12 @@ async def field_upgrade(interaction: discord.Interaction):
 
     if money_data[user_id] < cost:
         await interaction.response.send_message(
-            f"❌ 돈 부족.\n"
-            f"필요 금액: **{cost:,}원**\n"
-            f"현재 잔액: **{money_data[user_id]:,}원**",
+            f"❌ 돈 부족.\n필요 금액: **{cost:,}원**\n현재 잔액: **{money_data[user_id]:,}원**",
             ephemeral=True
         )
         return
 
     money_data[user_id] -= cost
-
     field_sizes[user_id] += 1
     farm_data[user_id]["field"].append(None)
 
@@ -3912,7 +4530,8 @@ async def field_upgrade(interaction: discord.Interaction):
         f"현재 밭 크기: **{field_sizes[user_id]}칸**\n"
         f"사용 금액: **{cost:,}원**"
     )
-    
+
+
 @bot.tree.command(name="도감2", description="농작물 도감 확인", guild=GUILD)
 async def crop_book(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -3921,195 +4540,28 @@ async def crop_book(interaction: discord.Interaction):
 
     lines = []
 
-    for name, data in SEED_DATA.items():
+    for name, seed in SEED_DATA.items():
         discovered = "✅" if name in crop_dex[user_id] else "❌"
 
         lines.append(
             f"{discovered} **{name}**\n"
-            f"씨앗 가격: {data['seed_price']}원\n"
-            f"기준 판매가: {data['base_price']}원\n"
-            f"성장 시간: {data['grow_min']}초 ~ {data['grow_max']}초"
+            f"씨앗 가격: {seed['seed_price']}원\n"
+            f"기준 판매가: {seed['base_price']}원\n"
+            f"성장 시간: {seed['grow_min']}초 ~ {seed['grow_max']}초\n"
+            f"수확량: {seed.get('min_yield', 1)}개 ~ {seed.get('max_yield', 1)}개"
         )
 
-    await interaction.response.send_message(
-        "📖 **농작물 도감**\n\n" + "\n\n".join(lines)
-    )
-
-
-@bot.tree.command(name="전체심기", description="빈 밭에 같은 씨앗을 전부 심는다", guild=GUILD)
-@app_commands.describe(
-    씨앗="심을 씨앗 이름",
-    비료사용="비료를 가능한 만큼 사용할지 여부"
-)
-async def plant_all_seed(interaction: discord.Interaction, 씨앗: str, 비료사용: bool = False):
-    user_id = interaction.user.id
-    now = datetime.now()
-
-    get_farm(user_id)
-
-    if 씨앗 not in SEED_DATA:
-        await interaction.response.send_message("❌ 그런 씨앗 없음.", ephemeral=True)
-        return
-
-    empty_indexes = [
-        i for i, plot in enumerate(farm_data[user_id]["field"])
-        if plot is None
-    ]
-
-    if not empty_indexes:
-        await interaction.response.send_message("❌ 빈 밭이 없음.", ephemeral=True)
-        return
-
-    seed_count = farm_data[user_id]["seeds"][씨앗]
-
-    if seed_count <= 0:
-        await interaction.response.send_message(f"❌ {씨앗} 씨앗이 없음.", ephemeral=True)
-        return
-
-    plant_count = min(len(empty_indexes), seed_count)
-
-    planted = 0
-    used_fertilizer_count = 0
-
-    for index in empty_indexes[:plant_count]:
-        seed = SEED_DATA[씨앗]
-
-        level = farm_levels.get(user_id, 1)
-
-        time_reduce = 1 - ((level - 1) * 0.05)
-        time_reduce = max(0.45, time_reduce)
-
-        grow_min = int(seed["grow_min"] * time_reduce)
-        grow_max = int(seed["grow_max"] * time_reduce)
-
-        grow_time = random.randint(grow_min, grow_max)
-
-        used_fertilizer = False
-
-        if 비료사용 and farm_data[user_id]["fertilizer"] > 0:
-            farm_data[user_id]["fertilizer"] -= 1
-            grow_time //= 2
-            used_fertilizer = True
-            used_fertilizer_count += 1
-
-        farm_data[user_id]["seeds"][씨앗] -= 1
-
-        farm_data[user_id]["field"][index] = {
-            "crop": 씨앗,
-            "planted_at": now,
-            "harvest_time": now + timedelta(seconds=grow_time),
-            "fertilizer": used_fertilizer
-        }
-
-        planted += 1
-
-    save_data()
-
-    await interaction.response.send_message(
-        f"🌱 **전체 심기 완료!**\n\n"
-        f"심은 작물: **{씨앗}**\n"
-        f"심은 개수: **{planted}개**\n"
-        f"사용한 비료: **{used_fertilizer_count}개**\n"
-        f"남은 씨앗: **{farm_data[user_id]['seeds'][씨앗]}개**"
-    )
-
-
-@bot.tree.command(name="전체수확", description="다 자란 농작물을 전부 수확한다", guild=GUILD)
-async def harvest_all_crop(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    now = datetime.now()
-
-    get_farm(user_id)
-
-    harvested = {}
-
-    for i, plot in enumerate(farm_data[user_id]["field"]):
-        if plot is None:
-            continue
-
-        harvest_time = fix_datetime(plot.get("harvest_time"))
-
-        if harvest_time is None:
-            continue
-
-        if now < harvest_time:
-            continue
-
-        crop_name = plot["crop"]
-
-        farm_data[user_id]["crops"][crop_name] += 1
-        crop_dex[user_id].add(crop_name)
-        farm_data[user_id]["field"][i] = None
-
-        harvested[crop_name] = harvested.get(crop_name, 0) + 1
-
-    if not harvested:
-        await interaction.response.send_message("🌱 수확 가능한 농작물이 없음.", ephemeral=True)
-        return
-
-    save_data()
-
-    text = "\n".join(
-        f"{name}: {count}개"
-        for name, count in harvested.items()
+    trait_text = "\n".join(
+        f"- {name}: 가격 x{data['price_mult']} / 수확량 x{data['yield_mult']}"
+        for name, data in CROP_TRAITS.items()
     )
 
     await interaction.response.send_message(
-        f"🌾 **전체 수확 완료!**\n\n{text}"
+        "📖 **농작물 도감**\n\n" +
+        "\n\n".join(lines) +
+        f"\n\n✨ **작물 특성**\n{trait_text}"
     )
 
-
-@bot.tree.command(name="전체판매", description="보유한 농작물을 전부 판매한다", guild=GUILD)
-async def sell_all_crop(interaction: discord.Interaction):
-    user_id = interaction.user.id
-
-    get_wallet(user_id)
-    get_farm(user_id)
-
-    if not crop_prices:
-        update_crop_prices()
-
-    sold = {}
-    total_price = 0
-    total_count = 0
-
-    for crop_name, count in list(farm_data[user_id]["crops"].items()):
-        if count <= 0:
-            continue
-
-        price = crop_prices[crop_name]
-        total = price * count
-
-        sold[crop_name] = {
-            "count": count,
-            "price": price,
-            "total": total
-        }
-
-        total_price += total
-        total_count += count
-        farm_data[user_id]["crops"][crop_name] = 0
-
-    if total_count <= 0:
-        await interaction.response.send_message("❌ 팔 농작물이 없음.", ephemeral=True)
-        return
-
-    money_data[user_id] += total_price
-
-    save_data()
-
-    text = "\n".join(
-        f"{name}: {data['count']}개 / 단가 {data['price']}원 / {data['total']}원"
-        for name, data in sold.items()
-    )
-
-    await interaction.response.send_message(
-        f"💰 **농작물 전체 판매 완료!**\n\n"
-        f"{text}\n\n"
-        f"판매 수량: **{total_count}개**\n"
-        f"총 판매가: **{total_price}원**\n\n"
-        f"현재 잔액: **{money_data[user_id]}원**"
-    )
 @bot.tree.command(name="거래", description="물고기나 광석을 다른 유저에게 준다.", guild=GUILD)
 @app_commands.describe(
     대상="받을 유저",
