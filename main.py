@@ -1127,6 +1127,7 @@ async def horse_list(interaction: discord.Interaction):
 # 낚시 시스템
 # =========================
 
+FISH_TRAIT_CHANCE = 30
 fish_tanks = {}
 fish_dex = {}
 FISH_DATA = {
@@ -1704,6 +1705,30 @@ FISH_DATA = {
         "chance": 0.001
     }
 }
+FISH_TRAITS = {
+    # 안 좋은 특성
+    "상처난": {"price_mult": 0.75, "kg_mult": 0.9, "type": "bad"},
+    "비린내 나는": {"price_mult": 0.8, "kg_mult": 1.0, "type": "bad"},
+    "마른": {"price_mult": 0.9, "kg_mult": 0.75, "type": "bad"},
+    "썩어가는": {"price_mult": 0.5, "kg_mult": 1.0, "type": "bad"},
+
+    # 좋은 특성
+    "싱싱한": {"price_mult": 1.15, "kg_mult": 1.0, "type": "good"},
+    "윤기나는": {"price_mult": 1.2, "kg_mult": 1.0, "type": "good"},
+    "튼실한": {"price_mult": 1.1, "kg_mult": 1.15, "type": "good"},
+    "거대한": {"price_mult": 1.25, "kg_mult": 1.35, "type": "good"},
+    "황금빛": {"price_mult": 1.8, "kg_mult": 1.0, "type": "good"},
+    "무지개빛": {"price_mult": 2.0, "kg_mult": 1.0, "type": "good"},
+    "심연의": {"price_mult": 2.3, "kg_mult": 1.2, "type": "good"},
+    "고대의": {"price_mult": 2.5, "kg_mult": 1.25, "type": "good"},
+    "축복받은": {"price_mult": 2.8, "kg_mult": 1.0, "type": "good"},
+    "왕관을 쓴": {"price_mult": 3.0, "kg_mult": 1.1, "type": "good"},
+    "폭풍을 머금은": {"price_mult": 2.2, "kg_mult": 1.15, "type": "good"},
+    "별빛을 품은": {"price_mult": 2.6, "kg_mult": 1.0, "type": "good"},
+    "공허에 물든": {"price_mult": 3.5, "kg_mult": 1.3, "type": "good"},
+    "신의": {"price_mult": 4.0, "kg_mult": 1.0, "type": "good"},
+    "혼돈의": {"price_mult": 5.0, "kg_mult": 1.5, "type": "good"},
+}
 
 BOSS_FISH = ["메갈로돈", "크라켄"]
 
@@ -2086,7 +2111,7 @@ async def fishing_success(interaction: discord.Interaction):
     get_wallet(user_id)
     get_tank(user_id)
     get_fishing_gear(user_id)
-
+    
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
@@ -2120,7 +2145,26 @@ async def fishing_success(interaction: discord.Interaction):
                 equipped_baits[user_id] = "미끼 없음"
 
     first_fish = pick_fish(luck_bonus)
+    
+    def roll_fish_trait():
+    if random.randint(1, 100) > 30:
+        return None
 
+    bad_traits = [
+        name for name, data in FISH_TRAITS.items()
+        if data["type"] == "bad"
+    ]
+
+    good_traits = [
+        name for name, data in FISH_TRAITS.items()
+        if data["type"] == "good"
+    ]
+
+    # 좋은 특성이 더 많으니까 대충 80%는 좋은 특성
+    if random.randint(1, 100) <= 80:
+        return random.choice(good_traits)
+
+    return random.choice(bad_traits)
     # 보스 뜨면 더블/트리플 무시하고 보스전만 시작
     if first_fish in BOSS_FISH:
         use_bait()
@@ -2163,31 +2207,53 @@ async def fishing_success(interaction: discord.Interaction):
         fish_list.append(fish_name)
 
     for fish_name in fish_list:
-        fish_data = FISH_DATA[fish_name]
+    fish_data = FISH_DATA[fish_name]
 
-        kg = round(
-            random.uniform(
-                fish_data["min_kg"],
-                fish_data["max_kg"]
-            ),
-            2
+    trait_name = roll_fish_trait()
+
+    kg = random.uniform(
+        fish_data["min_kg"],
+        fish_data["max_kg"]
+    )
+
+    display_name = fish_name
+    trait_text = ""
+
+    if trait_name:
+        trait = FISH_TRAITS[trait_name]
+
+        kg *= trait["kg_mult"]
+        display_name = f"{trait_name} {fish_name}"
+
+    kg = round(kg, 2)
+
+    price = fish_price(fish_name, kg)
+
+    if trait_name:
+        price = int(
+            price * FISH_TRAITS[trait_name]["price_mult"]
         )
 
-        price = fish_price(fish_name, kg)
-
-        fish_tanks[user_id].append({
-            "name": fish_name,
-            "kg": kg,
-            "price": price
-        })
-
-        fish_dex[user_id].add(fish_name)
-
-        caught_text.append(
-            f"잡은 물고기: **{fish_name}**\n"
-            f"무게: **{kg}kg**\n"
-            f"예상 판매가: **{money(price)}원**"
+        trait_text = (
+            f"\n특성: **{trait_name}**"
         )
+
+    fish_tanks[user_id].append({
+        "name": fish_name,
+        "display_name": display_name,
+        "trait": trait_name,
+        "kg": kg,
+        "price": price
+    })
+
+    fish_dex[user_id].add(fish_name)
+
+    caught_text.append(
+        f"잡은 물고기: **{display_name}**\n"
+        f"무게: **{kg}kg**\n"
+        f"예상 판매가: **{money(price)}원**"
+        f"{trait_text}"
+    )
 
     use_bait()
     save_data()
@@ -2255,7 +2321,10 @@ async def fish_tank(interaction: discord.Interaction):
     count_data = {}
 
     for fish in tank:
-        name = fish["name"]
+        name = fish.get(
+            "display_name",
+            fish["name"]
+        )
 
         if name not in count_data:
             count_data[name] = {
