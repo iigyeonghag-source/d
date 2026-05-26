@@ -6624,122 +6624,110 @@ class BossRaidView(discord.ui.View):
         return "lose"
 
     async def play_turn(self, interaction):
-        boss_actions = random.choices(BOSS_ACTIONS, k=3)
+    await interaction.response.defer()
 
-        player_power = get_total_power(self.user_id)
+    boss_actions = random.choices(BOSS_ACTIONS, k=3)
+    player_power = get_total_power(self.user_id)
 
-        total_player_damage = 0
-        total_boss_damage = 0
-        logs = []
+    total_player_damage = 0
+    total_boss_damage = 0
+    logs = []
 
-        for i in range(3):
-            p_action = self.player_actions[i]
-            b_action = boss_actions[i]
+    for i in range(3):
+        p_action = self.player_actions[i]
+        b_action = boss_actions[i]
 
-            result = self.judge_action(p_action, b_action)
-
-            base_player_damage = random.randint(
-                int(player_power * 0.7),
-                int(player_power * 1.25)
-            )
-
-            base_boss_damage = random.randint(
-                int(self.boss["hp"] * 0.01),
-                int(self.boss["hp"] * 0.025)
-            )
-
-            if result == "win":
-                dmg = int(base_player_damage * 1.6)
-                total_player_damage += dmg
-                logs.append(
-                    f"✅ {i+1}번째: **{p_action}** vs **{b_action}** → 승리! 보스에게 **{dmg}** 피해"
-                )
-
-            elif result == "lose":
-                dmg = int(base_boss_damage * 1.2)
-                total_boss_damage += dmg
-                logs.append(
-                    f"❌ {i+1}번째: **{p_action}** vs **{b_action}** → 패배... 내 체력 **-{dmg}**"
-                )
-
-            else:
-                dmg = int(base_player_damage * 0.4)
-                enemy_dmg = int(base_boss_damage * 0.4)
-
-                total_player_damage += dmg
-                total_boss_damage += enemy_dmg
-
-                logs.append(
-                    f"➖ {i+1}번째: **{p_action}** vs **{b_action}** → 비김. "
-                    f"보스 **-{dmg}**, 나 **-{enemy_dmg}**"
-                )
-
-        self.boss_hp -= total_player_damage
-        self.player_hp -= total_boss_damage
-
-        self.player_actions = []
-
-        if self.boss_hp <= 0:
-            await self.win(interaction)
-            return
-
-        if self.player_hp <= 0:
-            await self.lose(interaction)
-            return
-
-        self.turn += 1
-
-        await self.update_msg(
-            interaction,
-            "\n".join(logs) +
-            f"\n\n🗡️ 총 피해: **{total_player_damage}**" +
-            f"\n💥 받은 피해: **{total_boss_damage}**"
+        content = (
+            f"👹 **보스전: {self.boss_name}**\n\n"
+            f"🔁 턴: **{self.turn}**\n"
+            f"❤️ 보스 체력: **{max(0, self.boss_hp)}/{self.boss['hp']}**\n"
+            f"❤️ 내 체력: **{max(0, self.player_hp)}/{self.max_hp}**\n\n"
+            f"⚔️ **{i+1}번째 행동 비교 중...**\n\n"
+            f"너: **{p_action}**\n"
+            f"보스: **???**"
         )
 
-    async def win(self, interaction):
-        get_wallet(self.user_id)
-        get_boss_user(self.user_id)
+        await interaction.message.edit(content=content, view=None)
+        await asyncio.sleep(0.8)
 
-        material = self.boss["material"]
-        amount = random.randint(self.boss["drop_min"], self.boss["drop_max"])
-        reward = self.boss["reward"]
+        result = self.judge_action(p_action, b_action)
 
-        boss_materials[self.user_id][material] = boss_materials[self.user_id].get(material, 0) + amount
-        money_data[self.user_id] += reward
-
-        save_data()
-
-        await interaction.response.edit_message(
-            content=(
-                f"🏆 **보스 처치 성공!**\n\n"
-                f"처치한 보스: **{self.boss_name}**\n"
-                f"획득 재료: **{material} x{amount}**\n"
-                f"획득 돈: **{money(reward)}원**\n\n"
-                f"현재 잔액: **{money(money_data[self.user_id])}원**"
-            ),
-            view=None
+        base_player_damage = random.randint(
+            int(player_power * 0.7),
+            int(player_power * 1.25)
         )
 
-        self.stop()
-
-    async def lose(self, interaction):
-        await interaction.response.edit_message(
-            content=(
-                f"💀 **보스전 실패...**\n\n"
-                f"보스 **{self.boss_name}**에게 밀려났다.\n"
-                f"입장권은 사라졌다..."
-            ),
-            view=None
+        base_boss_damage = random.randint(
+            int(self.boss["hp"] * 0.01),
+            int(self.boss["hp"] * 0.025)
         )
 
-        self.stop()
+        if result == "win":
+            dmg = int(base_player_damage * 1.6)
+            total_player_damage += dmg
+            result_text = f"✅ 승리! 보스에게 **{dmg}** 피해"
 
-    async def on_timeout(self):
-        if self.message:
-            await self.message.edit(
-                content="⏰ 시간이 지나 보스가 사라졌다...",
-                view=None
-            )
+        elif result == "lose":
+            dmg = int(base_boss_damage * 1.2)
+            total_boss_damage += dmg
+            result_text = f"❌ 패배... 내 체력 **-{dmg}**"
+
+        else:
+            dmg = int(base_player_damage * 0.4)
+            enemy_dmg = int(base_boss_damage * 0.4)
+
+            total_player_damage += dmg
+            total_boss_damage += enemy_dmg
+
+            result_text = f"➖ 비김. 보스 **-{dmg}**, 나 **-{enemy_dmg}**"
+
+        logs.append(
+            f"{i+1}. **{p_action}** vs **{b_action}** → {result_text}"
+        )
+
+        content = (
+            f"👹 **보스전: {self.boss_name}**\n\n"
+            f"🔁 턴: **{self.turn}**\n"
+            f"❤️ 보스 체력: **{max(0, self.boss_hp)}/{self.boss['hp']}**\n"
+            f"❤️ 내 체력: **{max(0, self.player_hp)}/{self.max_hp}**\n\n"
+            f"⚔️ **{i+1}번째 행동 공개!**\n\n"
+            f"너: **{p_action}**\n"
+            f"보스: **{b_action}**\n\n"
+            f"{result_text}\n\n"
+            f"## 현재까지 결과\n" +
+            "\n".join(logs)
+        )
+
+        await interaction.message.edit(content=content, view=None)
+        await asyncio.sleep(1.1)
+
+    self.boss_hp -= total_player_damage
+    self.player_hp -= total_boss_damage
+    self.player_actions = []
+
+    if self.boss_hp <= 0:
+        await self.win_after_defer(interaction)
+        return
+
+    if self.player_hp <= 0:
+        await self.lose_after_defer(interaction)
+        return
+
+    self.turn += 1
+
+    await interaction.message.edit(
+        content=(
+            f"👹 **보스전: {self.boss_name}**\n\n"
+            f"🔁 턴: **{self.turn}**\n"
+            f"❤️ 보스 체력: **{max(0, self.boss_hp)}/{self.boss['hp']}**\n"
+            f"⚔️ 내 전투력: **{get_total_power(self.user_id)}**\n"
+            f"❤️ 내 체력: **{max(0, self.player_hp)}/{self.max_hp}**\n\n"
+            f"🗡️ 이번 턴 총 피해: **{total_player_damage}**\n"
+            f"💥 이번 턴 받은 피해: **{total_boss_damage}**\n\n"
+            f"다음 턴 행동을 **3개** 골라라."
+        ),
+        view=self
+    )
 
 
 @bot.tree.command(name="보스목록", description="도전 가능한 보스 목록", guild=GUILD)
