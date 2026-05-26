@@ -3385,7 +3385,7 @@ class LostItemReturnView(discord.ui.View):
 
         self.stop()
 # =========================
-# 농사 시스템 개편판
+# 농사 시스템
 # =========================
 
 farm_data = globals().get("farm_data", {})
@@ -3883,6 +3883,7 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
         f"현재 보유: **{farm_data[user_id]['seeds'][아이템]}개**\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
+    
 @bot.tree.command(name="농밭", description="현재 이동한 농밭 상태 확인", guild=GUILD)
 async def farm_field(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -3890,22 +3891,20 @@ async def farm_field(interaction: discord.Interaction):
 
     get_farm(user_id)
 
-    current_land = get_current_land(user_id)
-
-    start, end = get_land_range(user_id, current_land)
-
-    region = FARM_REGIONS[current_land - 1]
-    status = get_region_status(region)
+    current_region = get_current_region(user_id)
+    status = get_region_status(current_region)
 
     lines = []
 
-    for i in range(start, end):
-        plot = farm_data[user_id]["field"][i]
-
-        display_num = (i - start) + 1
+    for i, plot in enumerate(farm_data[user_id]["field"]):
+        display_num = i + 1
 
         if plot is None:
             lines.append(f"{display_num}번 밭: 비어있음")
+            continue
+
+        # 현재 지역만 표시
+        if plot.get("region") != current_region:
             continue
 
         harvest_time = fix_datetime(plot.get("harvest_time"))
@@ -3929,9 +3928,12 @@ async def farm_field(interaction: discord.Interaction):
                 f"({minutes}분 {seconds}초)"
             )
 
+    if not lines:
+        lines.append("현재 지역에 심어진 작물이 없음.")
+
     await interaction.response.send_message(
-        f"🚜 현재 땅: **{current_land}번 땅**\n"
-        f"📍 지역: **{region} / {status}**\n\n"
+        f"🚜 현재 지역: **{current_region}**\n"
+        f"📍 상태: **{status}**\n\n"
         + "\n".join(lines)
     )
     
