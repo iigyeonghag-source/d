@@ -6528,6 +6528,49 @@ def get_boss_power(user_id):
     return 10 + BOSS_EQUIP_DATA.get(equipped, {}).get("power", 0)
 
 
+BOSS_ACTIONS = ["검 휘두르기", "활 쏘기", "막기", "마법 쓰기", "회피"]
+
+# key가 value들을 이김
+BOSS_ACTION_WIN = {
+    "검 휘두르기": ["활 쏘기", "회피"],
+    "활 쏘기": ["마법 쓰기", "회피"],
+    "막기": ["검 휘두르기", "활 쏘기"],
+    "마법 쓰기": ["막기", "검 휘두르기"],
+    "회피": ["마법 쓰기", "막기"],
+}
+
+
+class BossActionButton(discord.ui.Button):
+    def __init__(self, action):
+        super().__init__(
+            label=action,
+            style=discord.ButtonStyle.primary
+        )
+        self.action = action
+
+    async def callback(self, interaction: discord.Interaction):
+        view: BossRaidView = self.view
+
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
+            return
+
+        if len(view.player_actions) >= 3:
+            await interaction.response.send_message("❌ 이미 3개 골랐음.", ephemeral=True)
+            return
+
+        view.player_actions.append(self.action)
+
+        if len(view.player_actions) >= 3:
+            await view.play_turn(interaction)
+        else:
+            await view.update_msg(
+                interaction,
+                f"선택한 행동: **{', '.join(view.player_actions)}**\n"
+                f"남은 선택: **{3 - len(view.player_actions)}개**"
+            )
+
+
 class BossRaidView(discord.ui.View):
     def __init__(self, user_id, boss_name):
         super().__init__(timeout=40)
@@ -6540,24 +6583,29 @@ class BossRaidView(discord.ui.View):
         self.max_hp = self.get_player_hp()
         self.player_hp = self.max_hp
 
-        self.fail_count = 0
+        self.turn = 1
+        self.player_actions = []
         self.message = None
+
+        for action in BOSS_ACTIONS:
+            self.add_item(BossActionButton(action))
 
     def get_player_hp(self):
         get_rpg_equipment(self.user_id)
 
         armor = equipped_armor[self.user_id]
-
         armor_hp = ARMOR_DATA.get(armor, {}).get("hp", 0)
 
         return 100 + armor_hp
-            
+
     async def update_msg(self, interaction=None, text=""):
         content = (
             f"👹 **보스전: {self.boss_name}**\n\n"
-            f"❤️ 보스 체력: **{self.boss_hp}/{self.boss['hp']}**\n"
+            f"🔁 턴: **{self.turn}**\n"
+            f"❤️ 보스 체력: **{max(0, self.boss_hp)}/{self.boss['hp']}**\n"
             f"⚔️ 내 전투력: **{get_total_power(self.user_id)}**\n\n"
-            f"❤️ 내 체력: **{self.player_hp}/{self.max_hp}**\n\n"
+            f"❤️ 내 체력: **{max(0, self.player_hp)}/{self.max_hp}**\n\n"
+            f"이번 턴 행동을 **3개** 골라라.\n\n"
             f"{text}"
         )
 
@@ -6565,6 +6613,88 @@ class BossRaidView(discord.ui.View):
             await interaction.response.edit_message(content=content, view=self)
         else:
             await self.message.edit(content=content, view=self)
+
+    def judge_action(self, player_action, boss_action):
+        if player_action == boss_action:
+            return "draw"
+
+        if boss_action in BOSS_ACTION_WIN[player_action]:
+            return "win"
+
+        return "lose"
+
+    async def play_turn(self, interaction):
+        boss_actions = random.choices(BOSS_ACTIONS, k=3)
+
+        player_power = get_total_power(self.user_id)
+
+        total_player_damage = 0
+        total_boss_damage = 0
+        logs = []
+
+        for i in range(3):
+            p_action = self.player_actions[i]
+            b_action = boss_actions[i]
+
+            result = self.judge_action(p_action, b_action)
+
+            base_player_damage = random.randint(
+                int(player_power * 0.7),
+                int(player_power * 1.25)
+            )
+
+            base_boss_damage = random.randint(
+                int(self.boss["hp"] * 0.01),
+                int(self.boss["hp"] * 0.025)
+            )
+
+            if result == "win":
+                dmg = int(base_player_damage * 1.6)
+                total_player_damage += dmg
+                logs.append(
+                    f"✅ {i+1}번째: **{p_action}** vs **{b_action}** → 승리! 보스에게 **{dmg}** 피해"
+                )
+
+            elif result == "lose":
+                dmg = int(base_boss_damage * 1.2)
+                total_boss_damage += dmg
+                logs.append(
+                    f"❌ {i+1}번째: **{p_action}** vs **{b_action}** → 패배... 내 체력 **-{dmg}**"
+                )
+
+            else:
+                dmg = int(base_player_damage * 0.4)
+                enemy_dmg = int(base_boss_damage * 0.4)
+
+                total_player_damage += dmg
+                total_boss_damage += enemy_dmg
+
+                logs.append(
+                    f"➖ {i+1}번째: **{p_action}** vs **{b_action}** → 비김. "
+                    f"보스 **-{dmg}**, 나 **-{enemy_dmg}**"
+                )
+
+        self.boss_hp -= total_player_damage
+        self.player_hp -= total_boss_damage
+
+        self.player_actions = []
+
+        if self.boss_hp <= 0:
+            await self.win(interaction)
+            return
+
+        if self.player_hp <= 0:
+            await self.lose(interaction)
+            return
+
+        self.turn += 1
+
+        await self.update_msg(
+            interaction,
+            "\n".join(logs) +
+            f"\n\n🗡️ 총 피해: **{total_player_damage}**" +
+            f"\n💥 받은 피해: **{total_boss_damage}**"
+        )
 
     async def win(self, interaction):
         get_wallet(self.user_id)
@@ -6603,97 +6733,6 @@ class BossRaidView(discord.ui.View):
         )
 
         self.stop()
-
-    @discord.ui.button(label="공격", style=discord.ButtonStyle.danger)
-    async def attack(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
-            return
-
-        dmg = random.randint(
-            int(get_total_power(self.user_id) * 0.8),
-            int(get_total_power(self.user_id) * 1.3)
-        )
-
-        self.boss_hp -= dmg
-
-        if self.boss_hp <= 0:
-            await self.win(interaction)
-            return
-
-        if random.randint(1, 100) <= 20:
-
-            enemy_damage = random.randint(
-                int(self.boss["hp"] * 0.03),
-                int(self.boss["hp"] * 0.07)
-            )
-
-            self.player_hp -= enemy_damage
-
-            if self.player_hp <= 0:
-                await self.lose(interaction)
-                return
-
-            await self.update_msg(
-                interaction,
-                f"🗡️ **{dmg}** 피해를 입혔다!\n"
-                f"💥 보스의 반격!\n"
-                f"❤️ -{enemy_damage} HP"
-            )
-
-            return
-
-    @discord.ui.button(label="방어", style=discord.ButtonStyle.primary)
-    async def defend(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
-            return
-
-        heal = random.randint(5, 20)
-        self.player_hp += heal
-
-        if self.player_hp > self.max_hp:
-            self.player_hp = self.max_hp
-        self.fail_count = max(0, self.fail_count - 1)
-
-        await self.update_msg(
-            interaction,
-            f"🛡️ 방어 자세를 취했다.\n"
-            f"❤️ +{heal} HP 회복"
-        )
-
-    @discord.ui.button(label="회피", style=discord.ButtonStyle.success)
-    async def dodge(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ 니 보스전 아님.", ephemeral=True)
-            return
-
-        if random.randint(1, 100) <= 60:
-            await self.update_msg(
-                interaction,
-                "💨 보스의 공격을 피했다!"
-            )
-        else:
-            self.fail_count += 1
-            enemy_damage = random.randint(
-            int(self.boss["hp"] * 0.02),
-            int(self.boss["hp"] * 0.05)
-        )
-
-        self.player_hp -= enemy_damage
-
-        if self.player_hp <= 0:
-            await self.lose(interaction)
-            return
-            if self.fail_count >= 3:
-                await self.lose(interaction)
-                return
-
-            await self.update_msg(
-                interaction,
-                "💥 회피 실패! 보스의 공격을 맞았다...\n"
-                f"❤️ -{enemy_damage} HP"
-            )
 
     async def on_timeout(self):
         if self.message:
