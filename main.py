@@ -6626,16 +6626,16 @@ class BossRaidView(discord.ui.View):
     async def play_turn(self, interaction):
         await interaction.response.defer()
 
-    boss_actions = random.choices(BOSS_ACTIONS, k=3)
-    player_power = get_total_power(self.user_id)
+        boss_actions = random.choices(BOSS_ACTIONS, k=3)
+        player_power = get_total_power(self.user_id)
 
-    total_player_damage = 0
-    total_boss_damage = 0
-    logs = []
+        total_player_damage = 0
+        total_boss_damage = 0
+        logs = []
 
-    for i in range(3):
-        p_action = self.player_actions[i]
-        b_action = boss_actions[i]
+        for i in range(3):
+            p_action = self.player_actions[i]
+            b_action = boss_actions[i]
 
         content = (
             f"👹 **보스전: {self.boss_name}**\n\n"
