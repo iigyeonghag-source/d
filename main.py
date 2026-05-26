@@ -6624,7 +6624,7 @@ class BossRaidView(discord.ui.View):
         return "lose"
 
     async def play_turn(self, interaction):
-    await interaction.response.defer()
+        await interaction.response.defer()
 
     boss_actions = random.choices(BOSS_ACTIONS, k=3)
     player_power = get_total_power(self.user_id)
