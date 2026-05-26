@@ -6623,6 +6623,7 @@ class BossRaidView(discord.ui.View):
 
         return "lose"
 
+
     async def play_turn(self, interaction):
         await interaction.response.defer()
 
