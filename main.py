@@ -3883,7 +3883,58 @@ async def farm_shop(interaction: discord.Interaction, 아이템: str = None, 갯
         f"현재 보유: **{farm_data[user_id]['seeds'][아이템]}개**\n"
         f"현재 잔액: **{money_data[user_id]}원**"
     )
+@bot.tree.command(name="농밭", description="현재 이동한 농밭 상태 확인", guild=GUILD)
+async def farm_field(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    now = datetime.now()
 
+    get_farm(user_id)
+
+    current_land = get_current_land(user_id)
+
+    start, end = get_land_range(user_id, current_land)
+
+    region = FARM_REGIONS[current_land - 1]
+    status = get_region_status(region)
+
+    lines = []
+
+    for i in range(start, end):
+        plot = farm_data[user_id]["field"][i]
+
+        display_num = (i - start) + 1
+
+        if plot is None:
+            lines.append(f"{display_num}번 밭: 비어있음")
+            continue
+
+        harvest_time = fix_datetime(plot.get("harvest_time"))
+
+        if harvest_time is None:
+            lines.append(f"{display_num}번 밭: ⚠️ 시간 오류")
+            continue
+
+        crop_name = plot["crop"]
+
+        if now >= harvest_time:
+            lines.append(f"{display_num}번 밭: 🌾 {crop_name} 수확 가능")
+        else:
+            remain = int((harvest_time - now).total_seconds())
+
+            minutes = remain // 60
+            seconds = remain % 60
+
+            lines.append(
+                f"{display_num}번 밭: 🌱 {crop_name} 성장중 "
+                f"({minutes}분 {seconds}초)"
+            )
+
+    await interaction.response.send_message(
+        f"🚜 현재 땅: **{current_land}번 땅**\n"
+        f"📍 지역: **{region} / {status}**\n\n"
+        + "\n".join(lines)
+    )
+    
 @bot.tree.command(name="심기", description="현재 이동한 지역에서 씨앗을 심는다", guild=GUILD)
 @app_commands.describe(
     작물="심을 작물 이름",
