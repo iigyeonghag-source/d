@@ -952,7 +952,7 @@ async def wallet(interaction: discord.Interaction):
     created = get_wallet(user_id)
 
     await interaction.followup.send(
-        f"👛 현재 잔액: **{money_data[user_id]}원**"
+        f"👛 현재 잔액: **{money_data[user_id]:,}원**"
     )
 
     if created:
