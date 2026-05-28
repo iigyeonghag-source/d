@@ -6113,7 +6113,57 @@ async def ore_bag(interaction: discord.Interaction):
 
     for chunk in chunks[1:]:
         await interaction.followup.send(chunk)
+        
+@bot.tree.command(name="상세가방", description="광석 상세 정보를 확인한다", guild=GUILD)
+async def detail_ore_bag(interaction: discord.Interaction):
+    user_id = interaction.user.id
 
+    get_mining(user_id)
+    normalize_ore_bag(user_id)
+
+    bag = ore_bags[user_id]
+
+    if not bag:
+        await interaction.response.send_message("🎒 가방이 비어있다.")
+        return
+
+    lines = []
+
+    for ore_name, items in bag.items():
+
+        lines.append(f"⛏️ **{ore_name}**")
+
+        for idx, item in enumerate(items, start=1):
+            trait = item.get("trait", "특성 없음")
+            kg = item["kg"]
+            price = item["price"]
+
+            lines.append(
+                f"{idx}. [{trait}] {kg:.2f}kg / {price:,}원"
+            )
+
+        lines.append("")
+
+    chunks = []
+    current = "🎒 **광석 상세 가방**\n\n"
+
+    for line in lines:
+        add = line + "\n"
+
+        if len(current) + len(add) > 1900:
+            chunks.append(current)
+            current = ""
+
+        current += add
+
+    if current:
+        chunks.append(current)
+
+    await interaction.response.send_message(chunks[0])
+
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk)
+        
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
     user_id = interaction.user.id
