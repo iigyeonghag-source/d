@@ -834,7 +834,7 @@ async def roulette(interaction: discord.Interaction, 베팅: int):
         temp_slots = [
             get_weighted_slot(luck),
             get_weighted_slot(luck),
-            get_weighted_slot()
+            get_weighted_slot(luck)
         ]
 
         await msg.edit(
