@@ -5480,9 +5480,9 @@ def pick_ore(luck_bonus=0):
         chance = ore["chance"]
         price = ore["price"]
 
-        if price >= 80000:
+        if price >= 100000:
             chance *= 1 + (luck_bonus / 45)
-        elif price >= 20000:
+        elif price >= 40000:
             chance *= 1 + (luck_bonus / 70)
         elif price >= 5000:
             chance *= 1 + (luck_bonus / 100)
