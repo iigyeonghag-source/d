@@ -1815,35 +1815,35 @@ FISH_TRAITS = {
     # =========================
 
     "싱싱한": {
-        "price_mult": 1.15,
+        "price_mult": 1.2,
         "kg_mult": 1.1,
         "type": "good",
         "chance": 100
     },
 
     "윤기나는": {
-        "price_mult": 1.2,
+        "price_mult": 1.25,
         "kg_mult": 1.0,
         "type": "good",
         "chance": 90
     },
 
     "튼실한": {
-        "price_mult": 1.1,
-        "kg_mult": 1.15,
+        "price_mult": 1.2,
+        "kg_mult": 1.35,
         "type": "good",
         "chance": 85
     },
 
     "거대한": {
-        "price_mult": 1.25,
-        "kg_mult": 1.55,
+        "price_mult": 0.9,
+        "kg_mult": 10,
         "type": "good",
         "chance": 60
     },
 
     "황금빛": {
-        "price_mult": 1.8,
+        "price_mult": 2,
         "kg_mult": 1.0,
         "type": "good",
         "chance": 40
@@ -1857,63 +1857,63 @@ FISH_TRAITS = {
     },
 
     "심연의": {
-        "price_mult": 2.3,
+        "price_mult": 2.6,
         "kg_mult": 1.2,
         "type": "good",
         "chance": 18
     },
 
     "고대의": {
-        "price_mult": 2.5,
-        "kg_mult": 1.25,
+        "price_mult": 3.5,
+        "kg_mult": 1.15,
         "type": "good",
         "chance": 14
     },
 
     "축복받은": {
-        "price_mult": 2.8,
+        "price_mult": 4.8,
         "kg_mult": 1.0,
         "type": "good",
         "chance": 10
     },
 
     "왕관을 쓴": {
-        "price_mult": 3.0,
+        "price_mult": 3.5,
         "kg_mult": 1.1,
         "type": "good",
         "chance": 8
     },
 
     "폭풍을 머금은": {
-        "price_mult": 2.2,
+        "price_mult": 3.2,
         "kg_mult": 1.15,
         "type": "good",
         "chance": 12
     },
 
     "별빛을 품은": {
-        "price_mult": 2.6,
-        "kg_mult": 1.0,
+        "price_mult": 3.6,
+        "kg_mult": 1.15,
         "type": "good",
         "chance": 7
     },
 
     "공허에 물든": {
-        "price_mult": 3.5,
-        "kg_mult": 1.3,
+        "price_mult": 4.5,
+        "kg_mult": 1.4,
         "type": "good",
         "chance": 4
     },
 
     "신의": {
-        "price_mult": 4.0,
+        "price_mult": 6.0,
         "kg_mult": 1.0,
         "type": "good",
         "chance": 2
     },
 
     "혼돈의": {
-        "price_mult": 5.0,
+        "price_mult": 10.0,
         "kg_mult": 1.5,
         "type": "good",
         "chance": 1
@@ -1927,39 +1927,54 @@ ROD_DATA = {
         "double_chance": 0, "triple_chance": 0
     },
     "초급 낚싯대": {
-        "price": 150000, "ores": {"돌": 30, "석탄": 10},
+        "price": 150000, "ores": {"돌": 10, "구리": 7},
         "luck": 5, "time_reduce": 5,
         "double_chance": 2, "triple_chance": 0.1
     },
     "중급 낚싯대": {
-        "price": 600000, "ores": {"구리": 25, "철광석": 10},
+        "price": 600000, "ores": {"구리": 10, "철광석": 10},
         "luck": 12, "time_reduce": 12,
         "double_chance": 5, "triple_chance": 1
     },
     "고급 낚싯대": {
-        "price": 1500000, "ores": {"철광석": 40, "은광석": 15},
-        "luck": 25, "time_reduce": 25,
-        "double_chance": 10, "triple_chance": 2
+        "price": 1300000, "ores": {"철광석": 40, "은광석": 15},
+        "luck": 23, "time_reduce": 25,
+        "double_chance": 8, "triple_chance": 2
     },
     "개쩌는 낚싯대": {
-        "price": 7000000, "ores": {"금광석": 25, "다이아몬드": 5},
-        "luck": 45, "time_reduce": 40,
-        "double_chance": 18, "triple_chance": 8
+        "price": 3000000, "ores": {"금광석": 25, "다이아몬드": 5},
+        "luck": 37, "time_reduce": 25,
+        "double_chance": 10, "triple_chance": 5
+    },
+    "최상의 낚싯대": {
+        "price": 8000000, "ores": {"사파이어": 7, "다이아몬드": 5, "에메랄드": 3},
+        "luck": 55, "time_reduce": 30,
+        "double_chance": 15, "triple_chance": 7
+    },
+    "장인의 낚싯대": {
+        "price": 20000000, "ores": {"네더라이트": 2, "다이아몬드": 5, "철광석": 20},
+        "luck": 75, "time_reduce": 40,
+        "double_chance": 18, "triple_chance": 10
+    },
+    "엘프의 낚싯대": {
+        "price": 60000000, "ores": {"레인보우 다이아몬드": 1, "네더라이트": 3, "에메랄드": 2},
+        "luck": 100, "time_reduce": 45,
+        "double_chance": 20, "triple_chance": 12
     },
     "강태공의 낚싯대": {
-        "price": 18000000, "ores": {"다이아몬드": 15, "에메랄드": 8, "흑요석": 3},
-        "luck": 75, "time_reduce": 55,
-        "double_chance": 32, "triple_chance": 14
+        "price": 180000000, "ores": {"레인보우 다이아몬드": 3, "레드 다이아몬드": 5, "네더라이트": 3},
+        "luck": 235, "time_reduce": 55,
+        "double_chance": 35, "triple_chance": 15
     },
     "신의 낚싯대": {
-        "price": 60000000, "ores": {"에메랄드": 25, "흑요석": 12, "신기루": 3},
-        "luck": 130, "time_reduce": 70,
-        "double_chance": 50, "triple_chance": 25
+        "price": 500000000, "ores": {"신기루": 3, "레인보우 다이아몬드": 10, "우라늄": 1, "레드 다이아몬드": 3},
+        "luck": 450, "time_reduce": 60,
+        "double_chance": 40, "triple_chance": 30
     },
-    "운영자의 낚싯대": {
-        "price": 99999999999999, "ores": {},
-        "luck": 999999, "time_reduce": 999,
-        "double_chance": 50, "triple_chance": 50
+    "도로롱의 낚싯대": {
+        "price": 800000000, "ores": {"신기루": 30},
+        "luck": 900, "time_reduce": 70,
+        "double_chance": 25, "triple_chance": 75
     }
 }
 
@@ -1988,9 +2003,25 @@ BAIT_DATA = {
         "price": 4500,
         "luck": 45
     },
-    "강태공의 미끼": {
+    "세계수 잎사귀": {
+        "price": 12000,
+        "luck": 65
+    },
+    "장인의 미끼": {
         "price": 15000,
         "luck": 85
+    },
+    "강태공의 미끼": {
+        "price": 35000,
+        "luck": 105
+    },
+    "신의 미끼": {
+        "price": 150000,
+        "luck": 185
+    },
+    "도로롱": {
+        "price": 500000,
+        "luck": 300
     }
 }
 
@@ -3384,6 +3415,42 @@ class LostItemReturnView(discord.ui.View):
         )
 
         self.stop()
+
+@bot.tree.command(name="어시장리셋", description="어시장 시세를 초기화한다", guild=GUILD)
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_fish_market(interaction: discord.Interaction):
+
+    init_fish_market()
+
+    for fish_name in FISH_DATA.keys():
+        fish_market[fish_name] = 1.0
+
+    global last_market_update
+    last_market_update = datetime.now()
+
+    save_data()
+
+    text = "\n".join(
+        f"{name}: 100%"
+        for name in list(FISH_DATA.keys())[:10]
+    )
+
+    await interaction.response.send_message(
+        f"🔄 **어시장 시세 초기화 완료!**\n\n"
+        f"모든 물고기 시세가 **100%**로 초기화됨."
+    )
+
+
+@reset_fish_market.error
+async def reset_fish_market_error(
+    interaction: discord.Interaction,
+    error
+):
+    if isinstance(error, app_commands.errors.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ 관리자만 사용 가능.",
+            ephemeral=True
+        )
 # =========================
 # 농사 시스템
 # =========================
@@ -3449,20 +3516,21 @@ PENDANT_FARM_BONUS = {
 }
 
 SEED_DATA = {
-    "감자": {"seed_price": 500, "base_price": 900, "grow_min": 60, "grow_max": 180, "min_yield": 1, "max_yield": 3},
-    "당근": {"seed_price": 700, "base_price": 1300, "grow_min": 120, "grow_max": 300, "min_yield": 1, "max_yield": 3},
-    "토마토": {"seed_price": 1200, "base_price": 2200, "grow_min": 300, "grow_max": 600, "min_yield": 1, "max_yield": 4},
-    "딸기": {"seed_price": 2500, "base_price": 5000, "grow_min": 600, "grow_max": 1200, "min_yield": 1, "max_yield": 4},
-    "황금옥수수": {"seed_price": 10000, "base_price": 25000, "grow_min": 900, "grow_max": 2100, "min_yield": 1, "max_yield": 3},
-    "만년초": {"seed_price": 50000, "base_price": 100000, "grow_min": 1800, "grow_max": 3600, "min_yield": 1, "max_yield": 2},
-    "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
-        "seed_price": 1000000,
-        "base_price": 2500000,
+    "감자": {"seed_price": 250, "base_price": 830, "grow_min": 60, "grow_max": 180, "min_yield": 1, "max_yield": 3},
+    "당근": {"seed_price": 600, "base_price": 1500, "grow_min": 120, "grow_max": 300, "min_yield": 1, "max_yield": 3},
+    "토마토": {"seed_price": 1300, "base_price": 3000, "grow_min": 300, "grow_max": 600, "min_yield": 1, "max_yield": 4},
+    "딸기": {"seed_price": 3200, "base_price": 7000, "grow_min": 600, "grow_max": 1200, "min_yield": 1, "max_yield": 4},
+    "황금옥수수": {"seed_price": 85000, "base_price": 23000, "grow_min": 900, "grow_max": 2100, "min_yield": 1, "max_yield": 3},
+    "만년초": {"seed_price": 45000, "base_price": 800000, "grow_min": 1800, "grow_max": 3600, "min_yield": 1, "max_yield": 2},
+    "히루루크의 초": {
+        "seed_price": 700000,
+        "base_price": 1500000,
         "grow_min": 129600,
         "grow_max": 129600,
         "min_yield": 1,
         "max_yield": 1
-    }
+    },
+    "도로롱": {"seed_price": 5000000, "base_price": 25000000, "grow_min": 500000, "grow_max": 700000, "min_yield": 1, "max_yield": 1}
 }
 
 CROP_TRAITS = {
@@ -4104,8 +4172,6 @@ async def mass_plant(
         f"남은 비료: **{farm_data[user_id]['fertilizer']}개**"
     )
 
-WATER_REDUCE_RATE = 0.25 
-
 @bot.tree.command(name="물주기", description="농밭에 물을 줘서 남은 성장 시간을 줄인다", guild=GUILD)
 @app_commands.describe(칸="물을 줄 밭 칸")
 async def water_crop(interaction: discord.Interaction, 칸: int):
@@ -4653,6 +4719,36 @@ async def move_region(interaction: discord.Interaction, 지역: str):
         f"이제 `/심기`나 `/전체심기`를 쓰면 이 지역 효과로 심어짐."
     )
 
+@bot.tree.command(name="변동가리셋", description="농작물 변동가를 기준가로 초기화한다", guild=GUILD)
+@app_commands.checks.has_permissions(administrator=True)
+async def reset_crop_prices(interaction: discord.Interaction):
+
+    for crop_name, seed in SEED_DATA.items():
+        crop_prices[crop_name] = seed["base_price"]
+
+    save_data()
+
+    text = "\n".join(
+        f"{name}: {crop_prices[name]}원"
+        for name in SEED_DATA
+    )
+
+    await interaction.response.send_message(
+        f"🔄 **농작물 변동가 초기화 완료!**\n\n{text}"
+    )
+
+
+@reset_crop_prices.error
+async def reset_crop_prices_error(
+    interaction: discord.Interaction,
+    error
+):
+    if isinstance(error, app_commands.errors.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ 관리자만 사용 가능.",
+            ephemeral=True
+        )
+
 # =========================
 # 거래 시스템
 # =========================
@@ -5184,15 +5280,15 @@ PICKAXE_DATA = {
         "ores": {"석탄": 1},
         "luck": 0,
         "time_reduce": 0,
-        "double_chance": 2,
+        "double_chance": 1,
         "triple_chance": 0
     },
     "돌 곡괭이": {
-        "price": 25000,
-        "ores": {"돌": 3, "석탄": 1},
-        "luck": 5,
+        "price": 15000,
+        "ores": {"돌": 2, "석탄": 1},
+        "luck": 4,
         "time_reduce": 5,
-        "double_chance": 4,
+        "double_chance": 3,
         "triple_chance": 0.5
     },
     "구리 곡괭이": {
@@ -5212,84 +5308,84 @@ PICKAXE_DATA = {
         "triple_chance": 1
     },
     "금 곡괭이": {
-        "price": 500000,
+        "price": 450000,
         "ores": {"금광석": 12, "은광석": 6, "석탄": 3},
-        "luck": 22,
-        "time_reduce": 18,
+        "luck": 23,
+        "time_reduce": 17,
         "double_chance": 12,
         "triple_chance": 3
     },
     "티타늄 곡괭이": {
-        "price": 100000,
-        "ores": {"티타늄": 20, "철광석": 5, "석탄": 10},
-        "luck": 5,
+        "price": 1000000,
+        "ores": {"다이아몬드": 1, "티타늄": 10, "철광석": 5, "석탄": 10},
+        "luck": 15,
         "time_reduce": 10,
         "double_chance": 40,
         "triple_chance": 30
     },
     "다이아몬드 곡괭이": {
-        "price": 1500000,
-        "ores": {"다이아몬드": 10, "철광석": 5, "석탄": 12},
-        "luck": 38,
+        "price": 1300000,
+        "ores": {"다이아몬드": 5, "철광석": 7, "석탄": 12},
+        "luck": 40,
         "time_reduce": 28,
-        "double_chance": 20,
+        "double_chance": 19,
         "triple_chance": 6
     },
     "에메랄드 곡괭이": {
-        "price": 4000000,
+        "price": 2200000,
         "ores": {"에메랄드": 8, "다이아몬드": 3, "석탄": 15},
-        "luck": 55,
+        "luck": 65,
         "time_reduce": 40,
         "double_chance": 28,
         "triple_chance": 10
     },
     "보석 곡괭이": {
-        "price": 6100000,
-        "ores": {"사파이어": 5, "루비": 5, "에메랄드": 5, "다이아몬드": 1, "석탄": 5},
-        "luck": 120,
+        "price": 3100000,
+        "ores": {"사파이어": 5, "루비": 5, "에메랄드": 5, "다이아몬드": 1, "석탄": 7},
+        "luck": 150,
         "time_reduce": 25,
         "double_chance": 0,
         "triple_chance": 0
     },
     "흑요석 곡괭이": {
-        "price": 12000000,
+        "price": 22000000,
         "ores": {"흑요석": 5, "에메랄드": 2, "석탄": 17},
-        "luck": 80,
+        "luck": 90,
         "time_reduce": 50,
         "double_chance": 38,
         "triple_chance": 16
     },
     "네더라이트 곡괭이": {
-        "price": 30000000,
-        "ores": {"네더라이트": 3, "흑요석": 3, "석탄": 25},
-        "luck": 120,
+        "price": 50000000,
+        "ores": {"네더라이트": 3, "흑요석": 3, "철광석": 10, "석탄": 35},
+        "luck": 140,
         "time_reduce": 60,
         "double_chance": 50,
         "triple_chance": 25
     },
     "드워프 장인의 곡괭이": {
-        "price": 100000000,
-        "ores": {"레드 다이아몬드": 1, "흑요석": 10, "네더라이트": 5, "석탄": 50},
-        "luck": 200,
+        "price": 140000000,
+        "ores": {"레드 다이아몬드": 1, "흑요석": 10, "네더라이트": 5, "석탄": 55},
+        "luck": 220,
         "time_reduce": 70,
         "double_chance": 65,
         "triple_chance": 35
     },
     "레인보우 곡괭이": {
-        "price": 300000000,
-        "ores": {"레드 다이아몬드": 1, "우라늄": 1, "레인보우 다이아몬드": 4, "석탄": 70},
-        "luck": 320,
+        "price": 400000000,
+        "ores": {"레드 다이아몬드": 2, "우라늄": 1, "레인보우 다이아몬드": 5, "석탄": 70},
+        "luck": 375,
         "time_reduce": 78,
         "double_chance": 75,
         "triple_chance": 45
     },
     "신의 곡괭이": {
-        "price": 1000000000,
-        "ores": {"레인보우 다이아몬드": 3, "우라늄": 10, "신기루": 5, "석탄": 25},
-        "luck": 500,
+        "price": 1200000000,
+        "ores": {"레인보우 다이아몬드": 5, "우라늄": 12, "신기루": 5, "석탄": 125},
+        "luck": 600,
         "time_reduce": 85,
-        "double_chance": 90,
-        "triple_chance": 60
+        "double_chance": 60,
+        "triple_chance": 90
     }
 }
 
@@ -5301,16 +5397,16 @@ owned_pendants = {}
 equipped_pendants = {}
 
 PENDANT_DATA = {
-    "돌 펜던트": {"price": 120000, "ores": {"돌": 2}, "luck": 3},
+    "돌 펜던트": {"price": 120000, "ores": {"돌": 5}, "luck": 4},
     "금 펜던트": {"price": 700000, "ores": {"금광석": 3}, "luck": 8},
     "다이아 펜던트": {"price": 2500000, "ores": {"다이아몬드": 3}, "luck": 15},
     "루비 펜던트": {"price": 3500000, "ores": {"루비": 3}, "luck": 18},
     "사파이어 펜던트": {"price": 4500000, "ores": {"사파이어": 3}, "luck": 22},
     "에메랄드 펜던트": {"price": 7000000, "ores": {"에메랄드": 3}, "luck": 30},
-    "흑요석 펜던트": {"price": 15000000, "ores": {"흑요석": 2}, "luck": 45},
-    "레드 다이아몬드 펜던트": {"price": 50000000, "ores": {"레드 다이아몬드": 2}, "luck": 70},
-    "레인보우 다이아몬드 펜던트": {"price": 120000000, "ores": {"레인보우 다이아몬드": 2}, "luck": 100},
-    "신기루 펜던트": {"price": 300000000, "ores": {"신기루": 1}, "luck": 150}
+    "흑요석 펜던트": {"price": 15000000, "ores": {"흑요석": 3}, "luck": 45},
+    "레드 다이아몬드 펜던트": {"price": 50000000, "ores": {"레드 다이아몬드": 3}, "luck": 70},
+    "레인보우 다이아몬드 펜던트": {"price": 120000000, "ores": {"레인보우 다이아몬드": 3}, "luck": 100},
+    "신기루 펜던트": {"price": 300000000, "ores": {"신기루": 3}, "luck": 150}
 }
 
 
