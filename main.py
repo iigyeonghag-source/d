@@ -3133,7 +3133,7 @@ async def fishing_shop(
             return
 
         for ore_name, need_count in ore_costs.items():
-            have_count = ore_bags[user_id].get(ore_name, 0)
+            have_count = get_ore_count(user_id, ore_name)
 
             if have_count < need_count:
                 await interaction.response.send_message(
@@ -3147,10 +3147,7 @@ async def fishing_shop(
         money_data[user_id] -= price
 
         for ore_name, need_count in ore_costs.items():
-            ore_bags[user_id][ore_name] -= need_count
-
-            if ore_bags[user_id][ore_name] <= 0:
-                del ore_bags[user_id][ore_name]
+            remove_ore_from_bag(user_id, ore_name, need_count)
 
         owned_rods[user_id].append(이름)
         equipped_rods[user_id] = 이름
@@ -5239,27 +5236,193 @@ mining_cooldowns = {}
 mining2_cooldowns = {}
 
 ORE_DATA = {
-    "돌": {"price": 500, "chance": 45},
-    "석탄": {"price": 1200, "chance": 30},
-    "구리": {"price": 2200, "chance": 22},
-    "철광석": {"price": 3400, "chance": 15},
-    "은광석": {"price": 7300, "chance": 9},
-    "금광석": {"price": 15000, "chance": 5},
-    "돈봉투": {"price": 145000, "chance": 8},
+    "돌": {"price": 500, "chance": 45, "min_kg": 0.2, "max_kg": 2.5, "base_price": 300, "kg_price": 120},
+    "석탄": {"price": 1200, "chance": 30, "min_kg": 0.3, "max_kg": 3.0, "base_price": 700, "kg_price": 220},
+    "구리": {"price": 2200, "chance": 22, "min_kg": 0.5, "max_kg": 4.0, "base_price": 1200, "kg_price": 350},
+    "철광석": {"price": 3400, "chance": 15, "min_kg": 0.8, "max_kg": 6.0, "base_price": 1800, "kg_price": 450},
+    "은광석": {"price": 7300, "chance": 9, "min_kg": 0.6, "max_kg": 5.0, "base_price": 4200, "kg_price": 900},
+    "금광석": {"price": 15000, "chance": 5, "min_kg": 0.4, "max_kg": 4.0, "base_price": 9000, "kg_price": 1800},
+    "돈봉투": {"price": 145000, "chance": 8, "min_kg": 0.1, "max_kg": 0.5, "base_price": 0, "kg_price": 0},
 
-    "티타늄": {"price": 55000, "chance": 3.5},
-    "다이아몬드": {"price": 100000, "chance": 1.2},
-    "루비": {"price": 130000, "chance": 1.5},
-    "사파이어": {"price": 170000, "chance": 1.2},
-    "에메랄드": {"price": 250000, "chance": 0.7},
-    "흑요석": {"price": 520000, "chance": 0.25},
+    "티타늄": {"price": 55000, "chance": 3.5, "min_kg": 0.7, "max_kg": 5.5, "base_price": 32000, "kg_price": 5000},
+    "다이아몬드": {"price": 100000, "chance": 1.2, "min_kg": 0.05, "max_kg": 1.2, "base_price": 85000, "kg_price": 22000},
+    "루비": {"price": 130000, "chance": 1.5, "min_kg": 0.05, "max_kg": 1.0, "base_price": 105000, "kg_price": 30000},
+    "사파이어": {"price": 170000, "chance": 1.2, "min_kg": 0.05, "max_kg": 1.0, "base_price": 135000, "kg_price": 42000},
+    "에메랄드": {"price": 250000, "chance": 0.7, "min_kg": 0.04, "max_kg": 0.9, "base_price": 200000, "kg_price": 65000},
+    "흑요석": {"price": 520000, "chance": 0.25, "min_kg": 1.0, "max_kg": 12.0, "base_price": 360000, "kg_price": 28000},
 
-    "네더라이트": {"price": 1500000, "chance": 0.12},
-    "레드 다이아몬드": {"price": 2800000, "chance": 0.07},
-    "우라늄": {"price": 4500000, "chance": 0.05},
-    "레인보우 다이아몬드": {"price": 6500000, "chance": 0.04},
-    "신기루": {"price": 10000000, "chance": 0.015}
+    "네더라이트": {"price": 1500000, "chance": 0.12, "min_kg": 0.4, "max_kg": 4.0, "base_price": 1100000, "kg_price": 180000},
+    "레드 다이아몬드": {"price": 2800000, "chance": 0.07, "min_kg": 0.03, "max_kg": 0.8, "base_price": 2300000, "kg_price": 800000},
+    "우라늄": {"price": 4500000, "chance": 0.05, "min_kg": 0.8, "max_kg": 8.0, "base_price": 3000000, "kg_price": 360000},
+    "레인보우 다이아몬드": {"price": 6500000, "chance": 0.04, "min_kg": 0.02, "max_kg": 0.5, "base_price": 5600000, "kg_price": 2200000},
+    "신기루": {"price": 10000000, "chance": 0.015, "min_kg": 0.01, "max_kg": 0.3, "base_price": 9000000, "kg_price": 5000000}
 }
+
+ORE_TRAIT_CHANCE = 45
+
+ORE_TRAITS = {
+    "금 간": {"price_mult": 0.75, "kg_mult": 0.9, "type": "bad", "chance": 35},
+    "불순물이 섞인": {"price_mult": 0.85, "kg_mult": 1.0, "type": "bad", "chance": 30},
+    "작은": {"price_mult": 0.95, "kg_mult": 0.75, "type": "bad", "chance": 25},
+
+    "순도 높은": {"price_mult": 1.25, "kg_mult": 1.0, "type": "good", "chance": 100},
+    "묵직한": {"price_mult": 1.05, "kg_mult": 1.6, "type": "good", "chance": 80},
+    "반짝이는": {"price_mult": 1.45, "kg_mult": 1.0, "type": "good", "chance": 60},
+    "거대한": {"price_mult": 0.95, "kg_mult": 3.0, "type": "good", "chance": 35},
+    "희귀한": {"price_mult": 2.0, "kg_mult": 1.1, "type": "good", "chance": 18},
+    "고대의": {"price_mult": 3.0, "kg_mult": 1.2, "type": "good", "chance": 8},
+    "신성한": {"price_mult": 5.0, "kg_mult": 1.0, "type": "good", "chance": 2}
+}
+
+
+def pick_ore_trait(luck_bonus=0):
+    chance = min(75, ORE_TRAIT_CHANCE + (luck_bonus / 12))
+
+    if random.uniform(0, 100) > chance:
+        return None
+
+    names = list(ORE_TRAITS.keys())
+    weights = []
+
+    for name in names:
+        trait = ORE_TRAITS[name]
+        weight = trait["chance"]
+
+        if trait["type"] == "good":
+            weight *= 1 + (luck_bonus / 80)
+        else:
+            weight *= max(0.25, 1 - (luck_bonus / 180))
+
+        weights.append(weight)
+
+    return random.choices(names, weights=weights, k=1)[0]
+
+
+def calc_ore_price(ore_name, kg, trait_name=None):
+    ore = ORE_DATA[ore_name]
+    price = ore["base_price"] + (kg * ore["kg_price"])
+
+    if trait_name in ORE_TRAITS:
+        price *= ORE_TRAITS[trait_name]["price_mult"]
+
+    return max(1, int(price))
+
+
+def create_ore_item(ore_name, luck_bonus=0, old_item=False):
+    ore = ORE_DATA[ore_name]
+
+    if old_item:
+        return {
+            "kg": 1.0,
+            "trait": None,
+            "price": ore["price"]
+        }
+
+    trait_name = pick_ore_trait(luck_bonus)
+    kg = round(random.uniform(ore["min_kg"], ore["max_kg"]), 2)
+
+    if trait_name in ORE_TRAITS:
+        kg *= ORE_TRAITS[trait_name]["kg_mult"]
+        kg = round(max(0.01, kg), 2)
+
+    return {
+        "kg": kg,
+        "trait": trait_name,
+        "price": calc_ore_price(ore_name, kg, trait_name)
+    }
+
+
+def normalize_ore_bag(user_id):
+    if user_id not in ore_bags or not isinstance(ore_bags[user_id], dict):
+        ore_bags[user_id] = {}
+        return
+
+    bag = ore_bags[user_id]
+
+    for ore_name in list(bag.keys()):
+        if ore_name is None or ore_name not in ORE_DATA:
+            del bag[ore_name]
+            continue
+
+        value = bag[ore_name]
+
+        # 기존 저장 데이터 호환: 광석명: 개수 형태를 광석명: [개별 광석] 형태로 변환
+        if isinstance(value, int):
+            if value <= 0:
+                del bag[ore_name]
+            else:
+                bag[ore_name] = [
+                    create_ore_item(ore_name, old_item=True)
+                    for _ in range(value)
+                ]
+
+        elif isinstance(value, list):
+            cleaned_items = []
+
+            for item in value:
+                if isinstance(item, dict):
+                    kg = float(item.get("kg", 1.0))
+                    trait = item.get("trait")
+                    price = int(item.get("price", calc_ore_price(ore_name, kg, trait)))
+
+                    cleaned_items.append({
+                        "kg": kg,
+                        "trait": trait if trait in ORE_TRAITS else None,
+                        "price": price
+                    })
+
+            if cleaned_items:
+                bag[ore_name] = cleaned_items
+            else:
+                del bag[ore_name]
+
+        else:
+            del bag[ore_name]
+
+
+def get_ore_count(user_id, ore_name):
+    normalize_ore_bag(user_id)
+    return len(ore_bags[user_id].get(ore_name, []))
+
+
+def add_ore_to_bag(user_id, ore_name, amount=1, luck_bonus=0):
+    normalize_ore_bag(user_id)
+
+    if ore_name not in ore_bags[user_id]:
+        ore_bags[user_id][ore_name] = []
+
+    new_items = [
+        create_ore_item(ore_name, luck_bonus)
+        for _ in range(amount)
+    ]
+
+    ore_bags[user_id][ore_name].extend(new_items)
+    return new_items
+
+
+def remove_ore_from_bag(user_id, ore_name, amount):
+    normalize_ore_bag(user_id)
+
+    if get_ore_count(user_id, ore_name) < amount:
+        return False
+
+    del ore_bags[user_id][ore_name][:amount]
+
+    if not ore_bags[user_id][ore_name]:
+        del ore_bags[user_id][ore_name]
+
+    return True
+
+
+def format_ore_item(ore_name, item):
+    trait = item.get("trait")
+    display_name = f"{trait} {ore_name}" if trait else ore_name
+
+    return (
+        f"{display_name} "
+        f"({item['kg']}kg / {item['price']:,}원)"
+    )
+
 
 PICKAXE_DATA = {
     "나무 곡괭이": {
@@ -5443,6 +5606,8 @@ def get_mining(user_id):
     if user_id not in ore_bags:
         ore_bags[user_id] = {}
         changed = True
+
+    normalize_ore_bag(user_id)
 
     if user_id not in owned_pickaxes:
         owned_pickaxes[user_id] = ["나무 곡괭이"]
@@ -5764,12 +5929,20 @@ class MiningBlockButton(discord.ui.Button):
             )
 
         else:
-            ore_bags[view.user_id][ore_name] = (
-                ore_bags[view.user_id].get(ore_name, 0) + amount
+            mined_items = add_ore_to_bag(
+                view.user_id,
+                ore_name,
+                amount,
+                luck_bonus
+            )
+
+            item_lines = "\n".join(
+                f"⛏️ {format_ore_item(ore_name, item)}"
+                for item in mined_items
             )
 
             view.results.append(
-                f"⛏️ {ore_name} x{amount}{bonus_text}"
+                f"{item_lines}{bonus_text}"
             )
 
         view.opened.add(self.index)
@@ -5881,32 +6054,36 @@ async def ore_bag(interaction: discord.Interaction):
     user_id = interaction.user.id
 
     get_mining(user_id)
+    normalize_ore_bag(user_id)
 
     bag = ore_bags[user_id]
-
-    cleaned = False
-
-    for ore in list(bag.keys()):
-        if ore is None or ore not in ORE_DATA or bag[ore] <= 0:
-            del bag[ore]
-            cleaned = True
-
-    if cleaned:
-        save_data()
 
     if not bag:
         await interaction.response.send_message("🎒 가방이 비어있다.")
         return
 
-    text = "\n".join(
-        f"{ore}: **{count}개** / 개당 {ORE_DATA[ore]['price']:,}원"
-        for ore, count in bag.items()
-    )
+    lines = []
+
+    for ore_name, items in bag.items():
+        count = len(items)
+        total_kg = sum(item["kg"] for item in items)
+        total_price = sum(item["price"] for item in items)
+        sample = ", ".join(
+            format_ore_item(ore_name, item)
+            for item in items[:3]
+        )
+
+        if count > 3:
+            sample += f" 외 {count - 3}개"
+
+        lines.append(
+            f"**{ore_name}**: {count}개 / 총 {total_kg:.2f}kg / 예상 판매가 {total_price:,}원\n"
+            f"└ {sample}"
+        )
 
     await interaction.response.send_message(
-        f"🎒 **내 광석 가방**\n\n{text}"
+        f"🎒 **내 광석 가방**\n\n" + "\n\n".join(lines)
     )
-
 
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
@@ -5914,6 +6091,7 @@ async def sell_all_ores(interaction: discord.Interaction):
 
     get_wallet(user_id)
     get_mining(user_id)
+    normalize_ore_bag(user_id)
 
     bag = ore_bags[user_id]
 
@@ -5924,20 +6102,20 @@ async def sell_all_ores(interaction: discord.Interaction):
     total = 0
     sold_text = []
 
-    for ore, count in list(bag.items()):
-        if ore is None or ore not in ORE_DATA:
-            del bag[ore]
+    for ore_name, items in list(bag.items()):
+        if ore_name not in ORE_DATA or not items:
             continue
 
-        if count <= 0:
-            del bag[ore]
-            continue
+        ore_total = sum(item["price"] for item in items)
+        ore_kg = sum(item["kg"] for item in items)
+        total += ore_total
 
-        price = ORE_DATA[ore]["price"] * count
-        total += price
-        sold_text.append(f"{ore} x{count} = {price:,}원")
+        sold_text.append(
+            f"{ore_name} x{len(items)} / {ore_kg:.2f}kg = {ore_total:,}원"
+        )
 
     if total <= 0:
+        ore_bags[user_id] = {}
         save_data()
         await interaction.response.send_message("🎒 팔 수 있는 광석이 없다.")
         return
@@ -5953,6 +6131,8 @@ async def sell_all_ores(interaction: discord.Interaction):
         + f"\n\n총 수익: **{total:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
+
+
 @bot.tree.command(name="팔기2", description="가방의 특정 광석을 판매한다", guild=GUILD)
 @app_commands.describe(
     광석="판매할 광석 이름",
@@ -5963,6 +6143,7 @@ async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
 
     get_wallet(user_id)
     get_mining(user_id)
+    normalize_ore_bag(user_id)
 
     if 광석 not in ORE_DATA:
         await interaction.response.send_message("❌ 그런 광석은 없음.", ephemeral=True)
@@ -5973,23 +6154,21 @@ async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
         return
 
     bag = ore_bags[user_id]
+    have_count = get_ore_count(user_id, 광석)
 
-    if bag.get(광석, 0) < 갯수:
+    if have_count < 갯수:
         await interaction.response.send_message(
             f"❌ {광석} 부족함.\n"
-            f"보유: **{bag.get(광석, 0)}개**",
+            f"보유: **{have_count}개**",
             ephemeral=True
         )
         return
 
-    price = ORE_DATA[광석]["price"]
-    total = price * 갯수
+    sell_items = bag[광석][:갯수]
+    total = sum(item["price"] for item in sell_items)
+    total_kg = sum(item["kg"] for item in sell_items)
 
-    bag[광석] -= 갯수
-
-    if bag[광석] <= 0:
-        del bag[광석]
-
+    remove_ore_from_bag(user_id, 광석, 갯수)
     money_data[user_id] += total
 
     save_data()
@@ -5998,7 +6177,7 @@ async def sell_ore(interaction: discord.Interaction, 광석: str, 갯수: int):
         f"💰 **광석 판매 완료!**\n\n"
         f"광석: **{광석}**\n"
         f"수량: **{갯수}개**\n"
-        f"개당 가격: **{price:,}원**\n"
+        f"총 무게: **{total_kg:.2f}kg**\n"
         f"총 판매가: **{total:,}원**\n\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
@@ -6062,11 +6241,11 @@ async def craft_pendant(interaction: discord.Interaction, 펜던트: str = None)
         return
 
     for ore, need_count in pendant["ores"].items():
-        if ore_bags[user_id].get(ore, 0) < need_count:
+        if get_ore_count(user_id, ore) < need_count:
             await interaction.response.send_message(
                 f"❌ 재료 부족.\n"
                 f"필요: **{ore} x{need_count}**\n"
-                f"보유: **{ore_bags[user_id].get(ore, 0)}개**",
+                f"보유: **{get_ore_count(user_id, ore)}개**",
                 ephemeral=True
             )
             return
@@ -6074,9 +6253,7 @@ async def craft_pendant(interaction: discord.Interaction, 펜던트: str = None)
     money_data[user_id] -= pendant["price"]
 
     for ore, need_count in pendant["ores"].items():
-        ore_bags[user_id][ore] -= need_count
-        if ore_bags[user_id][ore] <= 0:
-            del ore_bags[user_id][ore]
+        remove_ore_from_bag(user_id, ore, need_count)
 
     owned_pendants[user_id].append(펜던트)
     save_data()
@@ -6149,11 +6326,11 @@ async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None)
         return
 
     for ore, need_count in pickaxe["ores"].items():
-        if ore_bags[user_id].get(ore, 0) < need_count:
+        if get_ore_count(user_id, ore) < need_count:
             await interaction.response.send_message(
                 f"❌ 재료 부족.\n"
                 f"필요: {ore} x{need_count}\n"
-                f"보유: {ore_bags[user_id].get(ore, 0)}개",
+                f"보유: {get_ore_count(user_id, ore)}개",
                 ephemeral=True
             )
             return
@@ -6161,9 +6338,7 @@ async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None)
     money_data[user_id] -= pickaxe["price"]
 
     for ore, need_count in pickaxe["ores"].items():
-        ore_bags[user_id][ore] -= need_count
-        if ore_bags[user_id][ore] <= 0:
-            del ore_bags[user_id][ore]
+        remove_ore_from_bag(user_id, ore, need_count)
 
     owned_pickaxes[user_id].append(곡괭이)
     equipped_pickaxes[user_id] = 곡괭이
