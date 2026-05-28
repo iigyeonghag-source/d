@@ -973,33 +973,22 @@ async def transfer(
 
     get_wallet(sender_id)
     get_wallet(target_id)
-    get_wallet(user_id)
 
-    # 자기 자신 송금 방지
     if sender_id == target_id:
-        await interaction.response.send_message(
-            "❌ 자기 자신에게는 송금 못함.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 자기 자신에게는 송금 못함.", ephemeral=True)
         return
 
-    # 최소 금액
     if 금액 <= 0:
-        await interaction.response.send_message(
-            "❌ 1원 이상 입력해야 함.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ 1원 이상 입력해야 함.", ephemeral=True)
         return
 
-    # 돈 부족
     if money_data[sender_id] < 금액:
         await interaction.response.send_message(
-            f"❌ 잔액 부족.\n현재 잔액: {money_data[sender_id]}원",
+            f"❌ 잔액 부족.\n현재 잔액: {money_data[sender_id]:,}원",
             ephemeral=True
         )
         return
 
-    # 송금
     money_data[sender_id] -= 금액
     money_data[target_id] += 금액
     save_data()
@@ -1009,15 +998,11 @@ async def transfer(
         f"보낸 사람: {interaction.user.mention}\n"
         f"받는 사람: {대상.mention}\n"
         f"금액: **{금액:,}원**\n\n"
-        f"대상의 현재 잔액: **{money_data[sender_id]:,}원**"
-        f"자신의 현재 잔액: **{money_data[user_id]:,}원**"
+        f"대상의 현재 잔액: **{money_data[target_id]:,}원**\n"
+        f"자신의 현재 잔액: **{money_data[sender_id]:,}원**"
     )
 
-@bot.tree.command(
-    name="돈",
-    description="관리자 전용 돈 지급",
-    guild=GUILD
-)
+@bot.tree.command(name="돈", description="관리자 전용 돈 지급", guild=GUILD)
 @app_commands.default_permissions(administrator=True)
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
