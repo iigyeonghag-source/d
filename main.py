@@ -973,6 +973,7 @@ async def transfer(
 
     get_wallet(sender_id)
     get_wallet(target_id)
+    get_wallet(user_id)
 
     # 자기 자신 송금 방지
     if sender_id == target_id:
@@ -1007,8 +1008,9 @@ async def transfer(
         f"💸 송금 완료!\n\n"
         f"보낸 사람: {interaction.user.mention}\n"
         f"받는 사람: {대상.mention}\n"
-        f"금액: **{금액}원**\n\n"
-        f"현재 잔액: **{money_data[sender_id]}원**"
+        f"금액: **{금액:,}원**\n\n"
+        f"대상의 현재 잔액: **{money_data[sender_id]:,}원**"
+        f"자신의 현재 잔액: **{money_data[user_id]:,}원**"
     )
 
 @bot.tree.command(
