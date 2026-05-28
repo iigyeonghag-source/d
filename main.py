@@ -6068,22 +6068,51 @@ async def ore_bag(interaction: discord.Interaction):
         count = len(items)
         total_kg = sum(item["kg"] for item in items)
         total_price = sum(item["price"] for item in items)
-        sample = ", ".join(
-            format_ore_item(ore_name, item)
-            for item in items[:3]
+
+        traits = {}
+        for item in items:
+            trait = item.get("trait")
+            if trait:
+                traits[trait] = traits.get(trait, 0) + 1
+
+        trait_text = ", ".join(
+            f"{trait} {count}개"
+            for trait, count in traits.items()
         )
 
-        if count > 3:
-            sample += f" 외 {count - 3}개"
+        if not trait_text:
+            trait_text = "특성 없음"
 
         lines.append(
-            f"**{ore_name}**: {count}개 / 총 {total_kg:.2f}kg / 예상 판매가 {total_price:,}원\n"
-            f"└ {sample}"
+            f"**{ore_name}**: {count}개 / {total_kg:.2f}kg / {total_price:,}원\n"
+            f"└ {trait_text}"
         )
 
-    await interaction.response.send_message(
-        f"🎒 **내 광석 가방**\n\n" + "\n\n".join(lines)
-    )
+    content = f"🎒 **내 광석 가방**\n\n" + "\n\n".join(lines)
+
+    if len(content) <= 2000:
+        await interaction.response.send_message(content)
+        return
+
+    chunks = []
+    current = "🎒 **내 광석 가방**\n\n"
+
+    for line in lines:
+        add = line + "\n\n"
+
+        if len(current) + len(add) > 1900:
+            chunks.append(current)
+            current = ""
+
+        current += add
+
+    if current:
+        chunks.append(current)
+
+    await interaction.response.send_message(chunks[0])
+
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk)
 
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
