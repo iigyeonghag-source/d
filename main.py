@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from discord import app_commands
 import math
+from io import BytesIO
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -6114,7 +6115,7 @@ async def ore_bag(interaction: discord.Interaction):
     for chunk in chunks[1:]:
         await interaction.followup.send(chunk)
         
-@bot.tree.command(name="상세가방", description="광석 상세 정보를 확인한다", guild=GUILD)
+@bot.tree.command(name="상세가방", description="광석 상세 정보를 txt 파일로 확인한다", guild=GUILD)
 async def detail_ore_bag(interaction: discord.Interaction):
     user_id = interaction.user.id
 
@@ -6127,14 +6128,13 @@ async def detail_ore_bag(interaction: discord.Interaction):
         await interaction.response.send_message("🎒 가방이 비어있다.")
         return
 
-    lines = []
+    lines = ["🎒 광석 상세 가방", ""]
 
     for ore_name, items in bag.items():
-
-        lines.append(f"⛏️ **{ore_name}**")
+        lines.append(f"⛏️ {ore_name}")
 
         for idx, item in enumerate(items, start=1):
-            trait = item.get("trait", "특성 없음")
+            trait = item.get("trait") or "특성 없음"
             kg = item["kg"]
             price = item["price"]
 
@@ -6144,25 +6144,17 @@ async def detail_ore_bag(interaction: discord.Interaction):
 
         lines.append("")
 
-    chunks = []
-    current = "🎒 **광석 상세 가방**\n\n"
+    content = "\n".join(lines)
 
-    for line in lines:
-        add = line + "\n"
+    file = discord.File(
+        BytesIO(content.encode("utf-8")),
+        filename=f"ore_bag_{user_id}.txt"
+    )
 
-        if len(current) + len(add) > 1900:
-            chunks.append(current)
-            current = ""
-
-        current += add
-
-    if current:
-        chunks.append(current)
-
-    await interaction.response.send_message(chunks[0])
-
-    for chunk in chunks[1:]:
-        await interaction.followup.send(chunk)
+    await interaction.response.send_message(
+        "📄 광석 상세 가방을 txt 파일로 뽑았음.",
+        file=file
+    )
         
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
