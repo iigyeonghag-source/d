@@ -27,58 +27,6 @@ def money(value):
     return f"{round(value):,}"
 
 
-# =========================
-# 개별 아이템 ID 시스템
-# =========================
-
-def new_item_id():
-    # Discord 봇 경제 아이템용 6자리 ID.
-    # 충돌 확률은 낮지만, 이미 존재하는 ID를 한 번 훑어서 최대한 피함.
-    used_ids = set()
-
-    try:
-        for tank in fish_tanks.values():
-            if isinstance(tank, list):
-                for item in tank:
-                    if isinstance(item, dict) and "id" in item:
-                        used_ids.add(item["id"])
-    except Exception:
-        pass
-
-    try:
-        for bag in ore_bags.values():
-            if isinstance(bag, dict):
-                for items in bag.values():
-                    if isinstance(items, list):
-                        for item in items:
-                            if isinstance(item, dict) and "id" in item:
-                                used_ids.add(item["id"])
-    except Exception:
-        pass
-
-    try:
-        for farm in farm_data.values():
-            if isinstance(farm, dict):
-                for item in farm.get("crop_items", []):
-                    if isinstance(item, dict) and "id" in item:
-                        used_ids.add(item["id"])
-    except Exception:
-        pass
-
-    for _ in range(1000):
-        item_id = random.randint(100000, 999999)
-        if item_id not in used_ids:
-            return item_id
-
-    return random.randint(1000000, 9999999)
-
-
-def ensure_item_id(item):
-    if isinstance(item, dict) and "id" not in item:
-        item["id"] = new_item_id()
-    return item
-
-
 def get_item_display_name(item, fallback="알 수 없음"):
     if not isinstance(item, dict):
         return fallback
@@ -2214,10 +2162,6 @@ def get_tank(user_id):
         fish_tanks[user_id] = []
         changed = True
 
-    for fish in fish_tanks[user_id]:
-        if isinstance(fish, dict) and "id" not in fish:
-            fish["id"] = new_item_id()
-            changed = True
 
     if user_id not in fish_dex:
         fish_dex[user_id] = set()
@@ -2312,7 +2256,6 @@ def make_fish(user_id, fish_name):
         price = int(price * FISH_TRAITS[trait_name]["price_mult"])
 
     fish = {
-        "id": new_item_id(),
         "name": fish_name,
         "display_name": display_name,
         "trait": trait_name,
@@ -2943,23 +2886,42 @@ async def fish_tank(interaction: discord.Interaction):
         await interaction.response.send_message("🐠 어항이 비어있다.")
         return
 
-    lines = []
+    grouped = {}
     total_value = 0
 
     for fish in tank:
-        ensure_item_id(fish)
-        name = get_item_display_name(fish, fish.get("name", "알 수 없음"))
+
+        display_name = get_item_display_name(fish, fish.get("name", "알 수 없음"))
+        base_name = fish.get("name", display_name)
+        trait = fish.get("trait") or "특성 없음"
         kg = fish.get("kg", 0)
-        price = get_market_price(fish.get("name", name), fish.get("price", 0))
+        price = get_market_price(base_name, fish.get("price", 0))
         total_value += price
 
+        key = (display_name, base_name, trait)
+        if key not in grouped:
+            grouped[key] = {
+                "count": 0,
+                "kg": 0,
+                "price": 0,
+}
+
+        grouped[key]["count"] += 1
+        grouped[key]["kg"] += kg
+        grouped[key]["price"] += price
+
+    lines = []
+
+    for (display_name, base_name, trait), info in sorted(grouped.items(), key=lambda x: x[0][0]):
+
         lines.append(
-            f"ID {fish['id']} | **{name}** / {kg}kg / 현재 판매가 {money(price)}원"
+            f"🐟 **{display_name}** / [{trait}] / {info['count']}마리 / "
+            f"총 {info['kg']:.2f}kg / 현재 판매가 {money(info['price'])}원"
         )
 
     save_data()
 
-    header = f"🐠 **내 어항** | 총 {len(tank)}마리 / 예상가 {money(total_value)}원\n\n"
+    header = f"🐠 **내 어항** | 총 {len(tank)}마리 / 묶음 {len(grouped)}개 / 예상가 {money(total_value)}원\n\n"
     content = header + "\n".join(lines)
 
     if len(content) <= 2000:
@@ -2971,6 +2933,40 @@ async def fish_tank(interaction: discord.Interaction):
         filename=f"fish_tank_{user_id}.txt"
     )
     await interaction.response.send_message("📄 어항 목록이 길어서 txt 파일로 뽑았음.", file=file)
+
+
+@bot.tree.command(name="상세어항", description="물고기 상세 정보를 txt 파일로 확인한다", guild=GUILD)
+async def detail_fish_tank(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_tank(user_id)
+    update_fish_market()
+
+    tank = fish_tanks[user_id]
+
+    if not tank:
+        await interaction.response.send_message("🐠 어항이 비어있다.")
+        return
+
+    lines = ["🐠 물고기 상세 어항", ""]
+
+    for fish in tank:
+        name = get_item_display_name(fish, fish.get("name", "알 수 없음"))
+        trait = fish.get("trait") or "특성 없음"
+        kg = fish.get("kg", 0)
+        price = get_market_price(fish.get("name", name), fish.get("price", 0))
+
+        lines.append(
+            f"{name} | [{trait}] | {kg:.2f}kg | {money(price)}원"
+        )
+
+    save_data()
+    content = "\n".join(lines)
+
+    file = discord.File(
+        BytesIO(content.encode("utf-8")),
+        filename=f"fish_tank_detail_{user_id}.txt"
+    )
+    await interaction.response.send_message("📄 물고기 상세 어항을 txt 파일로 뽑았음.", file=file)
 
 
 @bot.tree.command(name="팔기", description="물고기를 판매한다.", guild=GUILD)
@@ -3799,7 +3795,7 @@ def get_farm(user_id):
         farm["crops"] = {}
         changed = True
 
-    # 새 헛간 구조: 농작물도 물고기/광석처럼 개별 ID를 가진다.
+    # 새 헛간 구조: 농작물도 물고기/광석처럼 개별 아이템으로 관리한다.
     if "crop_items" not in farm or not isinstance(farm["crop_items"], list):
         farm["crop_items"] = []
 
@@ -3812,8 +3808,7 @@ def get_farm(user_id):
                 crop_name, trait_name = parse_crop_item_name(item_name)
                 for _ in range(count):
                     farm["crop_items"].append({
-                        "id": new_item_id(),
-                        "name": crop_name or item_name,
+                                        "name": crop_name or item_name,
                         "display_name": item_name,
                         "trait": trait_name,
                         "price": get_crop_price_for_user(user_id, item_name) or 0
@@ -3821,10 +3816,6 @@ def get_farm(user_id):
 
         changed = True
 
-    for crop in farm.get("crop_items", []):
-        if isinstance(crop, dict) and "id" not in crop:
-            crop["id"] = new_item_id()
-            changed = True
 
     for name in SEED_DATA:
         if name not in farm["seeds"]:
@@ -4377,8 +4368,7 @@ def harvest_one_plot(user_id, index, now):
 
     for _ in range(amount):
         farm_data[user_id]["crop_items"].append({
-            "id": new_item_id(),
-            "name": crop_name,
+                "name": crop_name,
             "display_name": item_name,
             "trait": trait_name,
             "price": unit_price,
@@ -4728,24 +4718,38 @@ async def barn(interaction: discord.Interaction):
         await interaction.response.send_message("🏚️ 헛간이 비어있음.", ephemeral=True)
         return
 
-    lines = []
+    grouped = {}
     total_value = 0
 
     for item in crop_items:
-        ensure_item_id(item)
         item_name = get_item_display_name(item)
+        trait = item.get("trait") or "특성 없음"
         price = get_crop_price_for_user(user_id, item_name) or item.get("price", 0)
         total_value += price
-        trait = item.get("trait") or "특성 없음"
+
+        key = (item_name, trait)
+        if key not in grouped:
+            grouped[key] = {
+                "count": 0,
+                "price": 0,
+}
+
+        grouped[key]["count"] += 1
+        grouped[key]["price"] += price
+
+    lines = []
+
+    for (item_name, trait), info in sorted(grouped.items(), key=lambda x: x[0][0]):
 
         lines.append(
-            f"ID {item['id']} | **{item_name}** / [{trait}] / 예상가 {price:,}원"
+            f"🌱 **{item_name}** / [{trait}] / {info['count']}개 / "
+            f"예상가 {info['price']:,}원"
         )
 
     save_data()
 
     content = (
-        f"🌾 **내 헛간** | 총 {len(crop_items)}개\n\n"
+        f"🌾 **내 헛간** | 총 {len(crop_items)}개 / 묶음 {len(grouped)}개\n\n"
         + "\n".join(lines)
         + f"\n\n💰 예상 총 판매가: **{total_value:,}원**"
     )
@@ -4759,6 +4763,38 @@ async def barn(interaction: discord.Interaction):
         filename=f"barn_{user_id}.txt"
     )
     await interaction.response.send_message("📄 헛간 목록이 길어서 txt 파일로 뽑았음.", file=file)
+
+
+@bot.tree.command(name="상세헛간", description="농작물 상세 정보를 txt 파일로 확인한다", guild=GUILD)
+async def detail_barn(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    get_farm(user_id)
+
+    crop_items = farm_data[user_id].setdefault("crop_items", [])
+
+    if not crop_items:
+        await interaction.response.send_message("🏚️ 헛간이 비어있음.", ephemeral=True)
+        return
+
+    lines = ["🌾 농작물 상세 헛간", ""]
+
+    for item in crop_items:
+        item_name = get_item_display_name(item)
+        trait = item.get("trait") or "특성 없음"
+        price = get_crop_price_for_user(user_id, item_name) or item.get("price", 0)
+
+        lines.append(
+            f"{item_name} | [{trait}] | 예상가 {price:,}원"
+        )
+
+    save_data()
+    content = "\n".join(lines)
+
+    file = discord.File(
+        BytesIO(content.encode("utf-8")),
+        filename=f"barn_detail_{user_id}.txt"
+    )
+    await interaction.response.send_message("📄 농작물 상세 헛간을 txt 파일로 뽑았음.", file=file)
 
 @bot.tree.command(name="땅", description="4개의 농장 지역 상태를 확인한다", guild=GUILD)
 async def land_status(interaction: discord.Interaction):
@@ -4931,7 +4967,6 @@ async def trade_item(
             f"수량: **{갯수}마리**\n"
             f"총 무게: **{total_kg}kg**\n"
             f"총 예상가: **{total_price:,}원**\n"
-            f"거래 ID: " + ", ".join(str(fish.get("id", "?")) for fish in trade_list)
         )
         return
 
@@ -4968,211 +5003,13 @@ async def trade_item(
             f"받는 사람: {대상.mention}\n"
             f"광석: **{이름}**\n"
             f"수량: **{갯수}개**\n"
-            f"거래 ID: " + ", ".join(str(item.get("id", "?")) for item in trade_list)
         )
         return
 
     await interaction.response.send_message(
-        "❌ 종류는 `물고기` 또는 `광석`만 가능함.\n"
-        "특정 개체를 주려면 `/id거래`를 쓰셈.",
+        "❌ 종류는 `물고기` 또는 `광석`만 가능함.",
         ephemeral=True
     )
-
-
-@bot.tree.command(name="id거래", description="ID로 물고기/광석/농작물을 다른 유저에게 준다.", guild=GUILD)
-@app_commands.describe(
-    대상="받을 유저",
-    종류="물고기 / 광석 / 농작물",
-    아이디="줄 아이템 ID"
-)
-async def trade_item_by_id(
-    interaction: discord.Interaction,
-    대상: discord.Member,
-    종류: str,
-    아이디: int
-):
-    sender_id = interaction.user.id
-    target_id = 대상.id
-
-    get_tank(sender_id)
-    get_tank(target_id)
-    get_mining(sender_id)
-    get_mining(target_id)
-    get_farm(sender_id)
-    get_farm(target_id)
-
-    if sender_id == target_id:
-        await interaction.response.send_message("❌ 자기 자신에게는 거래 못함.", ephemeral=True)
-        return
-
-    if 대상.bot:
-        await interaction.response.send_message("❌ 봇한테는 거래 못함.", ephemeral=True)
-        return
-
-    if 종류 == "물고기":
-        item = next((fish for fish in fish_tanks[sender_id] if fish.get("id") == 아이디), None)
-
-        if item is None:
-            await interaction.response.send_message("❌ 해당 ID 물고기를 못 찾음.", ephemeral=True)
-            return
-
-        fish_tanks[sender_id].remove(item)
-        fish_tanks[target_id].append(item)
-        fish_dex[target_id].add(item["name"])
-        save_data()
-
-        await interaction.response.send_message(
-            f"🤝 **ID 거래 완료!**\n\n"
-            f"받는 사람: {대상.mention}\n"
-            f"종류: **물고기**\n"
-            f"ID: **{아이디}**\n"
-            f"아이템: **{get_item_display_name(item)}**"
-        )
-        return
-
-    if 종류 == "광석":
-        normalize_ore_bag(sender_id)
-        normalize_ore_bag(target_id)
-
-        for ore_name, items in list(ore_bags[sender_id].items()):
-            for item in list(items):
-                if item.get("id") == 아이디:
-                    items.remove(item)
-
-                    if ore_name not in ore_bags[target_id]:
-                        ore_bags[target_id][ore_name] = []
-
-                    ore_bags[target_id][ore_name].append(item)
-
-                    if not items:
-                        del ore_bags[sender_id][ore_name]
-
-                    save_data()
-
-                    trait = item.get("trait")
-                    display_name = f"{trait} {ore_name}" if trait else ore_name
-
-                    await interaction.response.send_message(
-                        f"🤝 **ID 거래 완료!**\n\n"
-                        f"받는 사람: {대상.mention}\n"
-                        f"종류: **광석**\n"
-                        f"ID: **{아이디}**\n"
-                        f"아이템: **{display_name}**"
-                    )
-                    return
-
-        await interaction.response.send_message("❌ 해당 ID 광석을 못 찾음.", ephemeral=True)
-        return
-
-    if 종류 == "농작물":
-        sender_items = farm_data[sender_id].setdefault("crop_items", [])
-        target_items = farm_data[target_id].setdefault("crop_items", [])
-
-        item = next((crop for crop in sender_items if crop.get("id") == 아이디), None)
-
-        if item is None:
-            await interaction.response.send_message("❌ 해당 ID 농작물을 못 찾음.", ephemeral=True)
-            return
-
-        sender_items.remove(item)
-        target_items.append(item)
-
-        item_name = get_item_display_name(item)
-        if item_name in farm_data[sender_id]["crops"]:
-            farm_data[sender_id]["crops"][item_name] = max(0, farm_data[sender_id]["crops"][item_name] - 1)
-        farm_data[target_id]["crops"][item_name] = farm_data[target_id]["crops"].get(item_name, 0) + 1
-
-        crop_dex[target_id].add(item.get("name", item_name))
-        save_data()
-
-        await interaction.response.send_message(
-            f"🤝 **ID 거래 완료!**\n\n"
-            f"받는 사람: {대상.mention}\n"
-            f"종류: **농작물**\n"
-            f"ID: **{아이디}**\n"
-            f"아이템: **{item_name}**"
-        )
-        return
-
-    await interaction.response.send_message(
-        "❌ 종류는 `물고기`, `광석`, `농작물`만 가능함.",
-        ephemeral=True
-    )
-
-
-@bot.tree.command(name="id팔기", description="ID로 물고기/광석/농작물을 판매한다.", guild=GUILD)
-@app_commands.describe(
-    종류="물고기 / 광석 / 농작물",
-    아이디="판매할 아이템 ID"
-)
-async def sell_item_by_id(interaction: discord.Interaction, 종류: str, 아이디: int):
-    user_id = interaction.user.id
-
-    get_wallet(user_id)
-    get_tank(user_id)
-    get_mining(user_id)
-    get_farm(user_id)
-
-    if 종류 == "물고기":
-        update_fish_market()
-        item = next((fish for fish in fish_tanks[user_id] if fish.get("id") == 아이디), None)
-        if item is None:
-            await interaction.response.send_message("❌ 해당 ID 물고기를 못 찾음.", ephemeral=True)
-            return
-
-        price = get_market_price(item["name"], item["price"])
-        fish_tanks[user_id].remove(item)
-        money_data[user_id] += price
-        save_data()
-
-        await interaction.response.send_message(
-            f"💰 **ID 판매 완료!**\n\n물고기: **{get_item_display_name(item)}**\nID: **{아이디}**\n판매가: **{price:,}원**"
-        )
-        return
-
-    if 종류 == "광석":
-        normalize_ore_bag(user_id)
-        for ore_name, items in list(ore_bags[user_id].items()):
-            for item in list(items):
-                if item.get("id") == 아이디:
-                    price = item.get("price", 0)
-                    items.remove(item)
-                    if not items:
-                        del ore_bags[user_id][ore_name]
-                    money_data[user_id] += price
-                    save_data()
-
-                    trait = item.get("trait")
-                    display_name = f"{trait} {ore_name}" if trait else ore_name
-                    await interaction.response.send_message(
-                        f"💰 **ID 판매 완료!**\n\n광석: **{display_name}**\nID: **{아이디}**\n판매가: **{price:,}원**"
-                    )
-                    return
-
-        await interaction.response.send_message("❌ 해당 ID 광석을 못 찾음.", ephemeral=True)
-        return
-
-    if 종류 == "농작물":
-        crop_items = farm_data[user_id].setdefault("crop_items", [])
-        item = next((crop for crop in crop_items if crop.get("id") == 아이디), None)
-        if item is None:
-            await interaction.response.send_message("❌ 해당 ID 농작물을 못 찾음.", ephemeral=True)
-            return
-
-        item_name = get_item_display_name(item)
-        price = get_crop_price_for_user(user_id, item_name) or item.get("price", 0)
-        crop_items.remove(item)
-        if item_name in farm_data[user_id]["crops"]:
-            farm_data[user_id]["crops"][item_name] = max(0, farm_data[user_id]["crops"][item_name] - 1)
-        money_data[user_id] += price
-        save_data()
-
-        await interaction.response.send_message(
-            f"💰 **ID 판매 완료!**\n\n농작물: **{item_name}**\nID: **{아이디}**\n판매가: **{price:,}원**"
-        )
-        return
-
-    await interaction.response.send_message("❌ 종류는 `물고기`, `광석`, `농작물`만 가능함.", ephemeral=True)
 
 
 @bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
@@ -5624,8 +5461,7 @@ def create_ore_item(ore_name, luck_bonus=0, old_item=False):
 
     if old_item:
         return {
-            "id": new_item_id(),
-            "kg": 1.0,
+                "kg": 1.0,
             "trait": None,
             "price": ore["price"]
         }
@@ -5638,7 +5474,6 @@ def create_ore_item(ore_name, luck_bonus=0, old_item=False):
         kg = round(max(0.01, kg), 2)
 
     return {
-        "id": new_item_id(),
         "kg": kg,
         "trait": trait_name,
         "price": calc_ore_price(ore_name, kg, trait_name)
@@ -5679,7 +5514,6 @@ def normalize_ore_bag(user_id):
                     price = int(item.get("price", calc_ore_price(ore_name, kg, trait)))
 
                     cleaned_items.append({
-                        "id": item.get("id", new_item_id()),
                         "kg": kg,
                         "trait": trait if trait in ORE_TRAITS else None,
                         "price": price
@@ -6376,27 +6210,44 @@ async def ore_bag(interaction: discord.Interaction):
         await interaction.response.send_message("🎒 가방이 비어있다.")
         return
 
-    lines = []
+    grouped = {}
     total_count = 0
     total_value = 0
 
     for ore_name, items in bag.items():
         for item in items:
-            ensure_item_id(item)
             trait = item.get("trait") or "특성 없음"
             kg = item.get("kg", 0)
             price = item.get("price", 0)
+
+            key = (ore_name, trait)
+            if key not in grouped:
+                grouped[key] = {
+                    "count": 0,
+                    "kg": 0,
+                    "price": 0,
+}
+
+            grouped[key]["count"] += 1
+            grouped[key]["kg"] += kg
+            grouped[key]["price"] += price
+
             total_count += 1
             total_value += price
 
-            lines.append(
-                f"ID {item['id']} | **{ore_name}** / [{trait}] / {kg:.2f}kg / {price:,}원"
-            )
+    lines = []
+
+    for (ore_name, trait), info in sorted(grouped.items(), key=lambda x: (x[0][0], x[0][1])):
+
+        lines.append(
+            f"⛏️ **{ore_name}** / [{trait}] / {info['count']}개 / "
+            f"총 {info['kg']:.2f}kg / {info['price']:,}원"
+        )
 
     save_data()
 
     content = (
-        f"🎒 **내 광석 가방** | 총 {total_count}개 / 총 {total_value:,}원\n\n"
+        f"🎒 **내 광석 가방** | 총 {total_count}개 / 묶음 {len(grouped)}개 / 총 {total_value:,}원\n\n"
         + "\n".join(lines)
     )
 
@@ -6429,13 +6280,12 @@ async def detail_ore_bag(interaction: discord.Interaction):
         lines.append(f"⛏️ {ore_name}")
 
         for item in items:
-            ensure_item_id(item)
             trait = item.get("trait") or "특성 없음"
             kg = item["kg"]
             price = item["price"]
 
             lines.append(
-                f"ID {item['id']} | [{trait}] {kg:.2f}kg / {price:,}원"
+                f"[{trait}] {kg:.2f}kg / {price:,}원"
             )
 
         lines.append("")
