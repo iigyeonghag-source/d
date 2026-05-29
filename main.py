@@ -6377,56 +6377,6 @@ async def collect_mine(interaction: discord.Interaction):
         f"회수 금액: **{gained:,}원**\n"
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
-@bot.tree.command(name="광질2", description="5만원을 내고 5분마다 고급 광질을 한다", guild=GUILD)
-async def mining_premium(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    now = datetime.now()
-
-    get_wallet(user_id)
-    get_pendant(user_id)
-    get_mining(user_id)
-
-    cost = 50000
-    cooldown = mining2_cooldowns.get(user_id)
-
-    if cooldown and now < cooldown:
-        remain = int((cooldown - now).total_seconds())
-        minute = remain // 60
-        second = remain % 60
-
-        await interaction.response.send_message(
-            f"⛏️ 아직 고급 광질 준비중임.\n"
-            f"남은 시간: **{minute}분 {second}초**",
-            ephemeral=True
-        )
-        return
-
-    if money_data[user_id] < cost:
-        await interaction.response.send_message(
-            f"❌ 돈 부족.\n"
-            f"필요 금액: **{cost:,}원**\n"
-            f"현재 잔액: **{money_data[user_id]:,}원**",
-            ephemeral=True
-        )
-        return
-
-    money_data[user_id] -= cost
-    mining2_cooldowns[user_id] = now + timedelta(minutes=5)
-    save_data()
-
-    view = MiningReadyView(user_id, premium=True)
-
-    await interaction.response.send_message(
-        f"💎 **고급 광질 시작!**\n"
-        f"사용 비용: **{cost:,}원**\n"
-        f"사용 곡괭이: **{view.pickaxe_name}**\n\n"
-        f"일반 광질보다 희귀 광물 확률이 높음.\n"
-        f"1초~15초 안에 초록 칸이 뜨면 눌러!",
-        view=view
-    )
-
-    view.message = await interaction.original_response()
-    asyncio.create_task(view.start_waiting())
 
 @bot.tree.command(name="펜던트", description="보유/장착 펜던트를 확인하거나 장착한다", guild=GUILD)
 @app_commands.describe(
