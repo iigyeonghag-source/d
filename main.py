@@ -5410,17 +5410,17 @@ ORE_DATA = {
 PICKAXE_DATA = {
     "나무 곡괭이": {
         "price": 0,
-        "ores": {},
+        "ores": {"석탄": 1},
         "luck": 0,
         "time_reduce": 0,
-        "double_chance": 0,
+        "double_chance": 1,
         "triple_chance": 0
     },
     "돌 곡괭이": {
-        "price": 25000,
-        "ores": {"돌": 10},
-        "luck": 3,
-        "time_reduce": 3,
+        "price": 15000,
+        "ores": {"돌": 2, "석탄": 1},
+        "luck": 4,
+        "time_reduce": 5,
         "double_chance": 3,
         "triple_chance": 0.5
     },
@@ -5486,26 +5486,41 @@ PICKAXE_DATA = {
         "luck": 90,
         "time_reduce": 50,
         "double_chance": 38,
-        "triple_chance": 12
+        "triple_chance": 16
     },
     "네더라이트 곡괭이": {
-        "price": 60000000,
-        "ores": {"네더라이트": 3, "흑요석": 3, "다이아몬드": 5},
+        "price": 50000000,
+        "ores": {"네더라이트": 3, "흑요석": 3, "철광석": 10, "석탄": 35},
         "luck": 140,
-        "time_reduce": 55,
-        "double_chance": 42,
-        "triple_chance": 18
+        "time_reduce": 60,
+        "double_chance": 50,
+        "triple_chance": 25
+    },
+    "드워프 장인의 곡괭이": {
+        "price": 140000000,
+        "ores": {"레드 다이아몬드": 1, "흑요석": 10, "네더라이트": 5, "석탄": 55},
+        "luck": 220,
+        "time_reduce": 70,
+        "double_chance": 65,
+        "triple_chance": 35
+    },
+    "레인보우 곡괭이": {
+        "price": 400000000,
+        "ores": {"레드 다이아몬드": 2, "우라늄": 1, "레인보우 다이아몬드": 5, "석탄": 70},
+        "luck": 375,
+        "time_reduce": 78,
+        "double_chance": 75,
+        "triple_chance": 45
     },
     "신의 곡괭이": {
-        "price": 300000000,
-        "ores": {"레인보우 다이아몬드": 3, "레드 다이아몬드": 3, "네더라이트": 5, "우라늄": 1},
-        "luck": 350,
-        "time_reduce": 65,
-        "double_chance": 55,
-        "triple_chance": 30
+        "price": 1200000000,
+        "ores": {"레인보우 다이아몬드": 5, "우라늄": 12, "신기루": 5, "석탄": 125},
+        "luck": 600,
+        "time_reduce": 85,
+        "double_chance": 60,
+        "triple_chance": 90
     }
 }
-
 
 def calc_ore_price(ore_name, kg):
     ore = ORE_DATA[ore_name]
