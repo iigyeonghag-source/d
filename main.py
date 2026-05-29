@@ -2890,21 +2890,21 @@ async def fish_tank(interaction: discord.Interaction):
     total_value = 0
 
     for fish in tank:
-
-        display_name = get_item_display_name(fish, fish.get("name", "알 수 없음"))
-        base_name = fish.get("name", display_name)
-        trait = fish.get("trait") or "특성 없음"
+        base_name = fish.get("name", "알 수 없음")
+        trait = fish.get("trait")
+        display_name = fish.get("display_name") or (f"{trait} {base_name}" if trait else base_name)
         kg = fish.get("kg", 0)
         price = get_market_price(base_name, fish.get("price", 0))
         total_value += price
 
-        key = (display_name, base_name, trait)
+        key = (base_name, trait)
         if key not in grouped:
             grouped[key] = {
+                "display_name": display_name,
                 "count": 0,
                 "kg": 0,
                 "price": 0,
-}
+            }
 
         grouped[key]["count"] += 1
         grouped[key]["kg"] += kg
@@ -2912,10 +2912,9 @@ async def fish_tank(interaction: discord.Interaction):
 
     lines = []
 
-    for (display_name, base_name, trait), info in sorted(grouped.items(), key=lambda x: x[0][0]):
-
+    for (base_name, trait), info in sorted(grouped.items(), key=lambda x: x[1]["display_name"]):
         lines.append(
-            f"🐟 **{display_name}** / [{trait}] / {info['count']}마리 / "
+            f"🐟 **{info['display_name']}** x{info['count']}마리 / "
             f"총 {info['kg']:.2f}kg / 현재 판매가 {money(info['price'])}원"
         )
 
@@ -2933,7 +2932,6 @@ async def fish_tank(interaction: discord.Interaction):
         filename=f"fish_tank_{user_id}.txt"
     )
     await interaction.response.send_message("📄 어항 목록이 길어서 txt 파일로 뽑았음.", file=file)
-
 
 @bot.tree.command(name="상세어항", description="물고기 상세 정보를 txt 파일로 확인한다", guild=GUILD)
 async def detail_fish_tank(interaction: discord.Interaction):
@@ -4722,27 +4720,28 @@ async def barn(interaction: discord.Interaction):
     total_value = 0
 
     for item in crop_items:
-        item_name = get_item_display_name(item)
-        trait = item.get("trait") or "특성 없음"
-        price = get_crop_price_for_user(user_id, item_name) or item.get("price", 0)
+        base_name = item.get("name") or get_item_display_name(item)
+        trait = item.get("trait")
+        display_name = item.get("display_name") or (f"{trait} {base_name}" if trait else base_name)
+        price = get_crop_price_for_user(user_id, display_name) or item.get("price", 0)
         total_value += price
 
-        key = (item_name, trait)
+        key = (base_name, trait)
         if key not in grouped:
             grouped[key] = {
+                "display_name": display_name,
                 "count": 0,
                 "price": 0,
-}
+            }
 
         grouped[key]["count"] += 1
         grouped[key]["price"] += price
 
     lines = []
 
-    for (item_name, trait), info in sorted(grouped.items(), key=lambda x: x[0][0]):
-
+    for (base_name, trait), info in sorted(grouped.items(), key=lambda x: x[1]["display_name"]):
         lines.append(
-            f"🌱 **{item_name}** / [{trait}] / {info['count']}개 / "
+            f"🌱 **{info['display_name']}** x{info['count']}개 / "
             f"예상가 {info['price']:,}원"
         )
 
@@ -4763,7 +4762,6 @@ async def barn(interaction: discord.Interaction):
         filename=f"barn_{user_id}.txt"
     )
     await interaction.response.send_message("📄 헛간 목록이 길어서 txt 파일로 뽑았음.", file=file)
-
 
 @bot.tree.command(name="상세헛간", description="농작물 상세 정보를 txt 파일로 확인한다", guild=GUILD)
 async def detail_barn(interaction: discord.Interaction):
@@ -6216,17 +6214,19 @@ async def ore_bag(interaction: discord.Interaction):
 
     for ore_name, items in bag.items():
         for item in items:
-            trait = item.get("trait") or "특성 없음"
+            trait = item.get("trait")
+            display_name = f"{trait} {ore_name}" if trait else ore_name
             kg = item.get("kg", 0)
             price = item.get("price", 0)
 
             key = (ore_name, trait)
             if key not in grouped:
                 grouped[key] = {
+                    "display_name": display_name,
                     "count": 0,
                     "kg": 0,
                     "price": 0,
-}
+                }
 
             grouped[key]["count"] += 1
             grouped[key]["kg"] += kg
@@ -6237,10 +6237,9 @@ async def ore_bag(interaction: discord.Interaction):
 
     lines = []
 
-    for (ore_name, trait), info in sorted(grouped.items(), key=lambda x: (x[0][0], x[0][1])):
-
+    for (ore_name, trait), info in sorted(grouped.items(), key=lambda x: x[1]["display_name"]):
         lines.append(
-            f"⛏️ **{ore_name}** / [{trait}] / {info['count']}개 / "
+            f"⛏️ **{info['display_name']}** x{info['count']}개 / "
             f"총 {info['kg']:.2f}kg / {info['price']:,}원"
         )
 
@@ -6260,7 +6259,7 @@ async def ore_bag(interaction: discord.Interaction):
         filename=f"ore_bag_{user_id}.txt"
     )
     await interaction.response.send_message("📄 가방 목록이 길어서 txt 파일로 뽑았음.", file=file)
-        
+
 @bot.tree.command(name="상세가방", description="광석 상세 정보를 txt 파일로 확인한다", guild=GUILD)
 async def detail_ore_bag(interaction: discord.Interaction):
     user_id = interaction.user.id
