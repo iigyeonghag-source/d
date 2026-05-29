@@ -3435,7 +3435,7 @@ class LostItemReturnView(discord.ui.View):
 
         await asyncio.sleep(wait_time)
 
-        reward = random.randint(100000, 200000)
+        reward = random.randint(100000, 5000000)
 
         get_wallet(self.user_id)
         money_data[self.user_id] += reward
