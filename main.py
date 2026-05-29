@@ -6378,6 +6378,198 @@ async def collect_mine(interaction: discord.Interaction):
         f"현재 잔액: **{money_data[user_id]:,}원**"
     )
 
+
+# =========================
+# 펜던트 시스템
+# =========================
+
+PENDANT_DATA = {
+    "돌 펜던트": {
+        "price": 50_000,
+        "ores": {"돌": 20},
+        "luck": 5
+    },
+    "금 펜던트": {
+        "price": 300_000,
+        "ores": {"금광석": 5, "은광석": 5},
+        "luck": 15
+    },
+    "다이아 펜던트": {
+        "price": 1_000_000,
+        "ores": {"다이아몬드": 3, "금광석": 10},
+        "luck": 35
+    },
+    "루비 펜던트": {
+        "price": 1_500_000,
+        "ores": {"루비": 4, "금광석": 10},
+        "luck": 45
+    },
+    "사파이어 펜던트": {
+        "price": 1_500_000,
+        "ores": {"사파이어": 4, "금광석": 10},
+        "luck": 45
+    },
+    "에메랄드 펜던트": {
+        "price": 2_000_000,
+        "ores": {"에메랄드": 3, "다이아몬드": 3},
+        "luck": 60
+    },
+    "흑요석 펜던트": {
+        "price": 8_000_000,
+        "ores": {"흑요석": 3, "에메랄드": 3},
+        "luck": 95
+    },
+    "레드 다이아몬드 펜던트": {
+        "price": 25_000_000,
+        "ores": {"레드 다이아몬드": 2, "네더라이트": 2},
+        "luck": 150
+    },
+    "레인보우 다이아몬드 펜던트": {
+        "price": 80_000_000,
+        "ores": {"레인보우 다이아몬드": 2, "레드 다이아몬드": 2},
+        "luck": 230
+    },
+    "신기루 펜던트": {
+        "price": 250_000_000,
+        "ores": {"신기루": 1, "레인보우 다이아몬드": 3, "우라늄": 1},
+        "luck": 400
+    }
+}
+
+
+def get_pendant(user_id):
+    changed = False
+
+    if user_id not in owned_pendants or not isinstance(owned_pendants[user_id], list):
+        owned_pendants[user_id] = []
+        changed = True
+
+    if user_id not in equipped_pendants or not isinstance(equipped_pendants[user_id], list):
+        equipped_pendants[user_id] = []
+        changed = True
+
+    # 삭제/이름변경된 펜던트가 데이터에 남아있으면 정리
+    cleaned_owned = [
+        pendant for pendant in owned_pendants[user_id]
+        if pendant in PENDANT_DATA
+    ]
+
+    if cleaned_owned != owned_pendants[user_id]:
+        owned_pendants[user_id] = cleaned_owned
+        changed = True
+
+    cleaned_equipped = [
+        pendant for pendant in equipped_pendants[user_id]
+        if pendant in PENDANT_DATA
+    ]
+
+    if cleaned_equipped != equipped_pendants[user_id]:
+        equipped_pendants[user_id] = cleaned_equipped[:2]
+        changed = True
+
+    if changed:
+        save_data()
+
+    return changed
+
+
+def get_pendant_luck(user_id):
+    get_pendant(user_id)
+
+    total = 0
+
+    for pendant in equipped_pendants.get(user_id, []):
+        if pendant in PENDANT_DATA:
+            total += PENDANT_DATA[pendant].get("luck", 0)
+
+    return total
+
+
+@bot.tree.command(name="제작2", description="펜던트를 제작한다", guild=GUILD)
+@app_commands.describe(이름="제작할 펜던트 이름")
+async def craft_pendant(interaction: discord.Interaction, 이름: str = None):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+    get_pendant(user_id)
+
+    if 이름 is None:
+        lines = []
+
+        for pendant_name, pendant in PENDANT_DATA.items():
+            owned = "✅" if pendant_name in owned_pendants[user_id] else "❌"
+
+            ore_cost = ", ".join(
+                f"{ore} x{count}"
+                for ore, count in pendant["ores"].items()
+            )
+
+            if not ore_cost:
+                ore_cost = "없음"
+
+            lines.append(
+                f"{owned} **{pendant_name}**\n"
+                f"가격: **{pendant['price']:,}원**\n"
+                f"광석 재료: {ore_cost}\n"
+                f"운 증가: **+{pendant['luck']}**"
+            )
+
+        await interaction.response.send_message(
+            "💍 **펜던트 제작 목록**\n\n"
+            + "\n\n".join(lines)
+            + "\n\n`/제작2 펜던트이름` 으로 제작"
+        )
+        return
+
+    if 이름 not in PENDANT_DATA:
+        await interaction.response.send_message("❌ 그런 펜던트 없음.", ephemeral=True)
+        return
+
+    if 이름 in owned_pendants[user_id]:
+        await interaction.response.send_message("❌ 이미 보유 중인 펜던트임.", ephemeral=True)
+        return
+
+    pendant = PENDANT_DATA[이름]
+
+    if money_data[user_id] < pendant["price"]:
+        await interaction.response.send_message(
+            f"❌ 돈 부족.\n"
+            f"필요 돈: **{pendant['price']:,}원**\n"
+            f"현재 돈: **{money_data[user_id]:,}원**",
+            ephemeral=True
+        )
+        return
+
+    for ore_name, need_count in pendant["ores"].items():
+        have_count = get_ore_count(user_id, ore_name)
+
+        if have_count < need_count:
+            await interaction.response.send_message(
+                f"❌ 재료 부족.\n"
+                f"필요: **{ore_name} x{need_count}**\n"
+                f"보유: **{have_count}개**",
+                ephemeral=True
+            )
+            return
+
+    money_data[user_id] -= pendant["price"]
+
+    for ore_name, need_count in pendant["ores"].items():
+        remove_ore_from_bag(user_id, ore_name, need_count)
+
+    owned_pendants[user_id].append(이름)
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"✅ **펜던트 제작 완료!**\n\n"
+        f"제작한 펜던트: **{이름}**\n"
+        f"운 증가: **+{pendant['luck']}**\n\n"
+        f"`/펜던트 {이름} 1` 또는 `/펜던트 {이름} 2`로 장착 가능"
+    )
+
+
 @bot.tree.command(name="펜던트", description="보유/장착 펜던트를 확인하거나 장착한다", guild=GUILD)
 @app_commands.describe(
     이름="장착할 펜던트 이름",
