@@ -6313,6 +6313,70 @@ async def craft_pickaxe(interaction: discord.Interaction, 곡괭이: str = None)
         f"**{곡괭이}** 제작 후 바로 장착함."
     )
 
+@bot.tree.command(name="곡괭이", description="보유 곡괭이를 확인하거나 장착한다", guild=GUILD)
+@app_commands.describe(곡괭이="장착할 곡괭이 이름")
+async def pickaxe_command(interaction: discord.Interaction, 곡괭이: str = None):
+    user_id = interaction.user.id
+
+    get_wallet(user_id)
+    get_mining(user_id)
+
+    # /곡괭이
+    if 곡괭이 is None:
+        equipped = equipped_pickaxes.get(user_id, "나무 곡괭이")
+        owned = owned_pickaxes.get(user_id, ["나무 곡괭이"])
+
+        lines = []
+
+        for name in owned:
+            if name not in PICKAXE_DATA:
+                continue
+
+            pickaxe = PICKAXE_DATA[name]
+            mark = "✅ 장착중" if name == equipped else "▫️ 보유중"
+
+            lines.append(
+                f"{mark} **{name}**\n"
+                f"운빨 증가: {pickaxe['luck']}% / 시간 감소: {pickaxe['time_reduce']}%\n"
+                f"더블: {pickaxe['double_chance']}% / 트리플: {pickaxe['triple_chance']}%"
+            )
+
+        await interaction.response.send_message(
+            "⛏️ **내 곡괭이 목록**\n\n"
+            + "\n\n".join(lines)
+            + "\n\n장착하려면 `/곡괭이 곡괭이이름`"
+        )
+        return
+
+    # /곡괭이 곡괭이이름
+    if 곡괭이 not in PICKAXE_DATA:
+        await interaction.response.send_message(
+            "❌ 그런 곡괭이는 없음.",
+            ephemeral=True
+        )
+        return
+
+    if 곡괭이 not in owned_pickaxes[user_id]:
+        await interaction.response.send_message(
+            f"❌ **{곡괭이}** 안 가지고 있음.\n"
+            f"제작은 `/제작 {곡괭이}` 로 하셈.",
+            ephemeral=True
+        )
+        return
+
+    if equipped_pickaxes[user_id] == 곡괭이:
+        await interaction.response.send_message(
+            f"이미 **{곡괭이}** 장착중임.",
+            ephemeral=True
+        )
+        return
+
+    equipped_pickaxes[user_id] = 곡괭이
+    save_data()
+
+    await interaction.response.send_message(
+        f"⛏️ **{곡괭이}** 장착 완료!"
+    )
 
 @bot.tree.command(name="광산", description="광산에 쌓인 돈을 확인한다", guild=GUILD)
 async def mine(interaction: discord.Interaction):
