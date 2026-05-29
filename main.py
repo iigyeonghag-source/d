@@ -274,10 +274,11 @@ def load_data():
         "equipped_pendants"
     ]:
 
+    data[key] = to_int_key_dict(data[key])
+
     for user_id, value in list(data["mining2_cooldowns"].items()):
         data["mining2_cooldowns"][user_id] = restore_datetime(value)
         
-        data[key] = to_int_key_dict(data[key])
     for user_id, value in list(data["watering_cooldowns"].items()):
         data["watering_cooldowns"][user_id] = restore_datetime(value)
     
