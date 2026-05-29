@@ -4833,20 +4833,32 @@ async def trade_item(
             )
             return
 
-        if ore_bags[sender_id].get(이름, 0) < 갯수:
+        # 혹시 예전 데이터/새 데이터 섞인 거 정리
+        normalize_ore_bag(sender_id)
+        normalize_ore_bag(target_id)
+
+        owned_ores = ore_bags[sender_id].get(이름, [])
+        owned_count = len(owned_ores)
+
+        if owned_count < 갯수:
             await interaction.response.send_message(
                 f"❌ {이름} 부족함.\n"
-                f"보유: {ore_bags[sender_id].get(이름, 0)}개",
+                f"보유: {owned_count}개",
                 ephemeral=True
             )
             return
 
-        ore_bags[sender_id][이름] -= 갯수
+        trade_list = owned_ores[:갯수]
 
-        if ore_bags[sender_id][이름] <= 0:
+        ore_bags[sender_id][이름] = owned_ores[갯수:]
+
+        if len(ore_bags[sender_id][이름]) <= 0:
             del ore_bags[sender_id][이름]
 
-        ore_bags[target_id][이름] = ore_bags[target_id].get(이름, 0) + 갯수
+        if 이름 not in ore_bags[target_id]:
+            ore_bags[target_id][이름] = []
+
+        ore_bags[target_id][이름].extend(trade_list)
 
         save_data()
 
@@ -4858,13 +4870,6 @@ async def trade_item(
             f"수량: **{갯수}개**"
         )
         return
-
-    await interaction.response.send_message(
-        "❌ 종류는 `물고기` 또는 `광석`만 가능함.\n"
-        "예: `/거래 @유저 물고기 붕어 3`\n"
-        "예: `/거래 @유저 광석 철광석 10`",
-        ephemeral=True
-    )
 @bot.tree.command(name="리더보드", description="서버 내 잔액 순위를 확인한다", guild=GUILD)
 async def money_leaderboard(interaction: discord.Interaction):
     await interaction.response.defer()
