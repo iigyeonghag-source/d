@@ -5762,8 +5762,8 @@ def get_pickaxe_bonus(user_id):
 class MiningReadyButton(discord.ui.Button):
     def __init__(self):
         super().__init__(
-            label="⛏️ 지금!",
-            style=discord.ButtonStyle.green
+            label="⛏️ 대기중...",
+            style=discord.ButtonStyle.gray
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -5812,6 +5812,7 @@ class MiningReadyView(discord.ui.View):
         self.user_id = user_id
         self.ready = False
         self.premium = premium
+        self.message = None
 
         pickaxe = get_pickaxe_bonus(user_id)
         self.pickaxe_name = equipped_pickaxes.get(user_id, "나무 곡괭이")
@@ -5821,12 +5822,16 @@ class MiningReadyView(discord.ui.View):
             max(1.5, 15 * (1 - pickaxe["time_reduce"] / 100))
         )
 
-        self.add_item(MiningReadyButton())
+        self.ready_button = MiningReadyButton()
+        self.add_item(self.ready_button)
 
     async def start_waiting(self):
         await asyncio.sleep(self.wait_time)
 
         self.ready = True
+
+        self.ready_button.label = "⛏️ 지금!"
+        self.ready_button.style = discord.ButtonStyle.green
 
         if self.message:
             await self.message.edit(
@@ -5847,7 +5852,6 @@ class MiningReadyView(discord.ui.View):
                 content="⛏️ 광질 타이밍을 놓침.",
                 view=self
             )
-
 
 class MiningBlockButton(discord.ui.Button):
     def __init__(self, index):
@@ -6104,57 +6108,63 @@ async def ore_bag(interaction: discord.Interaction):
         file=file
     )
 
-
-@bot.tree.command(name="상세가방", description="광석 상세 정보를 txt 파일로 확인한다", guild=GUILD)
-async def detail_ore_bag(interaction: discord.Interaction):
+@bot.tree.command(name="팔기2", description="광석을 판매한다", guild=GUILD)
+@app_commands.describe(
+    광석="판매할 광석 이름",
+    수량="판매할 개수"
+)
+async def sell_ore(interaction: discord.Interaction, 광석: str, 수량: int):
     user_id = interaction.user.id
 
+    get_wallet(user_id)
     get_mining(user_id)
     normalize_ore_bag(user_id)
 
-    bag = ore_bags[user_id]
-
-    if not bag:
-        await interaction.response.send_message("🎒 가방이 비어있다.")
+    if 광석 not in ore_bags[user_id]:
+        await interaction.response.send_message(
+            "❌ 없는 광석임.",
+            ephemeral=True
+        )
         return
 
-    lines = ["🎒 광석 상세 가방", ""]
+    items = ore_bags[user_id][광석]
 
-    for ore_name, items in bag.items():
-        if not items:
-            continue
-
-        count = len(items)
-        total_kg = sum(item.get("kg", 0) for item in items)
-        total_price = sum(item.get("price", 0) for item in items)
-        each_price = total_price // count if count > 0 else 0
-
-        lines.append(
-            f"⛏️ {ore_name} x {count} | "
-            f"총 {total_kg:.2f}kg | "
-            f"개당 {each_price:,}원 | "
-            f"총 {total_price:,}원"
+    if 수량 <= 0:
+        await interaction.response.send_message(
+            "❌ 1개 이상 입력해야 함.",
+            ephemeral=True
         )
+        return
 
-        for idx, item in enumerate(items, start=1):
-            lines.append(
-                f"  {idx}. {item.get('kg', 0):.2f}kg / {item.get('price', 0):,}원"
-            )
+    if len(items) < 수량:
+        await interaction.response.send_message(
+            f"❌ 보유 수량 부족.\n"
+            f"보유: {len(items)}개",
+            ephemeral=True
+        )
+        return
 
-        lines.append("")
+    sell_items = items[:수량]
 
-    content = "\n".join(lines)
+    total_price = sum(item["price"] for item in sell_items)
+    total_kg = sum(item["kg"] for item in sell_items)
 
-    file = discord.File(
-        BytesIO(content.encode("utf-8")),
-        filename=f"ore_bag_{user_id}.txt"
-    )
+    del ore_bags[user_id][광석][:수량]
+
+    if not ore_bags[user_id][광석]:
+        del ore_bags[user_id][광석]
+
+    money_data[user_id] += total_price
+
+    save_data()
 
     await interaction.response.send_message(
-        "📄 광석 상세 가방을 txt 파일로 뽑았음.",
-        file=file
+        f"💰 판매 완료!\n\n"
+        f"광석: **{광석}**\n"
+        f"수량: **{수량}개**\n"
+        f"무게: **{total_kg:.2f}kg**\n"
+        f"판매 금액: **{total_price:,}원**"
     )
-
 
 @bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
