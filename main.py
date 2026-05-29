@@ -3507,7 +3507,7 @@ SEED_DATA = {
     "딸기": {"seed_price": 3200, "base_price": 7000, "grow_min": 600, "grow_max": 1200, "min_yield": 1, "max_yield": 4},
     "황금옥수수": {"seed_price": 85000, "base_price": 23000, "grow_min": 900, "grow_max": 2100, "min_yield": 1, "max_yield": 3},
     "만년초": {"seed_price": 45000, "base_price": 800000, "grow_min": 1800, "grow_max": 3600, "min_yield": 1, "max_yield": 2},
-    "히루루크의 초": {
+    "킹갓제너럴암튼겁나대단한킹왕짱히루루크도울고갈레전설의채소": {
         "seed_price": 700000,
         "base_price": 1500000,
         "grow_min": 129600,
