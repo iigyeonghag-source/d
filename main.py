@@ -38,6 +38,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = "/data/data.json"
 
 DATA_KEYS = [
+    "mining2_cooldowns",
     "watering_cooldowns",
     "owned_weapons",
     "equipped_weapon",
@@ -113,6 +114,7 @@ def restore_datetime(value):
 
 
 def bind_storage_globals():
+    global mining2_cooldowns
     global money_data, daily_claims, roulette_logs
     global talk_states, talk_counts, cooldowns
     global fish_tanks, fish_dex, fishing_cooldowns
@@ -128,6 +130,8 @@ def bind_storage_globals():
     global owned_weapons, equipped_weapon
     global owned_armors, equipped_armor
     global watering_cooldowns
+
+    mining2_cooldowns = data["mining2_cooldowns"]
     
     watering_cooldowns = data["watering_cooldowns"]
 
@@ -175,6 +179,7 @@ def bind_storage_globals():
     equipped_pendants = data["equipped_pendants"]
     
 def sync_storage_globals():
+    data["mining2_cooldowns"] = mining2_cooldowns
     data["money_data"] = money_data
     data["daily_claims"] = daily_claims
     data["roulette_logs"] = roulette_logs
@@ -232,6 +237,7 @@ def load_data():
             data[key] = loaded.get(key, {})
 
     for key in [
+        "mining2_cooldowns",
         "watering_cooldowns",
         "owned_weapons",
         "equipped_weapon",
@@ -267,6 +273,10 @@ def load_data():
         "owned_pendants",
         "equipped_pendants"
     ]:
+
+    for user_id, value in list(data["mining2_cooldowns"].items()):
+        data["mining2_cooldowns"][user_id] = restore_datetime(value)
+        
         data[key] = to_int_key_dict(data[key])
     for user_id, value in list(data["watering_cooldowns"].items()):
         data["watering_cooldowns"][user_id] = restore_datetime(value)
