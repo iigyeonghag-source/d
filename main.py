@@ -273,15 +273,14 @@ def load_data():
         "owned_pendants",
         "equipped_pendants"
     ]:
-
-    data[key] = to_int_key_dict(data[key])
+        data[key] = to_int_key_dict(data[key])
 
     for user_id, value in list(data["mining2_cooldowns"].items()):
         data["mining2_cooldowns"][user_id] = restore_datetime(value)
-        
+
     for user_id, value in list(data["watering_cooldowns"].items()):
         data["watering_cooldowns"][user_id] = restore_datetime(value)
-    
+
     for user_id, value in list(data["daily_claims"].items()):
         data["daily_claims"][user_id] = restore_datetime(value)
 
@@ -291,16 +290,19 @@ def load_data():
     for user_id, value in list(data["fishing_cooldowns"].items()):
         data["fishing_cooldowns"][user_id] = restore_datetime(value)
 
+    for user_id, value in list(data["mining_cooldowns"].items()):
+        data["mining_cooldowns"][user_id] = restore_datetime(value)
+
     for user_id, value in list(data["talk_states"].items()):
         if isinstance(value, dict) and "expires" in value:
             value["expires"] = restore_datetime(value["expires"])
 
     for user_id, value in list(data["fish_dex"].items()):
         data["fish_dex"][user_id] = set(value)
-        
+
     for user_id, value in list(data["crop_dex"].items()):
-         data["crop_dex"][user_id] = set(value)
-    
+        data["crop_dex"][user_id] = set(value)
+
     for user_id, bank in list(data["bank_data"].items()):
         if not isinstance(bank, dict):
             continue
@@ -322,24 +324,14 @@ def load_data():
 
                 if "harvest_time" in plot:
                     plot["harvest_time"] = restore_datetime(plot["harvest_time"])
-                    
+
     for user_id, mine in list(data["mine_data"].items()):
         if not isinstance(mine, dict):
             continue
 
         if "last_collect" in mine:
             mine["last_collect"] = restore_datetime(mine["last_collect"])
-    
-    for user_id, value in list(data["mining_cooldowns"].items()):
-        data["mining_cooldowns"][user_id] = restore_datetime(value)
-        
-    for user_id, value in list(data["mining_cooldowns"].items()):
-        data["mining_cooldowns"][user_id] = restore_datetime(value)
 
-    for user_id, mine in list(data["mine_data"].items()):
-        if isinstance(mine, dict) and "last_collect" in mine:
-            mine["last_collect"] = restore_datetime(mine["last_collect"])
-    
     bind_storage_globals()
     save_data()
 
