@@ -4481,7 +4481,7 @@ async def harvest_all_crop(interaction: discord.Interaction):
     )
 
 
-@bot.tree.command(name="판매", description="농작물을 판매한다", guild=GUILD)
+@bot.tree.command(name="팔기2", description="농작물을 판매한다", guild=GUILD)
 @app_commands.describe(
     농작물="판매할 농작물 이름. 예: 감자 / 황금빛 감자",
     갯수="판매할 갯수"
@@ -4534,7 +4534,7 @@ async def sell_crop(interaction: discord.Interaction, 농작물: str, 갯수: in
     )
 
 
-@bot.tree.command(name="전체판매", description="보유한 농작물을 전부 판매한다", guild=GUILD)
+@bot.tree.command(name="전체팔기2", description="보유한 농작물을 전부 판매한다", guild=GUILD)
 async def sell_all_crop(interaction: discord.Interaction):
     user_id = interaction.user.id
 
@@ -6123,7 +6123,7 @@ async def ore_bag(interaction: discord.Interaction):
         file=file
     )
 
-@bot.tree.command(name="팔기2", description="광석을 판매한다", guild=GUILD)
+@bot.tree.command(name="팔기3", description="광석을 판매한다", guild=GUILD)
 @app_commands.describe(
     광석="판매할 광석 이름",
     수량="판매할 개수"
@@ -6181,7 +6181,7 @@ async def sell_ore(interaction: discord.Interaction, 광석: str, 수량: int):
         f"판매 금액: **{total_price:,}원**"
     )
 
-@bot.tree.command(name="전체팔기2", description="가방의 모든 광석을 판매한다", guild=GUILD)
+@bot.tree.command(name="전체팔기3", description="가방의 모든 광석을 판매한다", guild=GUILD)
 async def sell_all_ores(interaction: discord.Interaction):
     user_id = interaction.user.id
 
