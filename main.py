@@ -5100,13 +5100,13 @@ def update_bank(user_id):
     passed_hours = int(
         (
             now - restore_datetime(bank["last_interest"])
-        ).total_seconds() // 3600
+        ).total_seconds() // 43200
     )
 
     if passed_hours > 0 and bank["deposit"] > 0:
 
         for _ in range(passed_hours):
-            bank["deposit"] = int(bank["deposit"] * 1.02)
+            bank["deposit"] = int(bank["deposit"] * 1.001)
 
         bank["last_interest"] = now
 
