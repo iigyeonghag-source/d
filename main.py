@@ -5908,12 +5908,14 @@ class MiningBlockButton(discord.ui.Button):
             ore_name = pick_ore(luck)
 
         amount = 1
+        bonus_text = ""
 
         if random.uniform(0, 100) < pickaxe["double_chance"]:
             amount = 2
-
-        if random.uniform(0, 100) < pickaxe["triple_chance"]:
+            bonus_text = " ✨ 더블 찬스!"
+        elif random.uniform(0, 100) < pickaxe["triple_chance"]:
             amount = 3
+            bonus_text = "🌟 트리플 찬스!"
 
         new_items = add_ore_to_bag(user_id, ore_name, amount, luck)
         save_data()
