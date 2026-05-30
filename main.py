@@ -5393,7 +5393,7 @@ ORE_DATA = {
     "철광석": {"price": 3400, "chance": 15, "min_kg": 0.8, "max_kg": 6.0, "base_price": 1800, "kg_price": 450},
     "은광석": {"price": 7300, "chance": 9, "min_kg": 0.6, "max_kg": 5.0, "base_price": 4200, "kg_price": 900},
     "금광석": {"price": 15000, "chance": 5, "min_kg": 0.4, "max_kg": 4.0, "base_price": 9000, "kg_price": 1800},
-    "돈봉투": {"price": 145000, "chance": 8, "min_kg": 0.1, "max_kg": 0.5, "base_price": 145000, "kg_price": 0},
+    "돈봉투": {"price": 90000, "chance": 8, "min_kg": 0.1, "max_kg": 0.5, "base_price": 145000, "kg_price": 0},
     "티타늄": {"price": 55000, "chance": 3.5, "min_kg": 0.5, "max_kg": 4.5, "base_price": 30000, "kg_price": 6000},
     "다이아몬드": {"price": 100000, "chance": 1.2, "min_kg": 0.1, "max_kg": 1.2, "base_price": 80000, "kg_price": 18000},
     "루비": {"price": 130000, "chance": 1.5, "min_kg": 0.1, "max_kg": 1.0, "base_price": 95000, "kg_price": 25000},
