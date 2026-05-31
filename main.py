@@ -2766,7 +2766,10 @@ class FishGaugeButton(discord.ui.Button):
         view.round_active = False
         view.round_token += 1
         view.hit_count += 1
-
+        
+        for item in view.children:
+            item.disabled = True
+            
         if view.hit_count >= view.need_hits:
             await interaction.response.defer()
             await view.add_gauge()
