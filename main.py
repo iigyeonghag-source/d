@@ -5425,6 +5425,22 @@ async def withdraw(interaction: discord.Interaction, 금액: int):
         f"현재 예금: **{bank['deposit']}원**"
     )
 
+@bot.tree.command(name="예금", description="현재 예금액을 확인한다", guild=GUILD)
+async def deposit_check(interaction: discord.Interaction):
+
+    user_id = interaction.user.id
+
+    bank = get_bank(user_id)
+    update_bank(user_id)
+
+    save_data()
+
+    await interaction.response.send_message(
+        f"🏦 예금 정보\n\n"
+        f"💰 현재 예금액: **{bank['deposit']:,}원**\n"
+        f"📈 예금은 12시간마다 0.1% 증가"
+    )
+
 @bot.tree.command(
     name="돈삭제",
     description="관리자 전용 돈 차감",
