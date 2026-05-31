@@ -2251,7 +2251,24 @@ def get_fishing_gear(user_id):
         owned_rods[user_id] = ["기본 낚싯대"]
         changed = True
 
+    before = len(owned_rods[user_id])
+    owned_rods[user_id] = [
+        rod for rod in owned_rods[user_id]
+        if rod in ROD_DATA
+    ]
+
+    if len(owned_rods[user_id]) != before:
+        changed = True
+
+    if not owned_rods[user_id]:
+        owned_rods[user_id] = ["기본 낚싯대"]
+        changed = True
+
     if user_id not in equipped_rods:
+        equipped_rods[user_id] = "기본 낚싯대"
+        changed = True
+
+    if equipped_rods[user_id] not in ROD_DATA:
         equipped_rods[user_id] = "기본 낚싯대"
         changed = True
 
@@ -2263,8 +2280,10 @@ def get_fishing_gear(user_id):
         equipped_baits[user_id] = "미끼 없음"
         changed = True
 
-    return changed
+    if changed:
+        save_data()
 
+    return changed
 
 # =========================
 # 기본 낚시 타이밍 버튼
