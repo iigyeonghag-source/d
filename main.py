@@ -2260,12 +2260,36 @@ def get_fishing_gear(user_id):
 # =========================
 
 FISH_WAIT_MESSAGES = [
-    "🍃 바람이 선선하다...",
+    "🍃 바람이 선선하게 분다...",
     "☀️ 하늘이 맑다...",
     "🌊 물결이 잔잔하다...",
     "🎣 찌가 조용히 떠 있다...",
     "🐟 물속에서 뭔가 스친 것 같다...",
-    "💧 잔물결이 퍼진다..."
+    "💧 잔물결이 퍼진다...",
+    "🌫️ 안개가 천천히 걷히고 있다...",
+    "🍂 낙엽 하나가 물 위에 떨어졌다...",
+    "🐦 새소리가 들려온다...",
+    "🌊 먼 곳에서 작은 물보라가 튄다...",
+    "🎣 낚싯줄이 살짝 흔들린다...",
+    "💨 바람이 방향을 바꾼다...",
+    "🐟 물속 그림자가 지나간 것 같다...",
+    "🌤️ 구름이 천천히 흘러간다...",
+    "💧 물방울이 수면에 떨어졌다...",
+    "🦆 오리가 멀리서 헤엄쳐 간다...",
+    "🌊 수초가 물결에 흔들린다...",
+    "🐸 개구리 울음소리가 들린다...",
+    "🎣 아직은 조용하다...",
+    "💭 오늘은 뭔가 잡힐 것 같은 기분이다...",
+    "🌅 햇빛이 수면에 반사된다...",
+    "🐟 작은 물고기 떼가 지나간다...",
+    "🌊 수면 아래에서 기포가 올라온다...",
+    "🍃 바람에 찌가 살짝 움직인다...",
+    "🎣 시간이 천천히 흐른다...",
+    "💧 물결이 원을 그리며 퍼져나간다...",
+    "🐦 갈매기 한 마리가 지나간다...",
+    "🌊 깊은 곳에서 뭔가 움직인 것 같다...",
+    "🎣 낚싯대를 쥔 손에 긴장감이 돈다...",
+    "🐟 큰 놈이 근처에 있는 것 같은 느낌이다..."
 ]
 
 FISH_FAKE_MESSAGES = [
@@ -2361,7 +2385,7 @@ class FishingButtonView(discord.ui.View):
                 view=self
             )
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(5)
             elapsed += 2
 
         if self.done:
@@ -2372,7 +2396,7 @@ class FishingButtonView(discord.ui.View):
         self.ready_button.style = discord.ButtonStyle.green
 
         await self.message.edit(
-            content="🎣 **지금이다!**\n초록 버튼을 누르!",
+            content="🎣 **지금이다!**!",
             view=self
         )
 
@@ -2385,7 +2409,7 @@ class FishingButtonView(discord.ui.View):
 
         if self.message:
             await self.message.edit(
-                content="🐟 타이밍을 놓쳐서 물고기가 도망갔다...",
+                content="🐟 물고기가 도망갔다...",
                 view=self
             )
 
@@ -2466,7 +2490,7 @@ class FishBattleView(discord.ui.View):
         await self.message.edit(
             content=(
                 f"🎣 **지금이다!**\n\n"
-                f"초록 칸을 눌러! 3초 안에 못 누르면 실수임.\n"
+                f"3초 안에 초록 칸을 누르자!\n"
                 f"게이지: {make_gauge_bar(self.gauge)}\n"
                 f"이번 타이밍: **{self.hit_count}/{self.need_hits}**\n"
                 f"실수: **{self.fail_count}/3**"
@@ -2488,7 +2512,7 @@ class FishBattleView(discord.ui.View):
                 content=(
                     f"⏱️ 너무 늦었다!\n"
                     f"실수: **{self.fail_count}/3**\n\n"
-                    f"다시 타이밍을 기다려..."
+                    f"다시 타이밍을 기다리자..."
                 ),
                 view=self
             )
