@@ -2335,7 +2335,7 @@ class FishingButtonView(discord.ui.View):
                 fake_start, fake_end = random.choice(FISH_FAKE_MESSAGES)
 
                 self.ready_button.label = fake_start
-                self.ready_button.style = discord.ButtonStyle.green
+                self.ready_button.style = discord.ButtonStyle.red
 
                 await self.message.edit(
                     content=f"🎣 {fake_start}",
@@ -2369,10 +2369,10 @@ class FishingButtonView(discord.ui.View):
 
         self.started = True
         self.ready_button.label = "지금이다!"
-        self.ready_button.style = discord.ButtonStyle.red
+        self.ready_button.style = discord.ButtonStyle.green
 
         await self.message.edit(
-            content="🎣 **지금이다!**\n빨간 버튼 눌러!",
+            content="🎣 **지금이다!**\n초록 버튼을 누르!",
             view=self
         )
 
