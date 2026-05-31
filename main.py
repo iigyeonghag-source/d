@@ -2410,7 +2410,6 @@ class FishingButtonView(discord.ui.View):
             await interaction.response.send_message("❌ 니 낚싯대 아님.", ephemeral=True)
             return
 
-    # 진짜 지금이다 상태가 아니면 실패
         if not self.started or self.ready_button.label != "지금이다!":
             self.done = True
 
@@ -2418,18 +2417,18 @@ class FishingButtonView(discord.ui.View):
                 item.disabled = True
 
             await interaction.response.edit_message(
-                content="찌를 올렸지만 아무 것도 없었다.",
+                content="🐟 너무 성급하게 낚싯대를 당겨버렸다...\n물고기가 도망갔다.",
                 view=self
             )
 
             self.stop()
             return
 
-            self.done = True
+        self.done = True
 
-            await fishing_success(interaction)
+        await fishing_success(interaction)
 
-            self.stop()
+        self.stop()
 
     async def start_waiting(self):
         rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
