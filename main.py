@@ -3043,10 +3043,10 @@ async def fishing_success(interaction: discord.Interaction):
     chance = fish_info["chance"]
 
     if chance <= 1:
-        max_gauge = random.randint(300, 500)
+        max_gauge = random.randint(270, 470)
 
     elif chance <= 5:
-        max_gauge = random.randint(150, 250)
+        max_gauge = random.randint(120, 250)
 
     else:
         max_gauge = 100
