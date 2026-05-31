@@ -2998,7 +2998,7 @@ async def fishing_success(interaction: discord.Interaction):
         max_gauge = 100
         
     if first_fish in BOSS_FISH:
-        view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
+        view = BossFishingView(user_id, first_fish, rod_name, bait_name)
 
         await interaction.response.edit_message(
             content=(
@@ -3051,7 +3051,7 @@ async def fishing_success(interaction: discord.Interaction):
     else:
         max_gauge = 100
 
-    view = BossFishingView(user_id, first_fish, rod_name, bait_name)
+    view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
 
     await interaction.response.edit_message(
         content=(
