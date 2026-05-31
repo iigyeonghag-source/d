@@ -2492,7 +2492,7 @@ class FishingButtonView(discord.ui.View):
 
 
 class FishBattleView(discord.ui.View):
-    def __init__(self, user_id, fish_list, rod_name, bait_name):
+    def __init__(self, user_id, fish_list, rod_name, bait_name, max_gauge):
         super().__init__(timeout=120)
 
         self.user_id = user_id
@@ -2501,7 +2501,7 @@ class FishBattleView(discord.ui.View):
         self.bait_name = bait_name
         self.message = None
 
-        self.gauge = 0
+        self.max_gauge = max_gauge
         self.fail_count = 0
         self.hit_count = 0
         self.need_hits = random.randint(1, 3)
@@ -2615,7 +2615,7 @@ class FishBattleView(discord.ui.View):
         self.hit_count = 0
         self.need_hits = random.randint(1, 3)
 
-        if self.gauge >= 100:
+        if self.gauge >= self.max_gauge:
             await self.success()
             return
 
@@ -2635,6 +2635,25 @@ class FishBattleView(discord.ui.View):
     async def success(self):
         caught_text = []
         caught_fish = []
+
+        chance = fish_info["chance"]
+
+        if chance <= 1:
+            max_gauge = random.randint(270, 470)
+
+        elif chance <= 5:
+            max_gauge = random.randint(120, 250)
+
+        else:
+            max_gauge = 100
+
+        view = FishBattleView(
+            user_id,
+            fish_list,
+            rod_name,
+            bait_name,
+            max_gauge
+        )
 
         for fish_name in self.fish_list:
             fish = make_fish(self.user_id, fish_name)
