@@ -2339,43 +2339,36 @@ FISH_ACTION_MESSAGES = [
     "🌊 수면 아래에서 그림자가 흔들린다!",
     "💥 강한 저항이 손끝에 전해진다!",
     "🐟 찌가 강하게 당겨진다!",
-
     "🌊 수면에 큰 파문이 번진다!",
     "🐟 물고기가 옆으로 튀어 오른다!",
     "🎣 릴이 빠르게 돌아가기 시작한다!",
     "💨 무언가가 깊은 곳으로 달아난다!",
     "🌊 거센 물보라가 일어난다!",
-
     "🐟 놈이 방향을 급하게 바꾼다!",
     "🎣 낚싯대가 크게 휘어진다!",
     "🌊 수면 아래 거대한 그림자가 스친다!",
     "💥 엄청난 힘이 전해진다!",
     "🐟 놈이 필사적으로 버틴다!",
-
     "🌊 깊은 곳에서 기포가 올라온다!",
     "🐟 물고기가 수초 사이로 파고든다!",
     "🎣 줄이 좌우로 흔들린다!",
     "💧 수면이 크게 흔들린다!",
     "🐟 무언가가 낚싯줄을 끌고 간다!",
-
     "🌊 물속에서 번쩍이는 비늘이 보인다!",
     "🐟 놈이 수면 근처까지 올라온다!",
     "🎣 릴에서 끼익거리는 소리가 난다!",
     "💥 손목이 저릴 정도의 힘이다!",
     "🐟 갑자기 움직임이 빨라진다!",
-
     "🌊 파문이 점점 커진다!",
     "🐟 물고기가 몸부림친다!",
     "🎣 낚싯줄이 끊어질 듯 팽팽하다!",
     "💨 놈이 멀리 달아나려 한다!",
     "🌊 수면 아래에서 물살이 뒤집힌다!",
-
     "🐟 강한 입질이 느껴진다!",
     "🎣 손끝에 진동이 전해진다!",
     "🌊 물결이 이상하게 흔들린다!",
     "💥 놈의 힘이 점점 강해진다!",
     "🐟 찌가 물속으로 빨려 들어간다!",
-
     "🌊 수면 아래에서 거대한 꼬리가 스친다!",
     "🐟 놈이 마지막 발악을 시작한다!",
     "🎣 낚싯대가 비명을 지르는 것 같다!",
@@ -2388,7 +2381,6 @@ def make_gauge_bar(value, max_value):
     filled = int((value / max_value) * 10)
     filled = max(0, min(10, filled))
     empty = 10 - filled
-
     return "🟩" * filled + "⬛" * empty + f" **{value}/{max_value}**"
 
 
@@ -2427,16 +2419,14 @@ class FishingButtonView(discord.ui.View):
             return
 
         self.done = True
-
         await fishing_success(interaction)
-
         self.stop()
 
     async def start_waiting(self):
         rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
         rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
 
-        max_wait = max(3, int(30 * (1 - rod["time_reduce"] / 100)))
+        max_wait = max(5, int(30 * (1 - rod["time_reduce"] / 100)))
         wait_time = random.randint(5, max_wait)
 
         elapsed = 0
@@ -2445,32 +2435,24 @@ class FishingButtonView(discord.ui.View):
             if self.done:
                 return
 
-            # 훼이크
-            if random.randint(1, 100) <= 25 and elapsed + 2 < wait_time:
+            if random.randint(1, 100) <= 25 and elapsed + 4 < wait_time:
                 fake_start, fake_end = random.choice(FISH_FAKE_MESSAGES)
 
+                self.started = False
                 self.ready_button.label = fake_start
                 self.ready_button.style = discord.ButtonStyle.red
 
-                await self.message.edit(
-                    content=f"🎣 {fake_start}",
-                    view=self
-                )
-
+                await self.message.edit(content=f"🎣 {fake_start}", view=self)
                 await asyncio.sleep(3)
 
                 self.ready_button.label = "기다리는 중..."
                 self.ready_button.style = discord.ButtonStyle.gray
 
-                await self.message.edit(
-                    content=f"🎣 {fake_end}",
-                    view=self
-                )
-
+                await self.message.edit(content=f"🎣 {fake_end}", view=self)
                 await asyncio.sleep(1)
+
                 elapsed += 4
-                if random.randint(1, 100) <= 25 and elapsed + 4 < wait_time:
-                    continue
+                continue
 
             await self.message.edit(
                 content=f"🎣 {random.choice(FISH_WAIT_MESSAGES)}",
@@ -2488,7 +2470,7 @@ class FishingButtonView(discord.ui.View):
         self.ready_button.style = discord.ButtonStyle.green
 
         await self.message.edit(
-            content="🎣 **지금이다!**!",
+            content="🎣 **지금이다!**",
             view=self
         )
 
@@ -2506,13 +2488,10 @@ class FishingButtonView(discord.ui.View):
             )
 
 
-
 class FishBattleView(discord.ui.View):
     def __init__(self, user_id, fish_list, rod_name, bait_name, max_gauge):
         super().__init__(timeout=120)
-        
-        self.max_gauge = max_gauge
-        self.gauge = 0
+
         self.user_id = user_id
         self.fish_list = fish_list
         self.rod_name = rod_name
@@ -2520,9 +2499,12 @@ class FishBattleView(discord.ui.View):
         self.message = None
 
         self.max_gauge = max_gauge
+        self.gauge = 0
+
         self.fail_count = 0
         self.hit_count = 0
         self.need_hits = random.randint(1, 3)
+
         self.target_index = None
         self.trap_index = None
         self.round_active = False
@@ -2599,6 +2581,9 @@ class FishBattleView(discord.ui.View):
             self.fail_count += 1
             self.round_active = False
 
+            for item in self.children:
+                item.disabled = True
+
             if self.fail_count >= 3:
                 await self.fail()
                 return
@@ -2615,79 +2600,65 @@ class FishBattleView(discord.ui.View):
             await asyncio.sleep(1)
             await self.wait_for_chance()
 
-        async def add_gauge(self):
-            rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
-            rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
-            bonus = rod.get("gauge_bonus", 0)
+    async def add_gauge(self):
+        rod = ROD_DATA.get(self.rod_name, ROD_DATA["기본 낚싯대"])
+        bonus = rod.get("gauge_bonus", 0)
 
-            add = random.randint(10, 25) + bonus
-            self.gauge = min(self.max_gauge, self.gauge + add)
+        add = random.randint(10, 25) + bonus
+        self.gauge = min(self.max_gauge, self.gauge + add)
 
-            self.hit_count = 0
-            self.need_hits = random.randint(1, 3)
+        self.hit_count = 0
+        self.need_hits = random.randint(1, 3)
 
-            if self.gauge >= self.max_gauge:
-                await self.success()
-                return
+        if self.gauge >= self.max_gauge:
+            await self.success()
+            return
 
-            await self.message.edit(
-                content=(
-                    f"✅ 제대로 감았다!\n"
-                    f"🎣 낚싯대 보너스: +{bonus}\n"
-                    f"게이지가 **{add}** 올랐다.\n\n"
-                    f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}"
-                ),
-                view=self
+        await self.message.edit(
+            content=(
+                f"✅ 제대로 감았다!\n"
+                f"🎣 낚싯대 보너스: +{bonus}\n"
+                f"게이지가 **{add}** 올랐다.\n\n"
+                f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}"
+            ),
+            view=self
+        )
+
+        await asyncio.sleep(1)
+        await self.wait_for_chance()
+
+    async def success(self):
+        caught_text = []
+        caught_fish = []
+
+        for fish_name in self.fish_list:
+            fish = make_fish(self.user_id, fish_name)
+            caught_fish.append(fish)
+
+            trait_text = ""
+            if fish["trait"]:
+                trait_text = f"\n특성: **{fish['trait']}**"
+
+            caught_text.append(
+                f"잡은 물고기: **{fish['display_name']}**\n"
+                f"무게: **{fish['kg']}kg**\n"
+                f"기본 판매가: **{money(fish['price'])}원**\n"
+                f"{get_market_text(fish['name'])}\n"
+                f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
+                f"{trait_text}"
             )
 
-            await asyncio.sleep(1)
-            await self.wait_for_chance()
+        save_data()
 
-        async def success(self):
-            caught_text = []
-            caught_fish = []
+        lost_rewards = globals().get("LOST_ITEM_REWARDS", {})
+        lost_items = [
+            fish for fish in caught_fish
+            if fish["name"] in lost_rewards
+        ]
 
-            for fish_name in self.fish_list:
-                fish = make_fish(self.user_id, fish_name)
-                caught_fish.append(fish)
-
-                trait_text = ""
-                if fish["trait"]:
-                    trait_text = f"\n특성: **{fish['trait']}**"
-
-                caught_text.append(
-                    f"잡은 물고기: **{fish['display_name']}**\n"
-                    f"무게: **{fish['kg']}kg**\n"
-                    f"기본 판매가: **{money(fish['price'])}원**\n"
-                    f"{get_market_text(fish['name'])}\n"
-                    f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
-                    f"{trait_text}"
-                )
-
-            save_data()
-
-            lost_items = [
-                fish for fish in caught_fish
-                if fish["name"] in LOST_ITEM_REWARDS
-            ]
-
-            if len(lost_items) == 1:
-                lost_item = lost_items[0]
-                view = LostItemReturnView(self.user_id, lost_item)
-
-                await self.message.edit(
-                    content=(
-                        f"🎣 **낚시 성공!**\n\n"
-                        f"사용 낚싯대: **{self.rod_name}**\n"
-                        f"사용 미끼: **{self.bait_name}**\n\n"
-                        + "\n\n".join(caught_text)
-                        + "\n\n📦 뭔가 귀중품 같다...\n"
-                        f"**{lost_item['display_name']}**의 주인을 찾을까?"
-                    ),
-                    view=view
-                )
-                self.stop()
-                return
+        if len(lost_items) == 1 and "LostItemReturnView" in globals():
+            lost_item = lost_items[0]
+            view = LostItemReturnView(self.user_id, lost_item)
 
             await self.message.edit(
                 content=(
@@ -2695,18 +2666,34 @@ class FishBattleView(discord.ui.View):
                     f"사용 낚싯대: **{self.rod_name}**\n"
                     f"사용 미끼: **{self.bait_name}**\n\n"
                     + "\n\n".join(caught_text)
+                    + "\n\n📦 뭔가 귀중품 같다...\n"
+                    f"**{lost_item['display_name']}**의 주인을 찾을까?"
                 ),
-                view=None
+                view=view
             )
-
             self.stop()
-            
+            return
+
+        await self.message.edit(
+            content=(
+                f"🎣 **낚시 성공!**\n\n"
+                f"사용 낚싯대: **{self.rod_name}**\n"
+                f"사용 미끼: **{self.bait_name}**\n\n"
+                + "\n\n".join(caught_text)
+            ),
+            view=None
+        )
+
+        self.stop()
+        return
+
     async def fail(self):
         await self.message.edit(
             content="🐟 실수를 너무 많이 해서 물고기가 도망쳤다...",
             view=None
         )
         self.stop()
+        return
 
     async def on_timeout(self):
         await self.fail()
@@ -2729,13 +2716,16 @@ class FishGaugeButton(discord.ui.Button):
             return
 
         if not view.round_active:
-            await interaction.response.send_message("❌ 아직 누를 타이밍 아니다.", ephemeral=True)
+            await interaction.response.send_message("❌ 이미 지나간 타이밍이다.", ephemeral=True)
             return
 
         if self.index == view.trap_index:
             view.fail_count += 1
             view.round_active = False
             view.round_token += 1
+
+            for item in view.children:
+                item.disabled = True
 
             if view.fail_count >= 3:
                 await interaction.response.defer()
@@ -2763,10 +2753,10 @@ class FishGaugeButton(discord.ui.Button):
         view.round_active = False
         view.round_token += 1
         view.hit_count += 1
-        
+
         for item in view.children:
             item.disabled = True
-            
+
         if view.hit_count >= view.need_hits:
             await interaction.response.defer()
             await view.add_gauge()
@@ -2854,10 +2844,10 @@ class BossFishingView(discord.ui.View):
         )
 
         self.stop()
+        return
 
     async def success_boss(self):
         fish = make_fish(self.user_id, self.boss_name)
-
         save_data()
 
         for item in self.children:
@@ -2879,10 +2869,11 @@ class BossFishingView(discord.ui.View):
                 f"사용 낚싯대: **{self.rod_name}**\n"
                 f"사용 미끼: **{self.bait_name}**"
             ),
-            view=self
+            view=None
         )
 
         self.stop()
+        return
 
 
 class BossFishingButton(discord.ui.Button):
@@ -2907,6 +2898,7 @@ class BossFishingButton(discord.ui.Button):
             return
 
         view.current_hits += 1
+        view.target_index = None
 
         for item in view.children:
             item.disabled = True
@@ -2932,7 +2924,7 @@ async def fishing_success(interaction: discord.Interaction):
     get_tank(user_id)
     get_fishing_gear(user_id)
     update_fish_market()
-    
+
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
@@ -2969,18 +2961,7 @@ async def fishing_success(interaction: discord.Interaction):
 
     use_bait()
     save_data()
-    fish_info = FISH_DATA[first_fish]
-    chance = fish_info["chance"]
 
-    if chance <= 1:
-        max_gauge = random.randint(270, 470)
-
-    elif chance <= 5:
-        max_gauge = random.randint(120, 250)
-
-    else:
-        max_gauge = 100
-        
     if first_fish in BOSS_FISH:
         view = BossFishingView(user_id, first_fish, rod_name, bait_name)
 
@@ -3002,7 +2983,7 @@ async def fishing_success(interaction: discord.Interaction):
 
     if roll <= rod.get("triple_chance", 0):
         catch_count = 3
-    elif roll <= rod.get("triple_chance", 0) + rod["double_chance"]:
+    elif roll <= rod.get("triple_chance", 0) + rod.get("double_chance", 0):
         catch_count = 2
 
     fish_list = [first_fish]
@@ -3021,17 +3002,14 @@ async def fishing_success(interaction: discord.Interaction):
         bonus_text = "\n🌊🔥 **트리플 낚시 발동!**"
     elif catch_count == 2:
         bonus_text = "\n🔥 **더블 낚시 발동!**"
-        
-    first_fish = fish_list[0]
-    fish_info = FISH_DATA[first_fish]
-    chance = fish_info["chance"]
+
+    main_fish = fish_list[0]
+    chance = FISH_DATA[main_fish]["chance"]
 
     if chance <= 1:
         max_gauge = random.randint(270, 470)
-
     elif chance <= 5:
         max_gauge = random.randint(120, 250)
-
     else:
         max_gauge = 100
 
