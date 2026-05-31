@@ -2384,10 +2384,12 @@ FISH_ACTION_MESSAGES = [
 ]
 
 
-def make_gauge_bar(value):
-    filled = value // 10
+def make_gauge_bar(value, max_value):
+    filled = int((value / max_value) * 10)
+    filled = max(0, min(10, filled))
     empty = 10 - filled
-    return "🟩" * filled + "⬛" * empty + f" **{value}/100**"
+
+    return "🟩" * filled + "⬛" * empty + f" **{value}/{max_value}**"
 
 
 class FishingButtonView(discord.ui.View):
@@ -2465,7 +2467,7 @@ class FishingButtonView(discord.ui.View):
                     view=self
                 )
 
-                await asyncio.sleep(1)
+                await asyncio.sleep(3)
                 elapsed += 2
                 continue
 
@@ -2475,7 +2477,7 @@ class FishingButtonView(discord.ui.View):
             )
 
             await asyncio.sleep(5)
-            elapsed += 2
+            elapsed += 5
 
         if self.done:
             return
@@ -2546,7 +2548,7 @@ class FishBattleView(discord.ui.View):
                 content=(
                     f"🎣 **물고기와 힘겨루기 중...**\n\n"
                     f"{random.choice(FISH_ACTION_MESSAGES)}\n\n"
-                    f"게이지: {make_gauge_bar(self.gauge)}\n"
+                    f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}\n"
                     f"실수: **{self.fail_count}/3**"
                 ),
                 view=self
@@ -2583,7 +2585,7 @@ class FishBattleView(discord.ui.View):
             content=(
                 f"🎣 **지금이다!**\n\n"
                 f"3초 안에 초록 칸을 누르자!\n"
-                f"게이지: {make_gauge_bar(self.gauge)}\n"
+                f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}\n"
                 f"이번 타이밍: **{self.hit_count}/{self.need_hits}**\n"
                 f"실수: **{self.fail_count}/3**"
             ),
@@ -2639,7 +2641,7 @@ class FishBattleView(discord.ui.View):
                 f"✅ 제대로 감았다!\n"
                 f"🎣 낚싯대 보너스: +{bonus}\n"
                 f"게이지가 **{add}** 올랐다.\n\n"
-                f"게이지: {make_gauge_bar(self.gauge)}"
+                f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}"
             ),
             view=self
         )
@@ -2662,13 +2664,7 @@ class FishBattleView(discord.ui.View):
         else:
             max_gauge = 100
 
-        view = FishBattleView(
-            user_id,
-            fish_list,
-            rod_name,
-            bait_name,
-            max_gauge
-        )
+        view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
 
         for fish_name in self.fish_list:
             fish = make_fish(self.user_id, fish_name)
@@ -3055,7 +3051,7 @@ async def fishing_success(interaction: discord.Interaction):
     else:
         max_gauge = 100
 
-    view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
+    view = BossFishingView(user_id, first_fish, rod_name, bait_name)
 
     await interaction.response.edit_message(
         content=(
@@ -3098,7 +3094,7 @@ async def fishing(interaction: discord.Interaction):
     view = FishingButtonView(user_id)
 
     await interaction.response.send_message(
-        "🎣 낚싯대를 던졌다...\n상태를 잘 보다가 **지금이다!**가 뜨면 빨간 버튼을 누르자!",
+        "🎣 낚싯대를 던졌다...\n상태를 잘 보다가 **지금이다!**가 뜨면 초록 버튼을 누르자!",
         view=view
     )
 
