@@ -2427,8 +2427,6 @@ class FishingButtonView(discord.ui.View):
 
             self.done = True
 
-            await interaction.response.defer()
-
             await fishing_success(interaction)
 
             self.stop()
