@@ -2411,11 +2411,23 @@ class FishingButtonView(discord.ui.View):
             return
 
         if not self.started:
-            await interaction.response.send_message("❌ 아직 아니다.", ephemeral=True)
-            return
+            self.done = True
 
-        self.done = True
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.response.edit_message(
+            content="찌를 올렸지만 아무 것도 없었다..",
+            view=self
+        )
+
+        self.stop()
+        return
+
+        await interaction.response.defer()
+
         await fishing_success(interaction)
+
         self.stop()
 
     async def start_waiting(self):
