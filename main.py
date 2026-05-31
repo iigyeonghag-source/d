@@ -2457,7 +2457,7 @@ class FishingButtonView(discord.ui.View):
                     view=self
                 )
 
-                await asyncio.sleep(1)
+                await asyncio.sleep(3)
 
                 self.ready_button.label = "기다리는 중..."
                 self.ready_button.style = discord.ButtonStyle.gray
@@ -2467,7 +2467,7 @@ class FishingButtonView(discord.ui.View):
                     view=self
                 )
 
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
                 elapsed += 2
                 continue
 
