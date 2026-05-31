@@ -2615,68 +2615,79 @@ class FishBattleView(discord.ui.View):
             await asyncio.sleep(1)
             await self.wait_for_chance()
 
-    async def add_gauge(self):
-        rod_name = equipped_rods.get(
-            self.user_id,
-            "기본 낚싯대"
-        )
+        async def add_gauge(self):
+            rod_name = equipped_rods.get(self.user_id, "기본 낚싯대")
+            rod = ROD_DATA.get(rod_name, ROD_DATA["기본 낚싯대"])
+            bonus = rod.get("gauge_bonus", 0)
 
-        rod = ROD_DATA.get(
-            rod_name,
-            ROD_DATA["기본 낚싯대"]
-        )
+            add = random.randint(10, 25) + bonus
+            self.gauge = min(self.max_gauge, self.gauge + add)
 
-        bonus = rod.get("gauge_bonus", 0)
+            self.hit_count = 0
+            self.need_hits = random.randint(1, 3)
 
-        add = random.randint(10, 25) + bonus
-        self.gauge = min(self.max_gauge, self.gauge + add)
-        self.hit_count = 0
-        self.need_hits = random.randint(1, 3)
+            if self.gauge >= self.max_gauge:
+                await self.success()
+                return
 
-        if self.gauge >= self.max_gauge:
-            await self.success()
-            return
-
-        await self.message.edit(
-            content=(
-                f"✅ 제대로 감았다!\n"
-                f"🎣 낚싯대 보너스: +{bonus}\n"
-                f"게이지가 **{add}** 올랐다.\n\n"
-                f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}"
-            ),
-            view=self
-        )
-
-        await asyncio.sleep(1)
-        await self.wait_for_chance()
-        
-        for fish_name in self.fish_list:
-            fish = make_fish(self.user_id, fish_name)
-            caught_fish.append(fish)
-
-            trait_text = ""
-            if fish["trait"]:
-                trait_text = f"\n특성: **{fish['trait']}**"
-
-            caught_text.append(
-                f"잡은 물고기: **{fish['display_name']}**\n"
-                f"무게: **{fish['kg']}kg**\n"
-                f"기본 판매가: **{money(fish['price'])}원**\n"
-                f"{get_market_text(fish['name'])}\n"
-                f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
-                f"{trait_text}"
+            await self.message.edit(
+                content=(
+                    f"✅ 제대로 감았다!\n"
+                    f"🎣 낚싯대 보너스: +{bonus}\n"
+                    f"게이지가 **{add}** 올랐다.\n\n"
+                    f"게이지: {make_gauge_bar(self.gauge, self.max_gauge)}"
+                ),
+                view=self
             )
 
-        save_data()
+            await asyncio.sleep(1)
+            await self.wait_for_chance()
 
-        lost_items = [
-            fish for fish in caught_fish
-            if fish["name"] in LOST_ITEM_REWARDS
-        ]
+        async def success(self):
+            caught_text = []
+            caught_fish = []
 
-        if len(lost_items) == 1:
-            lost_item = lost_items[0]
-            view = LostItemReturnView(self.user_id, lost_item)
+            for fish_name in self.fish_list:
+                fish = make_fish(self.user_id, fish_name)
+                caught_fish.append(fish)
+
+                trait_text = ""
+                if fish["trait"]:
+                    trait_text = f"\n특성: **{fish['trait']}**"
+
+                caught_text.append(
+                    f"잡은 물고기: **{fish['display_name']}**\n"
+                    f"무게: **{fish['kg']}kg**\n"
+                    f"기본 판매가: **{money(fish['price'])}원**\n"
+                    f"{get_market_text(fish['name'])}\n"
+                    f"현재 판매가: **{money(get_market_price(fish['name'], fish['price']))}원**"
+                    f"{trait_text}"
+                )
+
+            save_data()
+
+            lost_items = [
+                fish for fish in caught_fish
+                if fish["name"] in LOST_ITEM_REWARDS
+            ]
+
+            if len(lost_items) == 1:
+                lost_item = lost_items[0]
+                view = LostItemReturnView(self.user_id, lost_item)
+
+                await self.message.edit(
+                    content=(
+                        f"🎣 **낚시 성공!**\n\n"
+                        f"사용 낚싯대: **{self.rod_name}**\n"
+                        f"사용 미끼: **{self.bait_name}**\n\n"
+                        + "\n\n".join(caught_text)
+                        + "\n\n📦 뭔가 귀중품 같다...\n"
+                        f"**{lost_item['display_name']}**의 주인을 찾을까?"
+                    ),
+                    view=view
+                )
+                self.stop()
+                return
 
             await self.message.edit(
                 content=(
@@ -2684,26 +2695,12 @@ class FishBattleView(discord.ui.View):
                     f"사용 낚싯대: **{self.rod_name}**\n"
                     f"사용 미끼: **{self.bait_name}**\n\n"
                     + "\n\n".join(caught_text)
-                    + "\n\n📦 뭔가 귀중품 같다...\n"
-                    f"**{lost_item['display_name']}**의 주인을 찾을까?"
                 ),
-                view=view
+                view=None
             )
+
             self.stop()
-            return
-
-        await self.message.edit(
-            content=(
-                f"🎣 **낚시 성공!**\n\n"
-                f"사용 낚싯대: **{self.rod_name}**\n"
-                f"사용 미끼: **{self.bait_name}**\n\n"
-                + "\n\n".join(caught_text)
-            ),
-            view=None
-        )
-
-        self.stop()
-
+            
     async def fail(self):
         await self.message.edit(
             content="🐟 실수를 너무 많이 해서 물고기가 도망쳤다...",
