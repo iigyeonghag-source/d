@@ -2468,8 +2468,9 @@ class FishingButtonView(discord.ui.View):
                 )
 
                 await asyncio.sleep(1)
-                elapsed += 2
-                continue
+                elapsed += 4
+                if random.randint(1, 100) <= 25 and elapsed + 4 < wait_time:
+                    continue
 
             await self.message.edit(
                 content=f"🎣 {random.choice(FISH_WAIT_MESSAGES)}",
@@ -2648,24 +2649,7 @@ class FishBattleView(discord.ui.View):
 
         await asyncio.sleep(1)
         await self.wait_for_chance()
-
-    async def success(self):
-        caught_text = []
-        caught_fish = []
-
-        chance = fish_info["chance"]
-
-        if chance <= 1:
-            max_gauge = random.randint(270, 470)
-
-        elif chance <= 5:
-            max_gauge = random.randint(120, 250)
-
-        else:
-            max_gauge = 100
-
-        view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
-
+        
         for fish_name in self.fish_list:
             fish = make_fish(self.user_id, fish_name)
             caught_fish.append(fish)
@@ -2792,7 +2776,7 @@ class FishGaugeButton(discord.ui.Button):
             content=(
                 f"✅ 초록 칸을 눌렀다!\n"
                 f"연속으로 더 잡아당겨야 한다.\n\n"
-                f"게이지: {make_gauge_bar(view.gauge)}\n"
+                f"게이지: {make_gauge_bar(view.gauge, view.max_gauge)}\n"
                 f"이번 타이밍: **{view.hit_count}/{view.need_hits}**"
             ),
             view=view
@@ -2948,7 +2932,7 @@ async def fishing_success(interaction: discord.Interaction):
     get_tank(user_id)
     get_fishing_gear(user_id)
     update_fish_market()
-
+    
     if random.randint(1, 100) == 1:
         stolen = int(money_data[user_id] * 0.05)
         money_data[user_id] -= stolen
