@@ -2503,10 +2503,13 @@ class FishingButtonView(discord.ui.View):
             )
 
 
+self.max_gauge = max_gauge
+self.gauge = 0
+
 class FishBattleView(discord.ui.View):
     def __init__(self, user_id, fish_list, rod_name, bait_name, max_gauge):
         super().__init__(timeout=120)
-
+        
         self.user_id = user_id
         self.fish_list = fish_list
         self.rod_name = rod_name
@@ -2623,7 +2626,7 @@ class FishBattleView(discord.ui.View):
         bonus = rod.get("gauge_bonus", 0)
 
         add = random.randint(10, 25) + bonus
-        self.gauge = min(100, self.gauge + add)
+        self.gauge = min(self.max_gauge, self.gauge + add)
         self.hit_count = 0
         self.need_hits = random.randint(1, 3)
 
@@ -2749,7 +2752,7 @@ class FishGaugeButton(discord.ui.Button):
             return
 
         if not view.round_active:
-            await interaction.response.send_message("❌ 아직 누를 타이밍 아님.", ephemeral=True)
+            await interaction.response.send_message("❌ 아직 누를 타이밍 아니다.", ephemeral=True)
             return
 
         if self.index == view.trap_index:
@@ -2767,7 +2770,7 @@ class FishGaugeButton(discord.ui.Button):
                     f"💥 실수했다!\n"
                     f"빨간 칸을 눌러버렸다...\n\n"
                     f"실수: **{view.fail_count}/3**\n"
-                    f"다시 **지금이다!**를 기다려야 한다..."
+                    f"다시 시도하자."
                 ),
                 view=view
             )
@@ -2986,9 +2989,20 @@ async def fishing_success(interaction: discord.Interaction):
 
     use_bait()
     save_data()
+    fish_info = FISH_DATA[first_fish]
+    chance = fish_info["chance"]
 
+    if chance <= 1:
+        max_gauge = random.randint(270, 470)
+
+    elif chance <= 5:
+        max_gauge = random.randint(120, 250)
+
+    else:
+        max_gauge = 100
+        
     if first_fish in BOSS_FISH:
-        view = BossFishingView(user_id, first_fish, rod_name, bait_name)
+        view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
 
         await interaction.response.edit_message(
             content=(
@@ -3027,8 +3041,21 @@ async def fishing_success(interaction: discord.Interaction):
         bonus_text = "\n🌊🔥 **트리플 낚시 발동!**"
     elif catch_count == 2:
         bonus_text = "\n🔥 **더블 낚시 발동!**"
+        
+    first_fish = fish_list[0]
+    fish_info = FISH_DATA[first_fish]
+    chance = fish_info["chance"]
 
-    view = FishBattleView(user_id, fish_list, rod_name, bait_name)
+    if chance <= 1:
+        max_gauge = random.randint(300, 500)
+
+    elif chance <= 5:
+        max_gauge = random.randint(150, 250)
+
+    else:
+        max_gauge = 100
+
+    view = FishBattleView(user_id, fish_list, rod_name, bait_name, max_gauge)
 
     await interaction.response.edit_message(
         content=(
