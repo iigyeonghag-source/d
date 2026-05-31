@@ -2503,13 +2503,13 @@ class FishingButtonView(discord.ui.View):
             )
 
 
-self.max_gauge = max_gauge
-self.gauge = 0
 
 class FishBattleView(discord.ui.View):
     def __init__(self, user_id, fish_list, rod_name, bait_name, max_gauge):
         super().__init__(timeout=120)
         
+        self.max_gauge = max_gauge
+        self.gauge = 0
         self.user_id = user_id
         self.fish_list = fish_list
         self.rod_name = rod_name
